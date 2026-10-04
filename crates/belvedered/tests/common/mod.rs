@@ -52,6 +52,7 @@ impl Bus {
         cmd.env("DBUS_SESSION_BUS_ADDRESS", &self.address)
             .env("BELVEDERE_DB", db_path)
             .env("RUST_LOG", "info")
+            .env("BELVEDERE_NO_WINDOW_LAUNCH", "1")
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
