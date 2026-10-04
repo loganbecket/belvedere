@@ -31,6 +31,7 @@ Logan set these as paramount. A chunk that breaks either is not done, whatever i
 ## Hard rules
 
 - Never write to the Thunderbird profile, LM Studio folders, Ollama folders, or any of Logan's files. Read from snapshot copies or read-only handles. Tasks reach Thunderbird through Belvedere's own CalDAV server only.
+- Reading an email must never change its read/unread status in Thunderbird or on the server. Belvedere reads mail files from disk only; never mark messages seen through any protocol.
 - Any tool that changes his email, calendar, or files goes through a confirmation step that cannot be skipped, and writes through the proper protocol (IMAP, CalDAV), never by editing Thunderbird's files on disk.
 - No personal data in the repo: no real emails, names, addresses, account IDs, or home-directory paths. All fixtures are invented. Discovered locations (like the Thunderbird profile path) are found at runtime, not hard-coded.
 - Nothing leaves the machine except Hugging Face model downloads the user starts.

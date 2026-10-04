@@ -25,6 +25,11 @@ pub struct Outcome {
     /// Something went wrong running the case (model error, timeout); the
     /// case fails and this is the reason.
     pub error: Option<String>,
+    /// For email cases: what the extractor decided, and how long it took.
+    #[serde(default)]
+    pub extraction: Option<belvedere_core::extract::Extraction>,
+    #[serde(default)]
+    pub seconds: f32,
 }
 
 impl Outcome {
@@ -44,6 +49,8 @@ impl Outcome {
                 .collect(),
             reply: String::new(),
             error: None,
+            extraction: None,
+            seconds: 0.0,
         }
     }
 }
@@ -57,6 +64,11 @@ pub struct Verdict {
     /// Every expectation that failed, in plain words.
     pub failures: Vec<String>,
     pub reply: String,
+    /// For email cases: the extraction, for the metrics report.
+    #[serde(default)]
+    pub extraction: Option<belvedere_core::extract::Extraction>,
+    #[serde(default)]
+    pub seconds: f32,
 }
 
 /// Checks `outcome` against the case's expectations.
@@ -65,13 +77,65 @@ pub fn judge(case: &Case, outcome: &Outcome) -> Verdict {
     if let Some(err) = &outcome.error {
         failures.push(format!("run failed: {err}"));
     }
-    check(case, outcome, &mut failures);
+    if let Some(want) = &case.expect.extract {
+        check_extract(want, outcome.extraction.as_ref(), &mut failures);
+    } else {
+        check(case, outcome, &mut failures);
+    }
     Verdict {
         id: case.id.clone(),
         kind: case.kind.clone(),
         pass: failures.is_empty(),
         failures,
         reply: outcome.reply.clone(),
+        extraction: outcome.extraction.clone(),
+        seconds: outcome.seconds,
+    }
+}
+
+fn check_extract(
+    want: &crate::cases::ExtractExpect,
+    got: Option<&belvedere_core::extract::Extraction>,
+    failures: &mut Vec<String>,
+) {
+    let Some(got) = got else {
+        failures.push("no extraction result".into());
+        return;
+    };
+    if got.action_needed != want.action_needed {
+        failures.push(format!(
+            "action_needed should be {}, got {}",
+            want.action_needed, got.action_needed
+        ));
+    }
+    if let Some(k) = &want.kind {
+        if got.kind.as_str() != k {
+            failures.push(format!("kind should be {k}, got {}", got.kind.as_str()));
+        }
+    }
+    if let Some(d) = &want.due_date {
+        match &got.due_date {
+            Some(g) if g == d => {}
+            Some(g) => failures.push(format!("due_date should be {d}, got {g}")),
+            None => failures.push(format!("due_date should be {d}, got none")),
+        }
+    }
+    if let Some(a) = want.amount {
+        match got.amount {
+            Some(g) if (g - a).abs() < 0.005 => {}
+            Some(g) => failures.push(format!("amount should be {a}, got {g}")),
+            None => failures.push(format!("amount should be {a}, got none")),
+        }
+    }
+    for w in &want.title_contains {
+        if !contains_ci(&got.title, w) {
+            failures.push(format!("title {:?} should mention {w:?}", got.title));
+        }
+    }
+    for w in &want.title_lacks {
+        if contains_ci(&got.title, w) {
+            failures.push(format!("title {:?} must not contain {w:?}", got.title));
+        }
     }
 }
 
@@ -477,6 +541,8 @@ mod tests {
                 pass: true,
                 failures: vec![],
                 reply: String::new(),
+                extraction: None,
+                seconds: 0.0,
             },
             Verdict {
                 id: "b".into(),
@@ -484,6 +550,8 @@ mod tests {
                 pass: false,
                 failures: vec!["x".into()],
                 reply: String::new(),
+                extraction: None,
+                seconds: 0.0,
             },
             Verdict {
                 id: "c".into(),
@@ -491,6 +559,8 @@ mod tests {
                 pass: true,
                 failures: vec![],
                 reply: String::new(),
+                extraction: None,
+                seconds: 0.0,
             },
         ];
         let s = Summary::of(&verdicts);

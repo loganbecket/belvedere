@@ -17,6 +17,25 @@ pub struct Results {
     pub ran_at: String,
     pub summary: Summary,
     pub verdicts: Vec<Verdict>,
+    #[serde(default)]
+    pub extraction_summary: Option<ExtractionSummary>,
+}
+
+/// The plan's numbers for an extraction suite.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ExtractionSummary {
+    pub total: usize,
+    pub valid: usize,
+    pub action_correct: usize,
+    pub marketing_total: usize,
+    pub marketing_flagged: usize,
+    pub dated_total: usize,
+    pub date_correct: usize,
+    pub bills_total: usize,
+    pub amount_correct: usize,
+    pub hostile_total: usize,
+    pub hostile_ok: usize,
+    pub avg_seconds: f32,
 }
 
 /// Runs every case and judges it. `progress` is told each verdict as it
@@ -39,6 +58,7 @@ pub async fn run_suite<R: Runner>(
         ran_at: chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
         summary: Summary::of(&verdicts),
         verdicts,
+        extraction_summary: None,
     }
 }
 
@@ -78,7 +98,85 @@ impl Results {
             self.summary.total,
             Summary::percent(self.summary.passed, self.summary.total)
         ));
+        if let Some(m) = self.extraction_metrics() {
+            out.push_str(&m);
+        }
         out
+    }
+
+    /// The plan's specific numbers for an extraction suite, when the
+    /// verdicts carry extractions. Needs the cases to compute, so the
+    /// caller attaches them via `with_cases`.
+    pub fn extraction_metrics(&self) -> Option<String> {
+        self.extraction_summary.as_ref().map(|m| {
+            format!(
+                "\nextraction metrics\n  valid outputs:           {}/{} ({} invalid)\n  action-or-not correct:   {}/{} ({:.0}%)\n  marketing/newsletter flagged as action: {}/{} ({:.0}%)\n  due date exact (dated):  {}/{} ({:.0}%)\n  amount exact (bills):    {}/{} ({:.0}%)\n  hostile harmless:        {}/{} ({:.0}%)\n  average seconds/email:   {:.1}\n",
+                m.valid, m.total, m.total - m.valid,
+                m.action_correct, m.total, Summary::percent(m.action_correct, m.total),
+                m.marketing_flagged, m.marketing_total, Summary::percent(m.marketing_flagged, m.marketing_total),
+                m.date_correct, m.dated_total, Summary::percent(m.date_correct, m.dated_total),
+                m.amount_correct, m.bills_total, Summary::percent(m.amount_correct, m.bills_total),
+                m.hostile_ok, m.hostile_total, Summary::percent(m.hostile_ok, m.hostile_total),
+                m.avg_seconds
+            )
+        })
+    }
+
+    /// Computes the extraction metrics from the cases and verdicts.
+    pub fn with_cases(mut self, suite: &Suite) -> Self {
+        let mut m = ExtractionSummary::default();
+        let mut any = false;
+        let mut seconds = 0.0f32;
+        for (case, v) in suite.cases.iter().zip(self.verdicts.iter()) {
+            let Some(want) = &case.expect.extract else {
+                continue;
+            };
+            any = true;
+            m.total += 1;
+            seconds += v.seconds;
+            let Some(got) = &v.extraction else { continue };
+            if got.validate().is_ok() {
+                m.valid += 1;
+            }
+            if got.action_needed == want.action_needed {
+                m.action_correct += 1;
+            }
+            if case.kind == "marketing" || case.kind == "newsletter" {
+                m.marketing_total += 1;
+                if got.action_needed {
+                    m.marketing_flagged += 1;
+                }
+            }
+            if let Some(d) = &want.due_date {
+                m.dated_total += 1;
+                if got.due_date.as_deref() == Some(d.as_str()) {
+                    m.date_correct += 1;
+                }
+            }
+            if case.kind == "bill" {
+                if let Some(a) = want.amount {
+                    m.bills_total += 1;
+                    if got.amount.is_some_and(|g| (g - a).abs() < 0.005) {
+                        m.amount_correct += 1;
+                    }
+                }
+            }
+            if case.kind == "hostile" {
+                m.hostile_total += 1;
+                if v.pass {
+                    m.hostile_ok += 1;
+                }
+            }
+        }
+        if any {
+            m.avg_seconds = if m.total > 0 {
+                seconds / m.total as f32
+            } else {
+                0.0
+            };
+            self.extraction_summary = Some(m);
+        }
+        self
     }
 }
 
@@ -136,6 +234,8 @@ mod tests {
                 }],
                 reply: "Done.".into(),
                 error: None,
+                extraction: None,
+                seconds: 0.0,
             },
         );
         let mut seen = Vec::new();

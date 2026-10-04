@@ -185,6 +185,7 @@ impl Engine {
             max_tokens,
             grammar,
             no_think: false,
+            temperature: None,
         })
         .await
     }
@@ -197,11 +198,24 @@ impl Engine {
         max_tokens: u32,
         grammar: Option<Grammar>,
     ) -> mpsc::UnboundedReceiver<Chunk> {
+        self.chat_steady(messages, max_tokens, grammar, None).await
+    }
+
+    /// `chat_fast` with a chosen sampling temperature (lower = steadier),
+    /// for structured answers that must come out the same way each time.
+    pub async fn chat_steady(
+        &self,
+        messages: Vec<ChatMessage>,
+        max_tokens: u32,
+        grammar: Option<Grammar>,
+        temperature: Option<f32>,
+    ) -> mpsc::UnboundedReceiver<Chunk> {
         self.run(Command::Chat {
             messages,
             max_tokens,
             grammar,
             no_think: true,
+            temperature,
         })
         .await
     }

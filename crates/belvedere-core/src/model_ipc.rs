@@ -43,6 +43,10 @@ pub enum Command {
         /// one), trading a little judgment for a lot of speed.
         #[serde(default)]
         no_think: bool,
+        /// Sampling temperature; `None` means the helper's default (0.7).
+        /// Lower is steadier, for structured answers.
+        #[serde(default)]
+        temperature: Option<f32>,
     },
     /// Stop the generation in progress, if any. A `Done` follows.
     Cancel,

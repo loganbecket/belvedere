@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use belvedere_core::agent::{self, NoProgress};
 use belvedere_core::engine::Engine;
+use belvedere_core::extract::{self, EmailInput};
 use belvedere_core::model_ipc::ChatMessage;
 use belvedere_core::tools::{MemoryStore, ToolTask};
 use chrono::{DateTime, Local};
@@ -82,6 +83,56 @@ fn store_to_outcome(store: &MemoryStore, fixtures: &[TaskFixture]) -> Vec<TaskAf
     after
 }
 
+impl AgentRunner {
+    async fn run_extraction(&mut self, case: &Case, now: DateTime<Local>) -> Outcome {
+        let Input::Email {
+            from,
+            subject,
+            body,
+            date,
+        } = &case.input
+        else {
+            return Outcome {
+                error: Some("extract expectations need an email input".into()),
+                ..Outcome::unchanged(&case.tasks)
+            };
+        };
+        let (from_name, from_addr) = match from.rsplit_once('<') {
+            Some((n, a)) => (
+                n.trim().trim_matches('"').to_string(),
+                a.trim_end_matches('>').to_string(),
+            ),
+            None => (String::new(), from.clone()),
+        };
+        let email = EmailInput {
+            from_name,
+            from_addr,
+            subject: subject.clone(),
+            date: date.clone(),
+            body: body.clone(),
+            attachments: Vec::new(),
+        };
+        let use_grammar = std::env::var_os("BELVEDERE_EXTRACT_GRAMMAR").is_some();
+        let done = extract::extract(&self.engine, &email, now, use_grammar).await;
+        if std::env::var_os("BELVEDERE_EVAL_DEBUG").is_some() {
+            eprintln!(
+                "--- {} ({} round(s), {:.1}s)\n    {:?}",
+                case.id, done.rounds, done.seconds, done.result
+            );
+            if let Some(e) = &done.error {
+                eprintln!("    error: {e}");
+            }
+        }
+        Outcome {
+            tasks: Vec::new(),
+            reply: String::new(),
+            error: done.error,
+            extraction: Some(done.result),
+            seconds: done.seconds,
+        }
+    }
+}
+
 impl Runner for AgentRunner {
     async fn run(&mut self, case: &Case) -> Outcome {
         let now: DateTime<Local> = match DateTime::parse_from_rfc3339(&case.now) {
@@ -93,6 +144,9 @@ impl Runner for AgentRunner {
                 }
             }
         };
+        if case.expect.extract.is_some() {
+            return self.run_extraction(case, now).await;
+        }
         let history: Vec<ChatMessage> = match &case.input {
             Input::Chat { turns } => turns
                 .iter()
@@ -143,11 +197,15 @@ impl Runner for AgentRunner {
                 tasks: store_to_outcome(&store, &case.tasks),
                 reply: turn.reply,
                 error: turn.error,
+                extraction: None,
+                seconds: 0.0,
             },
             Err(_) => Outcome {
                 tasks: store_to_outcome(&store, &case.tasks),
                 reply: String::new(),
                 error: Some("timed out after ten minutes".into()),
+                extraction: None,
+                seconds: 0.0,
             },
         }
     }
