@@ -32,8 +32,9 @@ unit_dir := home_directory() / ".config/systemd/user"
 
 # Build the service in release mode, install it, and start it at login
 install-service:
-    cargo build --release -p belvedered
+    cargo build --release -p belvedered -p belvedere-model
     install -Dm755 target/release/belvedered "{{bin_dir}}/belvedered"
+    install -Dm755 target/release/belvedere-model "{{bin_dir}}/belvedere-model"
     install -Dm644 packaging/systemd/belvedere.service "{{unit_dir}}/belvedere.service"
     systemctl --user daemon-reload
     systemctl --user enable belvedere.service
@@ -78,5 +79,5 @@ uninstall-app:
 # Stop the service and remove it
 uninstall-service:
     -systemctl --user disable --now belvedere.service
-    rm -f "{{unit_dir}}/belvedere.service" "{{bin_dir}}/belvedered"
+    rm -f "{{unit_dir}}/belvedere.service" "{{bin_dir}}/belvedered" "{{bin_dir}}/belvedere-model"
     systemctl --user daemon-reload

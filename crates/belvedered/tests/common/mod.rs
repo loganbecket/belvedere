@@ -54,7 +54,9 @@ impl Bus {
             .env("RUST_LOG", "info")
             .env("BELVEDERE_NO_WINDOW_LAUNCH", "1")
             .stdout(Stdio::null())
-            .stderr(Stdio::piped())
+            // Not piped: nobody reads it, and a full pipe would stall the
+            // service. Tests that want the log set `.stderr(piped())`.
+            .stderr(Stdio::null())
             .kill_on_drop(true);
         cmd
     }

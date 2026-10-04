@@ -5,6 +5,7 @@ members = [
     "crates/belvedered",
     "crates/belvedere",
     "crates/belvedere-applet",
+    "crates/belvedere-model",
 ]
 
 [workspace.package]
@@ -16,3 +17,8 @@ rust-version = "1.93"
 
 [workspace.dependencies]
 belvedere-core = { path = "crates/belvedere-core" }
+
+# llama.cpp is unusable unoptimized (a one-billion-parameter model takes
+# minutes per token), so build it optimized even for debug and test builds.
+[profile.dev.package.llama-cpp-sys-2]
+opt-level = 3

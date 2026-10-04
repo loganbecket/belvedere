@@ -1,6 +1,9 @@
 //! The service side of `org.belvedere.Service`.
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+
+use crate::engine::{self, Chunk, Engine};
 
 use belvedere_core::db::{Db, DbError, NewTask};
 use belvedere_core::ipc::{ModelDto, TaskDto, BUS_NAME, OBJECT_PATH};
@@ -16,11 +19,17 @@ pub type SharedDb = Arc<Mutex<Db>>;
 
 pub struct Service {
     db: SharedDb,
+    engine: Engine,
+    next_request: AtomicU64,
 }
 
 impl Service {
-    pub fn new(db: SharedDb) -> Self {
-        Self { db }
+    pub fn new(db: SharedDb, engine: Engine) -> Self {
+        Self {
+            db,
+            engine,
+            next_request: AtomicU64::new(1),
+        }
     }
 
     fn db(&self) -> std::sync::MutexGuard<'_, Db> {
@@ -166,6 +175,82 @@ impl Service {
         Ok(models.into_iter().map(ModelDto::from).collect())
     }
 
+    async fn load_model(&self, id: i64) -> fdo::Result<(u32, u32, u64)> {
+        let model = self.db().get_model(id).map_err(to_fdo)?;
+        let loaded = self
+            .engine
+            .load(model.path.into(), model.name, engine::gpu_enabled())
+            .await
+            .map_err(fdo::Error::Failed)?;
+        Ok((
+            loaded.gpu_layers,
+            loaded.context,
+            loaded.load_time.as_millis() as u64,
+        ))
+    }
+
+    async fn unload_model(&self) {
+        self.engine.unload().await;
+    }
+
+    fn model_status(&self) -> (String, String) {
+        let state = self.engine.state();
+        (state.label().to_string(), state.model_name().to_string())
+    }
+
+    async fn generate(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        prompt: &str,
+        max_tokens: u32,
+    ) -> fdo::Result<u64> {
+        let request = self.next_request.fetch_add(1, Ordering::Relaxed);
+        let mut chunks = self
+            .engine
+            .generate(prompt.to_string(), max_tokens.clamp(1, 4096))
+            .await;
+        let emitter = emitter.to_owned();
+        tokio::spawn(async move {
+            while let Some(chunk) = chunks.recv().await {
+                let sent = match chunk {
+                    Chunk::Text(text) => Self::generation_text(&emitter, request, &text).await,
+                    Chunk::Done { tokens, seconds } => {
+                        Self::generation_done(&emitter, request, tokens, seconds as f64).await
+                    }
+                    Chunk::Failed(message) => {
+                        Self::generation_failed(&emitter, request, &message).await
+                    }
+                };
+                if sent.is_err() {
+                    break;
+                }
+            }
+        });
+        Ok(request)
+    }
+
+    #[zbus(signal)]
+    pub async fn generation_text(
+        emitter: &SignalEmitter<'_>,
+        request: u64,
+        text: &str,
+    ) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    pub async fn generation_done(
+        emitter: &SignalEmitter<'_>,
+        request: u64,
+        tokens: u32,
+        seconds: f64,
+    ) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    pub async fn generation_failed(
+        emitter: &SignalEmitter<'_>,
+        request: u64,
+        message: &str,
+    ) -> zbus::Result<()>;
+
     #[zbus(signal)]
     pub async fn tasks_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 
@@ -180,12 +265,12 @@ impl Service {
 /// The name is requested so that no other process can take it over: a
 /// second instance fails to start instead of knocking this one off the
 /// bus.
-pub async fn serve(db: SharedDb) -> zbus::Result<zbus::Connection> {
+pub async fn serve(db: SharedDb, engine: Engine) -> zbus::Result<zbus::Connection> {
     let conn = zbus::connection::Builder::session()?
         .allow_name_replacements(false)
         .replace_existing_names(false)
         .name(BUS_NAME)?
-        .serve_at(OBJECT_PATH, Service::new(db))?
+        .serve_at(OBJECT_PATH, Service::new(db, engine))?
         .build()
         .await?;
     info!(name = BUS_NAME, path = OBJECT_PATH, "D-Bus service ready");

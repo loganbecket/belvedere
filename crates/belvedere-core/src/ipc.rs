@@ -152,6 +152,31 @@ pub trait Service {
     /// Every model file Belvedere knows about, by name.
     fn list_models(&self) -> zbus::Result<Vec<ModelDto>>;
 
+    /// Loads a model by its id from `ListModels`, replacing any loaded one.
+    /// Returns (gpu layers, context size, load milliseconds).
+    fn load_model(&self, id: i64) -> zbus::Result<(u32, u32, u64)>;
+
+    /// Unloads whatever model is loaded, freeing its memory.
+    fn unload_model(&self) -> zbus::Result<()>;
+
+    /// (state, model name). State is `unloaded`, `loading`, `ready`, or
+    /// `generating`.
+    fn model_status(&self) -> zbus::Result<(String, String)>;
+
+    /// Starts generating a reply to `prompt`. Returns a request id; the
+    /// text arrives through `GenerationText` signals and ends with
+    /// `GenerationDone` or `GenerationFailed`. Debug use for now.
+    fn generate(&self, prompt: &str, max_tokens: u32) -> zbus::Result<u64>;
+
+    #[zbus(signal)]
+    fn generation_text(&self, request: u64, text: &str) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    fn generation_done(&self, request: u64, tokens: u32, seconds: f64) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    fn generation_failed(&self, request: u64, message: &str) -> zbus::Result<()>;
+
     /// Fired after any change to any task.
     #[zbus(signal)]
     fn tasks_changed(&self) -> zbus::Result<()>;
