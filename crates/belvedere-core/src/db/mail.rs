@@ -31,6 +31,8 @@ pub struct MailMessage {
     pub seen_at: String,
     /// Set once a later stage (extraction) has handled it.
     pub processed_at: Option<String>,
+    /// Message-IDs this message answers, space-separated, nearest first.
+    pub replies_to: String,
 }
 
 /// What a caller supplies for a newly seen message.
@@ -48,9 +50,15 @@ pub struct NewMailMessage {
     pub attachments: Vec<String>,
     pub mbox_path: String,
     pub mbox_offset: i64,
+    pub replies_to: Vec<String>,
 }
 
 impl MailMessage {
+    /// The Message-IDs this message answers, nearest first.
+    pub fn replies_to_ids(&self) -> Vec<&str> {
+        self.replies_to.split_whitespace().collect()
+    }
+
     fn from_row(row: &Row) -> rusqlite::Result<Self> {
         Ok(MailMessage {
             id: row.get("id")?,
@@ -68,11 +76,12 @@ impl MailMessage {
             mbox_offset: row.get("mbox_offset")?,
             seen_at: row.get("seen_at")?,
             processed_at: row.get("processed_at")?,
+            replies_to: row.get("replies_to")?,
         })
     }
 }
 
-const COLUMNS: &str = "id, message_id, account, folder, from_addr, from_name, to_addrs, subject, date, body_text, attachments, mbox_path, mbox_offset, seen_at, processed_at";
+const COLUMNS: &str = "id, message_id, account, folder, from_addr, from_name, to_addrs, subject, date, body_text, attachments, mbox_path, mbox_offset, seen_at, processed_at, replies_to";
 
 /// Where reading of one mbox file stopped.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,8 +107,8 @@ impl Db {
         }
         let attachments = serde_json::to_string(&m.attachments).unwrap_or_else(|_| "[]".into());
         self.conn.execute(
-            "INSERT INTO mail_messages (message_id, account, folder, from_addr, from_name, to_addrs, subject, date, body_text, attachments, mbox_path, mbox_offset, seen_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            "INSERT INTO mail_messages (message_id, account, folder, from_addr, from_name, to_addrs, subject, date, body_text, attachments, mbox_path, mbox_offset, seen_at, replies_to)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 m.message_id,
                 m.account,
@@ -113,7 +122,8 @@ impl Db {
                 attachments,
                 m.mbox_path,
                 m.mbox_offset,
-                now()
+                now(),
+                m.replies_to.join(" ")
             ],
         )?;
         let id = self.conn.last_insert_rowid();
@@ -228,6 +238,7 @@ mod tests {
             attachments: vec!["bill.pdf".into()],
             mbox_path: format!("/p/ImapMail/x/{folder}"),
             mbox_offset: 0,
+            replies_to: vec!["<0@x>".into()],
         }
     }
 
@@ -237,6 +248,7 @@ mod tests {
         let (a, new_a) = db.record_mail(&msg("<1@x>", "INBOX")).unwrap();
         assert!(new_a);
         assert_eq!(a.attachments, "[\"bill.pdf\"]");
+        assert_eq!(a.replies_to, "<0@x>");
         let (b, new_b) = db.record_mail(&msg("<1@x>", "Archive")).unwrap();
         assert!(!new_b);
         assert_eq!(b.id, a.id);

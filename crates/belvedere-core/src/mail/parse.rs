@@ -19,6 +19,9 @@ pub struct Normalized {
     /// `MAX_BODY` characters.
     pub body_text: String,
     pub attachments: Vec<String>,
+    /// Message-IDs this message answers (In-Reply-To, then References),
+    /// each in `<...>` form, nearest parent first, no duplicates.
+    pub replies_to: Vec<String>,
 }
 
 /// Longest body kept. Bills and notices are short; newsletters are not,
@@ -55,6 +58,13 @@ pub fn normalize(raw: &[u8]) -> Option<Normalized> {
         .filter_map(|p| p.attachment_name().map(str::to_string))
         .collect();
 
+    let mut replies_to = header_ids(message.in_reply_to());
+    for id in header_ids(message.references()).into_iter().rev() {
+        if !replies_to.contains(&id) {
+            replies_to.push(id);
+        }
+    }
+
     let message_id = match message.message_id() {
         Some(id) if !id.trim().is_empty() => format!("<{}>", id.trim().trim_matches(['<', '>'])),
         _ => synthetic_id(&from_addr, &date, &subject, &body),
@@ -69,7 +79,24 @@ pub fn normalize(raw: &[u8]) -> Option<Normalized> {
         date,
         body_text: body,
         attachments,
+        replies_to,
     })
+}
+
+/// Message-IDs in a header, each as `<id>`.
+fn header_ids(value: &mail_parser::HeaderValue<'_>) -> Vec<String> {
+    let texts: Vec<&str> = match value {
+        mail_parser::HeaderValue::Text(t) => vec![t.as_ref()],
+        mail_parser::HeaderValue::TextList(l) => l.iter().map(|t| t.as_ref()).collect(),
+        _ => Vec::new(),
+    };
+    texts
+        .iter()
+        .flat_map(|t| t.split_whitespace())
+        .map(|id| id.trim().trim_matches(['<', '>']))
+        .filter(|id| !id.is_empty())
+        .map(|id| format!("<{id}>"))
+        .collect()
 }
 
 fn first_address(addr: Option<&Address<'_>>) -> (String, String) {
@@ -351,6 +378,18 @@ pub mod fixtures {
 mod tests {
     use super::fixtures::ALL;
     use super::*;
+
+    #[test]
+    fn replies_to_lists_parent_then_older_ancestors_once() {
+        let raw = b"From: me@example.invalid\r\nTo: pat@example.invalid\r\nSubject: Re: Field trip\r\nMessage-ID: <s1@example.invalid>\r\nIn-Reply-To: <q2@example.invalid>\r\nReferences: <q1@example.invalid>\r\n <q2@example.invalid>\r\n\r\nYes, count us in.\r\n";
+        let n = normalize(raw).unwrap();
+        assert_eq!(
+            n.replies_to,
+            ["<q2@example.invalid>", "<q1@example.invalid>"]
+        );
+        let plain = normalize(b"From: a@example.invalid\r\nSubject: Hi\r\n\r\nHello\r\n").unwrap();
+        assert!(plain.replies_to.is_empty());
+    }
 
     #[test]
     fn every_fixture_normalizes_as_expected() {

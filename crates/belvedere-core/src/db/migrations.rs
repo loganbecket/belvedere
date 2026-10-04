@@ -141,6 +141,12 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     );
     CREATE INDEX suggestions_open ON suggestions (id) WHERE resolved_at IS NULL;
     "#,
+    // 3 -> 4: which messages a message answers (to notice replies), and
+    // what kind of thing a task is (bill, reply needed, ...).
+    r#"
+    ALTER TABLE mail_messages ADD COLUMN replies_to TEXT NOT NULL DEFAULT '';
+    ALTER TABLE tasks ADD COLUMN kind TEXT NOT NULL DEFAULT '';
+    "#,
 ];
 
 /// The schema version this build expects.

@@ -47,6 +47,9 @@ pub struct Task {
     /// Set when soft-deleted. Deleted tasks stay in the table so they can
     /// be restored.
     pub deleted_at: Option<String>,
+    /// What sort of thing it is: `bill`, `reply_needed`, ... or empty for
+    /// a task typed in by hand.
+    pub kind: String,
 }
 
 /// What a caller supplies to create a task; everything else is derived.
@@ -70,11 +73,12 @@ impl Task {
             updated_at: row.get("updated_at")?,
             completed_at: row.get("completed_at")?,
             deleted_at: row.get("deleted_at")?,
+            kind: row.get("kind")?,
         })
     }
 }
 
-const COLUMNS: &str = "id, title, notes, due_at, status, dismiss_reason, created_at, updated_at, completed_at, deleted_at";
+const COLUMNS: &str = "id, title, notes, due_at, status, dismiss_reason, created_at, updated_at, completed_at, deleted_at, kind";
 
 impl Db {
     pub fn create_task(&self, new: &NewTask) -> Result<Task> {
@@ -124,6 +128,18 @@ impl Db {
         let changed = self.conn.execute(
             "UPDATE tasks SET title = ?2, notes = ?3, due_at = ?4, updated_at = ?5 WHERE id = ?1",
             params![id, new.title, new.notes, new.due_at, now()],
+        )?;
+        if changed == 0 {
+            return Err(DbError::NotFound(id));
+        }
+        self.get_task(id)
+    }
+
+    /// Records what sort of thing a task is (see `Task::kind`).
+    pub fn set_task_kind(&self, id: i64, kind: &str) -> Result<Task> {
+        let changed = self.conn.execute(
+            "UPDATE tasks SET kind = ?2 WHERE id = ?1",
+            params![id, kind],
         )?;
         if changed == 0 {
             return Err(DbError::NotFound(id));

@@ -114,6 +114,7 @@ pub fn scan_folder(
             attachments: n.attachments,
             mbox_path: path_key.clone(),
             mbox_offset: raw.offset as i64,
+            replies_to: n.replies_to,
         };
         match db.record_mail(&new).map_err(std::io::Error::other)? {
             (_, true) => outcome.new += 1,
