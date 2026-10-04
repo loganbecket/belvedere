@@ -8,6 +8,7 @@ pub mod model_ipc;
 pub mod models;
 pub mod schedule;
 pub mod think;
+pub mod thunderbird;
 pub mod tools;
 pub mod watch;
 

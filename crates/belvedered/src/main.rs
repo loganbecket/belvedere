@@ -27,6 +27,9 @@ fn main() {
         println!("{}", belvedere_core::version_line("belvedered"));
         return;
     }
+    if std::env::args().any(|arg| arg == "--list-mail") {
+        list_mail_and_exit();
+    }
 
     init_logging();
 
@@ -44,6 +47,47 @@ fn main() {
         .build()
         .expect("tokio runtime")
         .block_on(run(db));
+}
+
+/// Debug aid: prints Thunderbird's accounts and folders as Belvedere sees
+/// them, then exits. Same data as the `ListMailAccounts` bus method.
+fn list_mail_and_exit() -> ! {
+    use belvedere_core::thunderbird;
+    let Some(profile) = thunderbird::find_profile() else {
+        eprintln!("no Thunderbird profile found");
+        std::process::exit(1);
+    };
+    println!("profile: {} ({})", profile.dir.display(), profile.source);
+    match thunderbird::accounts(&profile.dir) {
+        Ok(accounts) => {
+            for a in accounts {
+                println!(
+                    "{} [{}] {} ({} folders)",
+                    a.key,
+                    a.kind,
+                    a.name,
+                    a.folders.len()
+                );
+                for f in a.folders {
+                    println!(
+                        "    {:<9} {}{}",
+                        f.role.as_str(),
+                        f.path,
+                        if f.mbox.is_some() {
+                            ""
+                        } else {
+                            "  (no local mail)"
+                        }
+                    );
+                }
+            }
+            std::process::exit(0);
+        }
+        Err(err) => {
+            eprintln!("could not read accounts: {err}");
+            std::process::exit(1);
+        }
+    }
 }
 
 /// Logs go to journald when it is reachable, otherwise to stderr (which
