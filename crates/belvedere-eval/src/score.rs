@@ -30,6 +30,21 @@ pub struct Outcome {
     pub extraction: Option<belvedere_core::extract::Extraction>,
     #[serde(default)]
     pub seconds: f32,
+    /// For thread cases: which task each email landed in.
+    #[serde(default)]
+    pub thread: Option<ThreadOutcome>,
+}
+
+/// What happened to each email of a thread, in order.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ThreadOutcome {
+    /// Task index per email, numbered by first appearance; `None` when
+    /// the email made nothing.
+    pub assignments: Vec<Option<usize>>,
+    /// Why each email landed where it did ("new", "thread", "due_date", ...).
+    pub reasons: Vec<String>,
+    /// The task titles, in creation order.
+    pub titles: Vec<String>,
 }
 
 impl Outcome {
@@ -51,8 +66,26 @@ impl Outcome {
             error: None,
             extraction: None,
             seconds: 0.0,
+            thread: None,
         }
     }
+}
+
+/// Renumbers task indexes by first appearance, so two assignments can be
+/// compared whatever numbers they started with.
+pub fn normalize_assignments(a: &[Option<usize>]) -> Vec<Option<usize>> {
+    let mut seen: Vec<usize> = Vec::new();
+    a.iter()
+        .map(|x| {
+            x.map(|v| match seen.iter().position(|s| *s == v) {
+                Some(i) => i,
+                None => {
+                    seen.push(v);
+                    seen.len() - 1
+                }
+            })
+        })
+        .collect()
 }
 
 /// One case's verdict.
@@ -69,6 +102,8 @@ pub struct Verdict {
     pub extraction: Option<belvedere_core::extract::Extraction>,
     #[serde(default)]
     pub seconds: f32,
+    #[serde(default)]
+    pub thread: Option<ThreadOutcome>,
 }
 
 /// Checks `outcome` against the case's expectations.
@@ -79,6 +114,8 @@ pub fn judge(case: &Case, outcome: &Outcome) -> Verdict {
     }
     if let Some(want) = &case.expect.extract {
         check_extract(want, outcome.extraction.as_ref(), &mut failures);
+    } else if let Some(want) = &case.expect.thread {
+        check_thread(want, outcome.thread.as_ref(), &mut failures);
     } else {
         check(case, outcome, &mut failures);
     }
@@ -90,6 +127,43 @@ pub fn judge(case: &Case, outcome: &Outcome) -> Verdict {
         reply: outcome.reply.clone(),
         extraction: outcome.extraction.clone(),
         seconds: outcome.seconds,
+        thread: outcome.thread.clone(),
+    }
+}
+
+fn check_thread(
+    want: &crate::cases::ThreadExpect,
+    got: Option<&ThreadOutcome>,
+    failures: &mut Vec<String>,
+) {
+    let Some(got) = got else {
+        failures.push("no thread result".into());
+        return;
+    };
+    let expected = normalize_assignments(&want.attach);
+    let actual = normalize_assignments(&got.assignments);
+    if expected.len() != actual.len() {
+        failures.push(format!(
+            "{} emails expected, {} handled",
+            expected.len(),
+            actual.len()
+        ));
+        return;
+    }
+    for (i, (e, a)) in expected.iter().zip(actual.iter()).enumerate() {
+        if e != a {
+            let describe = |x: &Option<usize>| match x {
+                Some(n) => format!("task {n}"),
+                None => "no task".to_string(),
+            };
+            failures.push(format!(
+                "email {} should be {}, got {} ({})",
+                i + 1,
+                describe(e),
+                describe(a),
+                got.reasons.get(i).map(String::as_str).unwrap_or("?")
+            ));
+        }
     }
 }
 
@@ -102,11 +176,13 @@ fn check_extract(
         failures.push("no extraction result".into());
         return;
     };
-    if got.action_needed != want.action_needed {
-        failures.push(format!(
-            "action_needed should be {}, got {}",
-            want.action_needed, got.action_needed
-        ));
+    if let Some(want_action) = want.action_needed {
+        if got.action_needed != want_action {
+            failures.push(format!(
+                "action_needed should be {want_action}, got {}",
+                got.action_needed
+            ));
+        }
     }
     if let Some(k) = &want.kind {
         if got.kind.as_str() != k {
@@ -543,6 +619,7 @@ mod tests {
                 reply: String::new(),
                 extraction: None,
                 seconds: 0.0,
+                thread: None,
             },
             Verdict {
                 id: "b".into(),
@@ -552,6 +629,7 @@ mod tests {
                 reply: String::new(),
                 extraction: None,
                 seconds: 0.0,
+                thread: None,
             },
             Verdict {
                 id: "c".into(),
@@ -561,6 +639,7 @@ mod tests {
                 reply: String::new(),
                 extraction: None,
                 seconds: 0.0,
+                thread: None,
             },
         ];
         let s = Summary::of(&verdicts);

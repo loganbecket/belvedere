@@ -730,6 +730,21 @@ impl Belvedere {
                             .on_submit(|_| Message::SaveEdit),
                     ),
             );
+        // What has happened since: the update lines a follow-up email adds.
+        let history: Vec<&str> = editor
+            .notes
+            .lines()
+            .filter(|l| l.starts_with("Update ") || l.starts_with("Amount now: "))
+            .collect();
+        if !history.is_empty() {
+            let mut block = widget::column::with_capacity(history.len() + 1)
+                .spacing(spacing.space_xxs)
+                .push(widget::text::caption_heading("History"));
+            for line in history {
+                block = block.push(widget::text::caption(line));
+            }
+            form = form.push(block);
+        }
         if let Some(problem) = &editor.problem {
             form = form.push(notice(problem.as_str()));
         }

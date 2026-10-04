@@ -14,10 +14,11 @@ use belvedere_core::db::{Db, MailMessage, NewSuggestion, NewTask, SourceKind, Ta
 use belvedere_core::engine::{self, Engine, State};
 use belvedere_core::extract::{self, EmailInput, Extraction};
 use belvedere_core::ipc::OBJECT_PATH;
+use belvedere_core::matter::{self, Candidate, Incoming};
 use belvedere_core::schedule;
 use belvedere_core::thunderbird::{self, FolderRole};
 use belvedere_core::tools::due_from_parts;
-use chrono::Local;
+use chrono::{Local, NaiveDate};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
@@ -108,7 +109,11 @@ pub fn create_task_from_mail(db: &Db, m: &MailMessage, e: &Extraction) -> Result
     db.add_task_source(task.id, SourceKind::Email, &m.message_id, &m.subject)
         .map_err(|e| e.to_string())?;
     let task = db
-        .set_task_kind(task.id, e.kind.as_str())
+        .set_task_kind(
+            task.id,
+            e.kind.as_str(),
+            e.reference.as_deref().unwrap_or(""),
+        )
         .map_err(|e| e.to_string())?;
     if let Some(due) = &due {
         let plan = schedule::plan_reminders_with_lead(due, now, LEAD_DAYS);
@@ -116,6 +121,164 @@ pub fn create_task_from_mail(db: &Db, m: &MailMessage, e: &Extraction) -> Result
             .map_err(|e| e.to_string())?;
     }
     Ok(task)
+}
+
+/// How many open mail-born tasks a follow-up is checked against.
+const CANDIDATE_LIMIT: usize = 200;
+
+fn day_of(rfc3339: &str) -> Option<NaiveDate> {
+    chrono::DateTime::parse_from_rfc3339(rfc3339)
+        .ok()
+        .map(|d| d.with_timezone(&Local).date_naive())
+}
+
+/// The open mail-born tasks, with the facts about their emails that the
+/// matcher needs. Newest first.
+pub fn candidates(db: &Db) -> Vec<Candidate> {
+    let tasks = match db.open_mail_tasks(CANDIDATE_LIMIT) {
+        Ok(t) => t,
+        Err(err) => {
+            warn!("could not list tasks for matching: {err}");
+            return Vec::new();
+        }
+    };
+    let mut out = Vec::with_capacity(tasks.len());
+    for t in tasks {
+        let mut c = Candidate {
+            task_id: t.id,
+            kind: t.kind.clone(),
+            title: t.title.clone(),
+            due_date: t.due_at.as_deref().and_then(day_of),
+            reference: t.reference.clone(),
+            ..Default::default()
+        };
+        for s in db.task_sources(t.id).unwrap_or_default() {
+            if s.kind != SourceKind::Email {
+                continue;
+            }
+            c.message_ids.push(s.reference.clone());
+            c.subjects.push(s.label.clone());
+            if let Ok(Some(m)) = db.mail_by_message_id(&s.reference) {
+                if !m.from_addr.is_empty() {
+                    c.senders.push(m.from_addr.to_lowercase());
+                }
+                let date = day_of(&m.date);
+                if date > c.last_mail_date {
+                    c.last_mail_date = date;
+                }
+            }
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// The new email in the matcher's terms.
+pub fn incoming(m: &MailMessage, e: &Extraction) -> Incoming {
+    Incoming {
+        kind: e.kind.as_str().to_string(),
+        title: e.title.clone(),
+        due_date: e
+            .due_date
+            .as_deref()
+            .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()),
+        reference: e.reference.clone(),
+        sender: m.from_addr.to_lowercase(),
+        subject: m.subject.clone(),
+        replies_to: m.replies_to_ids().into_iter().map(str::to_string).collect(),
+        mail_date: day_of(&m.date),
+    }
+}
+
+/// What a follow-up changed about its task.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Followed {
+    pub due_changed: bool,
+    pub amount_changed: bool,
+}
+
+/// Records a follow-up email on an existing task: the email becomes
+/// another source, the notes gain a history line, and a new due date
+/// moves the task (and its reminders). The title is kept.
+pub fn attach_to_task(
+    db: &Db,
+    task: &Task,
+    m: &MailMessage,
+    e: &Extraction,
+) -> Result<(Task, Followed), String> {
+    let now = Local::now();
+    let mut followed = Followed::default();
+    db.add_task_source(task.id, SourceKind::Email, &m.message_id, &m.subject)
+        .map_err(|err| err.to_string())?;
+
+    let when = day_of(&m.date)
+        .map(|d| d.format("%b %-d").to_string())
+        .unwrap_or_else(|| "later".into());
+    let mut line = format!("Update {when}: {}", m.subject.trim());
+    if let Some(a) = e.amount {
+        let previous = task
+            .notes
+            .lines()
+            .filter_map(|l| {
+                l.strip_prefix("Amount: $")
+                    .or_else(|| l.strip_prefix("Amount now: $"))
+            })
+            .next_back()
+            .and_then(|v| v.trim().parse::<f64>().ok());
+        if previous.is_none_or(|p| (p - a).abs() >= 0.005) {
+            line.push_str(&format!(
+                "
+Amount now: ${a:.2}"
+            ));
+            followed.amount_changed = previous.is_some();
+        }
+    }
+    let notes = if task.notes.trim().is_empty() {
+        line
+    } else {
+        format!(
+            "{}
+{line}",
+            task.notes.trim_end()
+        )
+    };
+
+    let new_due = due_from_parts(e.due_date.as_deref(), e.due_time.as_deref(), now)?;
+    let due = match (&new_due, &task.due_at) {
+        (Some(n), Some(old)) if day_of(n) != day_of(old) => {
+            followed.due_changed = true;
+            Some(n.clone())
+        }
+        (Some(n), None) => {
+            followed.due_changed = true;
+            Some(n.clone())
+        }
+        _ => task.due_at.clone(),
+    };
+    let updated = db
+        .update_task(
+            task.id,
+            &NewTask {
+                title: task.title.clone(),
+                notes,
+                due_at: due.clone(),
+            },
+        )
+        .map_err(|err| err.to_string())?;
+    if followed.due_changed {
+        if let Some(due) = &due {
+            let plan = schedule::plan_reminders_with_lead(due, now, LEAD_DAYS);
+            db.replace_task_reminders(task.id, &plan)
+                .map_err(|err| err.to_string())?;
+        }
+    }
+    if task.reference.is_empty() {
+        if let Some(r) = &e.reference {
+            db.set_task_kind(task.id, &task.kind, r)
+                .map_err(|err| err.to_string())?;
+        }
+    }
+    Ok((updated, followed))
 }
 
 /// A message the user sent answers the emails it replies to: any open
@@ -275,6 +438,56 @@ async fn process_pending(
                 "extraction failed: {err}; treating as nothing to do"
             );
         }
+        // An email about something already on the list updates that task
+        // instead of making another, however sure the model was.
+        let matched = if done.result.action_needed {
+            let db = lock(db);
+            let found = matter::find_matter(&incoming(&m, &done.result), &candidates(&db));
+            found.and_then(|(id, reason)| db.get_task(id).ok().map(|t| (t, reason)))
+        } else {
+            None
+        };
+        if let Some((task, reason)) = matched {
+            let attached = attach_to_task(&lock(db), &task, &m, &done.result);
+            match attached {
+                Ok((task, followed)) => {
+                    info!(
+                        task = task.id,
+                        mail = m.id,
+                        reason = ?reason,
+                        due_changed = followed.due_changed,
+                        "follow-up attached to task"
+                    );
+                    announce_tasks(bus).await;
+                    if followed.due_changed || followed.amount_changed {
+                        if let Some(n) = notifier.as_deref_mut() {
+                            let body = match task.due_at.as_deref() {
+                                Some(due) if followed.due_changed => format!(
+                                    "Updated from your mail. Now due {}.",
+                                    schedule::due_label(due, Local::now())
+                                ),
+                                _ => "Updated from your mail.".to_string(),
+                            };
+                            let subject = Subject {
+                                task_id: task.id,
+                                reminder_id: 0,
+                            };
+                            if let Err(err) = n.remind(subject, &task.title, &body).await {
+                                warn!("could not announce the update: {err}");
+                            }
+                        }
+                    }
+                }
+                Err(err) => warn!(
+                    task = task.id,
+                    mail = m.id,
+                    "could not attach follow-up: {err}"
+                ),
+            }
+            let _ = lock(db).mark_mail_processed(m.id);
+            continue;
+        }
+
         match decide(&done.result, threshold) {
             Decision::Nothing => {}
             Decision::Task(e) => {
@@ -401,6 +614,7 @@ mod tests {
             due_time: None,
             amount: Some(84.12),
             from_whom: "City Power".into(),
+            reference: Some("4471-02".into()),
             confidence: conf,
         }
     }
@@ -539,6 +753,75 @@ mod tests {
             mbox_path: "/p/INBOX".into(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn a_follow_up_updates_the_task_instead_of_making_another() {
+        let db = Db::open_in_memory().unwrap();
+        let from_power = |id: &str| NewMailMessage {
+            from_addr: "billing@citypower.invalid".into(),
+            from_name: "City Power".into(),
+            subject: "Your October statement is ready".into(),
+            ..new_mail(id)
+        };
+        let (first, _) = db
+            .record_mail(&from_power("<stmt@citypower.invalid>"))
+            .unwrap();
+        let task = create_task_from_mail(&db, &first, &bill(0.9)).unwrap();
+        assert_eq!(task.reference, "4471-02");
+
+        // A reminder: same account, due date pushed two weeks, higher amount.
+        let (reminder, _) = db
+            .record_mail(&NewMailMessage {
+                subject: "FINAL NOTICE: payment past due".into(),
+                date: "2026-11-03T09:00:00-05:00".into(),
+                ..from_power("<final@citypower.invalid>")
+            })
+            .unwrap();
+        let followup = Extraction {
+            due_date: Some("2099-11-14".into()),
+            amount: Some(94.12),
+            ..bill(0.6)
+        };
+        let found = matter::find_matter(&incoming(&reminder, &followup), &candidates(&db));
+        assert_eq!(found.map(|(id, _)| id), Some(task.id));
+        let (updated, followed) = attach_to_task(&db, &task, &reminder, &followup).unwrap();
+        assert!(followed.due_changed && followed.amount_changed);
+        assert_eq!(updated.title, task.title, "the title is kept");
+        assert!(updated.due_at.unwrap().starts_with("2099-11-14"));
+        assert!(updated
+            .notes
+            .contains("Update Nov 3: FINAL NOTICE: payment past due"));
+        assert!(updated.notes.contains("Amount now: $94.12"));
+        assert_eq!(db.task_sources(task.id).unwrap().len(), 2);
+        assert_eq!(db.list_tasks().unwrap().len(), 1);
+        // Reminders follow the new date: due day and three days before.
+        let fire: Vec<_> = db
+            .task_reminders(task.id)
+            .unwrap()
+            .into_iter()
+            .filter(|r| r.fired_at.is_none())
+            .map(|r| r.fire_at)
+            .collect();
+        assert_eq!(fire.len(), 2);
+        assert!(fire.iter().all(|f| f.starts_with("2099-11-1")));
+
+        // Next month's statement is a new matter.
+        let (november, _) = db
+            .record_mail(&NewMailMessage {
+                subject: "Your November statement is ready".into(),
+                date: "2026-11-15T09:00:00-05:00".into(),
+                ..from_power("<stmt-nov@citypower.invalid>")
+            })
+            .unwrap();
+        let next = Extraction {
+            due_date: Some("2099-12-14".into()),
+            ..bill(0.9)
+        };
+        assert_eq!(
+            matter::find_matter(&incoming(&november, &next), &candidates(&db)),
+            None
+        );
     }
 
     /// The background path's only ways to change anything are the

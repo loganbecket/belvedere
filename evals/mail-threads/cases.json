@@ -1,0 +1,595 @@
+{
+  "name": "mail-threads",
+  "cases": [
+    {
+      "id": "electric-statement-reminder-final",
+      "kind": "bill",
+      "now": "2026-10-15T09:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "City Power <billing@citypower.invalid>",
+              "subject": "Your October statement is ready",
+              "body": "Account 4471-02\n\nAmount due: $84.12\nDue date: October 31, 2026\n\nPay online or by mail.",
+              "date": "2026-10-15T09:00:00-05:00"
+            },
+            {
+              "from": "City Power <billing@citypower.invalid>",
+              "subject": "Reminder: payment due October 31",
+              "body": "Account 4471-02\n\nThis is a friendly reminder that your payment of $84.12 is due on October 31, 2026.",
+              "date": "2026-10-26T09:00:00-05:00"
+            },
+            {
+              "from": "City Power <billing@citypower.invalid>",
+              "subject": "FINAL NOTICE: past due balance",
+              "body": "Account 4471-02\n\nYour balance of $84.12 was due October 31, 2026 and is now past due. Pay by November 14, 2026 to avoid a late fee.",
+              "date": "2026-11-03T09:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "electric-next-month",
+      "kind": "bill",
+      "now": "2026-10-15T09:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "City Power <billing@citypower.invalid>",
+              "subject": "Your October statement is ready",
+              "body": "Account 4471-02\n\nAmount due: $84.12\nDue date: October 31, 2026",
+              "date": "2026-10-15T09:00:00-05:00"
+            },
+            {
+              "from": "City Power <billing@citypower.invalid>",
+              "subject": "Your November statement is ready",
+              "body": "Account 4471-02\n\nAmount due: $91.40\nDue date: November 30, 2026",
+              "date": "2026-11-15T09:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "water-statement-then-updated-amount",
+      "kind": "bill",
+      "now": "2026-11-08T08:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Metro Water <bills@metrowater.invalid>",
+              "subject": "Water bill due 11/28",
+              "body": "Account 88-1092\nYour water bill of $41.50 is due on 11/28/2026.",
+              "date": "2026-11-08T08:00:00-05:00"
+            },
+            {
+              "from": "Metro Water <bills@metrowater.invalid>",
+              "subject": "Corrected bill: $46.75 due 11/28",
+              "body": "Account 88-1092\nWe corrected a meter reading. Your bill is now $46.75, still due on 11/28/2026.",
+              "date": "2026-11-12T08:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "water-two-months",
+      "kind": "bill",
+      "now": "2026-10-08T08:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Metro Water <bills@metrowater.invalid>",
+              "subject": "Water bill due 10/28",
+              "body": "Account 88-1092\nYour water bill of $39.10 is due on 10/28/2026.",
+              "date": "2026-10-08T08:00:00-05:00"
+            },
+            {
+              "from": "Metro Water <bills@metrowater.invalid>",
+              "subject": "Reminder: water bill due 10/28",
+              "body": "Account 88-1092\nYour payment of $39.10 is due on 10/28/2026.",
+              "date": "2026-10-22T08:00:00-05:00"
+            },
+            {
+              "from": "Metro Water <bills@metrowater.invalid>",
+              "subject": "Water bill due 11/28",
+              "body": "Account 88-1092\nYour water bill of $41.50 is due on 11/28/2026.",
+              "date": "2026-11-08T08:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "credit-card-statement-and-reminder",
+      "kind": "bill",
+      "now": "2026-11-12T07:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Harbor Bank <statements@harborbank.invalid>",
+              "subject": "Your November statement is available",
+              "body": "Card ending 7731\nStatement balance: $612.40\nMinimum payment: $35.00\nPayment due date: December 5, 2026",
+              "date": "2026-11-12T07:00:00-05:00"
+            },
+            {
+              "from": "Harbor Bank <alerts@harborbank.invalid>",
+              "subject": "Payment reminder: due December 5",
+              "body": "Card ending 7731\nYour payment of $612.40 is due on December 5, 2026. If you have already paid, thank you.",
+              "date": "2026-12-01T07:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "insurance-premium-and-second-notice",
+      "kind": "bill",
+      "now": "2026-11-20T10:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Shield Auto <billing@shieldauto.invalid>",
+              "subject": "Premium due December 15",
+              "body": "Policy SA-20931\nYour premium of $612.40 is due by December 15, 2026 to keep your coverage.",
+              "date": "2026-11-20T10:00:00-05:00"
+            },
+            {
+              "from": "Shield Auto <billing@shieldauto.invalid>",
+              "subject": "Second notice: premium due December 15",
+              "body": "Policy SA-20931\nWe have not received your payment of $612.40 due December 15, 2026.",
+              "date": "2026-12-08T10:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "two-accounts-same-utility",
+      "kind": "bill",
+      "now": "2026-10-15T09:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "City Power <billing@citypower.invalid>",
+              "subject": "Your electric statement is ready",
+              "body": "Account 4471-02 (electric)\n\nAmount due: $84.12\nDue date: October 31, 2026",
+              "date": "2026-10-15T09:00:00-05:00"
+            },
+            {
+              "from": "City Power <billing@citypower.invalid>",
+              "subject": "Your gas statement is ready",
+              "body": "Account 9920-17 (gas)\n\nAmount due: $37.60\nDue date: October 31, 2026",
+              "date": "2026-10-15T09:05:00-05:00"
+            },
+            {
+              "from": "City Power <billing@citypower.invalid>",
+              "subject": "Reminder: electric payment due October 31",
+              "body": "Account 4471-02 (electric)\n\nYour payment of $84.12 is due October 31, 2026.",
+              "date": "2026-10-27T09:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            1,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "tuition-invoice-and-reminder",
+      "kind": "bill",
+      "now": "2026-09-05T08:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Riverbend Academy <bursar@riverbend.invalid>",
+              "subject": "Fall tuition invoice",
+              "body": "Student ID 20451\nFall tuition and fees: $2,350.00\nDue: September 25, 2026",
+              "date": "2026-09-05T08:00:00-05:00"
+            },
+            {
+              "from": "Riverbend Academy <bursar@riverbend.invalid>",
+              "subject": "Reminder: fall tuition due September 25",
+              "body": "Student ID 20451\nYour balance of $2,350.00 is due September 25, 2026.",
+              "date": "2026-09-18T08:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "parent-meeting-announced-then-reminded",
+      "kind": "appointment",
+      "now": "2026-09-28T18:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Riverbend Hockey <coach@riverbendhockey.invalid>",
+              "subject": "JV parent meeting October 5",
+              "body": "Parents,\nThe JV parent meeting is Monday, October 5, 2026 at 6:30 PM in the field house. Please attend.",
+              "date": "2026-09-28T18:00:00-05:00"
+            },
+            {
+              "from": "Riverbend Hockey <coach@riverbendhockey.invalid>",
+              "subject": "Reminder: JV parent meeting tonight",
+              "body": "Reminder that the JV parent meeting is tonight, October 5, 2026 at 6:30 PM in the field house.",
+              "date": "2026-10-05T08:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "meeting-rescheduled",
+      "kind": "appointment",
+      "now": "2026-09-28T18:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Riverbend Hockey <coach@riverbendhockey.invalid>",
+              "subject": "JV parent meeting October 5",
+              "body": "The JV parent meeting is Monday, October 5, 2026 at 6:30 PM in the field house.",
+              "date": "2026-09-28T18:00:00-05:00"
+            },
+            {
+              "from": "Riverbend Hockey <coach@riverbendhockey.invalid>",
+              "subject": "JV parent meeting moved to October 8",
+              "body": "The JV parent meeting has moved to Thursday, October 8, 2026 at 6:30 PM, same place.",
+              "date": "2026-10-02T18:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "permit-renewal-and-second-notice",
+      "kind": "renewal",
+      "now": "2026-11-01T09:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Lakeside Township <permits@lakesidetwp.invalid>",
+              "subject": "Parking permit expires November 30",
+              "body": "Permit P-55012\nYour resident parking permit expires on November 30, 2026. Renew online before then.",
+              "date": "2026-11-01T09:00:00-05:00"
+            },
+            {
+              "from": "Lakeside Township <permits@lakesidetwp.invalid>",
+              "subject": "Second notice: permit expires November 30",
+              "body": "Permit P-55012\nYour parking permit still expires on November 30, 2026. Renew to avoid a lapse.",
+              "date": "2026-11-20T09:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "question-then-nudge-in-thread",
+      "kind": "reply_needed",
+      "now": "2026-10-19T12:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+              "subject": "Can Grayson make the Saturday tournament?",
+              "body": "Hi, can you let me know by Thursday whether Grayson can play in the Saturday tournament on October 24? Thanks, Pat",
+              "date": "2026-10-19T12:00:00-05:00",
+              "id": "pat-q"
+            },
+            {
+              "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+              "subject": "Re: Can Grayson make the Saturday tournament?",
+              "body": "Just checking in. I need a yes or no by Thursday so I can set the roster.",
+              "date": "2026-10-21T12:00:00-05:00",
+              "id": "pat-nudge",
+              "in_reply_to": "pat-q"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "two-questions-from-one-person",
+      "kind": "reply_needed",
+      "now": "2026-10-19T12:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+              "subject": "Can Grayson make the Saturday tournament?",
+              "body": "Can you let me know by Thursday whether Grayson can play in the Saturday tournament on October 24?",
+              "date": "2026-10-19T12:00:00-05:00",
+              "id": "q1"
+            },
+            {
+              "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+              "subject": "Carpool for the November 7 away game?",
+              "body": "Separate question: could you drive two players to the away game on November 7? Let me know by the end of the month.",
+              "date": "2026-10-20T12:00:00-05:00",
+              "id": "q2"
+            },
+            {
+              "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+              "subject": "Re: Can Grayson make the Saturday tournament?",
+              "body": "Any word on Saturday? Roster goes out tomorrow.",
+              "date": "2026-10-22T12:00:00-05:00",
+              "id": "q1-nudge",
+              "in_reply_to": "q1"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            1,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "subscription-renewal-next-year",
+      "kind": "renewal",
+      "now": "2026-11-10T09:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Notebook Pro <billing@notebookpro.invalid>",
+              "subject": "Your subscription renews December 1",
+              "body": "Your annual Notebook Pro plan renews on December 1, 2026 for $59.99. Update your card or cancel before then.",
+              "date": "2026-11-10T09:00:00-05:00"
+            },
+            {
+              "from": "Notebook Pro <billing@notebookpro.invalid>",
+              "subject": "Reminder: renewal on December 1",
+              "body": "Your plan renews December 1, 2026 for $59.99. Nothing to do unless you want to change your plan.",
+              "date": "2026-11-27T09:00:00-05:00"
+            },
+            {
+              "from": "Notebook Pro <billing@notebookpro.invalid>",
+              "subject": "Your subscription renews December 1, 2027",
+              "body": "Your annual plan renews on December 1, 2027 for $64.99. Update your card or cancel before then.",
+              "date": "2027-11-10T09:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    {
+      "id": "gym-dues-three-months",
+      "kind": "bill",
+      "now": "2026-09-24T09:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Ironworks Gym <billing@ironworksgym.invalid>",
+              "subject": "October dues",
+              "body": "Member 3310\nYour October dues of $45.00 are due October 1, 2026.",
+              "date": "2026-09-24T09:00:00-05:00"
+            },
+            {
+              "from": "Ironworks Gym <billing@ironworksgym.invalid>",
+              "subject": "November dues",
+              "body": "Member 3310\nYour November dues of $45.00 are due November 1, 2026.",
+              "date": "2026-10-24T09:00:00-05:00"
+            },
+            {
+              "from": "Ironworks Gym <billing@ironworksgym.invalid>",
+              "subject": "Reminder: November dues",
+              "body": "Member 3310\nYour November dues of $45.00 are due November 1, 2026.",
+              "date": "2026-10-29T09:00:00-05:00"
+            },
+            {
+              "from": "Ironworks Gym <billing@ironworksgym.invalid>",
+              "subject": "December dues",
+              "body": "Member 3310\nYour December dues of $45.00 are due December 1, 2026.",
+              "date": "2026-11-24T09:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            1,
+            1,
+            2
+          ]
+        }
+      }
+    },
+    {
+      "id": "deadline-then-extension",
+      "kind": "deadline",
+      "now": "2026-10-20T09:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "Lakeside Township <assessor@lakesidetwp.invalid>",
+              "subject": "Homestead exemption form due November 15",
+              "body": "Parcel 12-034-110\nSubmit your homestead exemption form by November 15, 2026.",
+              "date": "2026-10-20T09:00:00-05:00"
+            },
+            {
+              "from": "Lakeside Township <assessor@lakesidetwp.invalid>",
+              "subject": "Deadline extended to November 22",
+              "body": "Parcel 12-034-110\nThe homestead exemption deadline has been extended to November 22, 2026. Forms received by then will be accepted.",
+              "date": "2026-11-10T09:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "bill-then-unrelated-newsletter",
+      "kind": "bill",
+      "now": "2026-10-15T09:00:00-05:00",
+      "input": {
+        "thread": {
+          "emails": [
+            {
+              "from": "City Power <billing@citypower.invalid>",
+              "subject": "Your October statement is ready",
+              "body": "Account 4471-02\n\nAmount due: $84.12\nDue date: October 31, 2026",
+              "date": "2026-10-15T09:00:00-05:00"
+            },
+            {
+              "from": "City Power <news@citypower.invalid>",
+              "subject": "Energy saving tips for fall",
+              "body": "Seal drafts, lower the thermostat at night, and switch to LED bulbs. Read more on our blog.",
+              "date": "2026-10-20T09:00:00-05:00"
+            },
+            {
+              "from": "City Power <billing@citypower.invalid>",
+              "subject": "Reminder: payment due October 31",
+              "body": "Account 4471-02\n\nYour payment of $84.12 is due October 31, 2026.",
+              "date": "2026-10-27T09:00:00-05:00"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "thread": {
+          "attach": [
+            0,
+            null,
+            0
+          ]
+        }
+      }
+    }
+  ]
+}

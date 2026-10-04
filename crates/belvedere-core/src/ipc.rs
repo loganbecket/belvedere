@@ -377,6 +377,7 @@ mod tests {
             completed_at: None,
             deleted_at: None,
             kind: String::new(),
+            reference: String::new(),
         };
         let dto = TaskDto::from(task);
         assert_eq!(dto.source_kind, "");

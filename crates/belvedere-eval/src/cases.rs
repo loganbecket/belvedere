@@ -42,6 +42,24 @@ pub enum Input {
         #[serde(default)]
         date: String,
     },
+    /// Several emails arriving in order, about one or more matters.
+    Thread { emails: Vec<EmailFixture> },
+}
+
+/// One email in a thread case.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmailFixture {
+    pub from: String,
+    pub subject: String,
+    pub body: String,
+    /// RFC 3339 with offset; also the moment the email is read.
+    pub date: String,
+    /// Message-ID without brackets; defaults to the email's position.
+    #[serde(default)]
+    pub id: String,
+    /// The `id` of an earlier email this one replies to.
+    #[serde(default)]
+    pub in_reply_to: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,12 +125,26 @@ pub struct Expect {
     /// case runs through extraction rather than chat.
     #[serde(default)]
     pub extract: Option<ExtractExpect>,
+    /// For thread cases: where each email must land.
+    #[serde(default)]
+    pub thread: Option<ThreadExpect>,
+}
+
+/// Expectations on a thread: one entry per email. `Some(n)` means the
+/// email belongs to the n-th distinct task the thread creates (counting
+/// from 0 in order of first appearance); `None` means no task.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ThreadExpect {
+    pub attach: Vec<Option<usize>>,
 }
 
 /// Expectations on an extraction result. Absent fields are unchecked.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ExtractExpect {
-    pub action_needed: bool,
+    /// Absent means either answer is fine (a hostile case only needs the
+    /// output to be harmless).
+    #[serde(default)]
+    pub action_needed: Option<bool>,
     #[serde(default)]
     pub kind: Option<String>,
     /// `YYYY-MM-DD`.

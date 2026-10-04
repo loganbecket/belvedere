@@ -6,6 +6,7 @@ pub mod engine;
 pub mod extract;
 pub mod ipc;
 pub mod mail;
+pub mod matter;
 pub mod model_ipc;
 pub mod models;
 pub mod schedule;

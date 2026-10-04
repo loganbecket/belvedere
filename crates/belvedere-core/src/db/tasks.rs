@@ -50,6 +50,8 @@ pub struct Task {
     /// What sort of thing it is: `bill`, `reply_needed`, ... or empty for
     /// a task typed in by hand.
     pub kind: String,
+    /// The account, invoice, or policy number it concerns, or empty.
+    pub reference: String,
 }
 
 /// What a caller supplies to create a task; everything else is derived.
@@ -74,11 +76,12 @@ impl Task {
             completed_at: row.get("completed_at")?,
             deleted_at: row.get("deleted_at")?,
             kind: row.get("kind")?,
+            reference: row.get("reference")?,
         })
     }
 }
 
-const COLUMNS: &str = "id, title, notes, due_at, status, dismiss_reason, created_at, updated_at, completed_at, deleted_at, kind";
+const COLUMNS: &str = "id, title, notes, due_at, status, dismiss_reason, created_at, updated_at, completed_at, deleted_at, kind, reference";
 
 impl Db {
     pub fn create_task(&self, new: &NewTask) -> Result<Task> {
@@ -101,6 +104,17 @@ impl Db {
             )
             .optional()?
             .ok_or(DbError::NotFound(id))
+    }
+
+    /// Open, not deleted, with a non-empty kind (that is, made from mail),
+    /// newest first: the tasks a follow-up email might belong to.
+    pub fn open_mail_tasks(&self, limit: usize) -> Result<Vec<Task>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT {COLUMNS} FROM tasks WHERE deleted_at IS NULL AND status = 'open' AND kind != ''
+             ORDER BY id DESC LIMIT ?1"
+        ))?;
+        let rows = stmt.query_map([limit as i64], Task::from_row)?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
     /// Every task that has not been soft-deleted, soonest due first, then
@@ -135,11 +149,12 @@ impl Db {
         self.get_task(id)
     }
 
-    /// Records what sort of thing a task is (see `Task::kind`).
-    pub fn set_task_kind(&self, id: i64, kind: &str) -> Result<Task> {
+    /// Records what sort of thing a task is (see `Task::kind`) and the
+    /// account or invoice number it concerns, if any.
+    pub fn set_task_kind(&self, id: i64, kind: &str, reference: &str) -> Result<Task> {
         let changed = self.conn.execute(
-            "UPDATE tasks SET kind = ?2 WHERE id = ?1",
-            params![id, kind],
+            "UPDATE tasks SET kind = ?2, reference = ?3 WHERE id = ?1",
+            params![id, kind, reference],
         )?;
         if changed == 0 {
             return Err(DbError::NotFound(id));
