@@ -5,12 +5,11 @@
 mod common;
 
 use std::collections::HashMap;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use common::{stop, wait_ready, Bus};
+use common::{append, fake_profile as shared_profile, mbox_message, stop, wait_ready, Bus};
 use zbus::object_server::SignalEmitter;
 use zbus::zvariant::Value;
 
@@ -66,39 +65,13 @@ impl FakeDaemon {
 }
 
 fn message(id: &str, from: &str, subject: &str, body: &str, date: &str) -> String {
-    format!(
-        "From - Mon Oct 20 09:00:00 2026\nX-Mozilla-Status: 0001\nFrom: {from}\nTo: me@example.invalid\nSubject: {subject}\nDate: {date}\nMessage-ID: <{id}@example.invalid>\n\n{body}\n"
-    )
+    mbox_message(id, from, subject, body, date, None)
 }
 
 /// A profile with one IMAP account whose INBOX and Junk start empty.
 fn fake_profile(root: &Path) -> (PathBuf, PathBuf, PathBuf) {
-    let profile = root.join("abcd1234.default");
-    let imap = profile.join("ImapMail").join("imap.example.invalid");
-    std::fs::create_dir_all(&imap).unwrap();
-    std::fs::write(
-        profile.join("prefs.js"),
-        r#"user_pref("mail.accountmanager.accounts", "account1");
-user_pref("mail.account.account1.server", "server1");
-user_pref("mail.server.server1.type", "imap");
-user_pref("mail.server.server1.hostname", "imap.example.invalid");
-user_pref("mail.server.server1.name", "someone@example.invalid");
-user_pref("mail.server.server1.directory-rel", "[ProfD]ImapMail/imap.example.invalid");
-"#,
-    )
-    .unwrap();
-    let inbox = imap.join("INBOX");
-    let junk = imap.join("Junk");
-    for (f, msf) in [(&inbox, "INBOX.msf"), (&junk, "Junk.msf")] {
-        std::fs::write(f, "").unwrap();
-        std::fs::write(imap.join(msf), "// msf").unwrap();
-    }
-    (profile, inbox, junk)
-}
-
-fn append(path: &Path, text: &str) {
-    let mut f = std::fs::OpenOptions::new().append(true).open(path).unwrap();
-    write!(f, "{text}").unwrap();
+    let (profile, files) = shared_profile(root, &["INBOX", "Junk"]);
+    (profile, files[0].clone(), files[1].clone())
 }
 
 /// Reading mail well takes a better model than the tiny one the quick

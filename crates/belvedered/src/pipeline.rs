@@ -2,14 +2,15 @@
 //! depending on how sure it is, becomes a task (with a notification) or a
 //! suggestion for the user to accept or reject.
 //!
-//! This path can create tasks and suggestions and nothing else. It has no
-//! tools, no chat, and no access to anything but the message text, the
-//! task store, and the notifier.
+//! This path can create tasks and suggestions, and mark a "reply needed"
+//! task done once a reply to its email shows up in a sent folder. Nothing
+//! else: no tools, no chat, no access to anything but the message text,
+//! the task store, and the notifier.
 
 use std::collections::HashMap;
 use std::time::Duration;
 
-use belvedere_core::db::{Db, MailMessage, NewSuggestion, NewTask, SourceKind, Task};
+use belvedere_core::db::{Db, MailMessage, NewSuggestion, NewTask, SourceKind, Task, TaskStatus};
 use belvedere_core::engine::{self, Engine, State};
 use belvedere_core::extract::{self, EmailInput, Extraction};
 use belvedere_core::ipc::OBJECT_PATH;
@@ -106,6 +107,9 @@ pub fn create_task_from_mail(db: &Db, m: &MailMessage, e: &Extraction) -> Result
         .map_err(|e| e.to_string())?;
     db.add_task_source(task.id, SourceKind::Email, &m.message_id, &m.subject)
         .map_err(|e| e.to_string())?;
+    let task = db
+        .set_task_kind(task.id, e.kind.as_str())
+        .map_err(|e| e.to_string())?;
     if let Some(due) = &due {
         let plan = schedule::plan_reminders_with_lead(due, now, LEAD_DAYS);
         db.replace_task_reminders(task.id, &plan)
@@ -114,8 +118,45 @@ pub fn create_task_from_mail(db: &Db, m: &MailMessage, e: &Extraction) -> Result
     Ok(task)
 }
 
+/// A message the user sent answers the emails it replies to: any open
+/// "reply needed" task made from one of those emails is done. Returns
+/// the tasks closed. Other kinds of task (a bill, say) are left alone,
+/// since answering a bill's email is not paying it.
+pub fn close_replied(db: &Db, sent: &MailMessage) -> Vec<Task> {
+    let mut closed = Vec::new();
+    for answered in sent.replies_to_ids() {
+        let ids = match db.tasks_for_source(SourceKind::Email, answered) {
+            Ok(ids) => ids,
+            Err(err) => {
+                warn!("could not look up tasks for {answered}: {err}");
+                continue;
+            }
+        };
+        for id in ids {
+            let Ok(task) = db.get_task(id) else { continue };
+            if task.status != TaskStatus::Open
+                || task.deleted_at.is_some()
+                || task.kind != extract::Kind::ReplyNeeded.as_str()
+            {
+                continue;
+            }
+            let done = db
+                .complete_task(id)
+                .and_then(|t| db.cancel_task_reminders(id).map(|_| t));
+            match done {
+                Ok(t) => {
+                    info!(task = id, reply = sent.message_id, "replied; task done");
+                    closed.push(t);
+                }
+                Err(err) => warn!(task = id, "could not close replied task: {err}"),
+            }
+        }
+    }
+    closed
+}
+
 /// Runs forever: processes unhandled mail at startup and whenever the
-/// watcher reports new mail.
+/// watcher or the sweep reports new mail.
 pub async fn run(
     db: SharedDb,
     engine: Engine,
@@ -131,10 +172,10 @@ pub async fn run(
     };
     loop {
         process_pending(&db, &engine, &bus, notifier.as_mut()).await;
-        // Wait for the watcher, or re-check every few minutes regardless.
+        // Wait for the watcher or the sweep; re-check hourly regardless.
         tokio::select! {
             _ = new_mail.recv() => {}
-            _ = tokio::time::sleep(Duration::from_secs(300)) => {}
+            _ = tokio::time::sleep(Duration::from_secs(3600)) => {}
         }
     }
 }
@@ -186,6 +227,9 @@ async fn process_pending(
             .copied()
             .unwrap_or(FolderRole::Other);
         if skipped_role(role) {
+            if role == FolderRole::Sent && !close_replied(&lock(db), &m).is_empty() {
+                announce_tasks(bus).await;
+            }
             let _ = lock(db).mark_mail_processed(m.id);
             continue;
         }
@@ -345,6 +389,7 @@ pub fn open_in_thunderbird(message_id: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use belvedere_core::db::NewMailMessage;
     use belvedere_core::extract::Kind;
 
     fn bill(conf: f32) -> Extraction {
@@ -377,6 +422,7 @@ mod tests {
             mbox_offset: 0,
             seen_at: "2026-10-15T14:00:00.000Z".into(),
             processed_at: None,
+            replies_to: String::new(),
         }
     }
 
@@ -431,8 +477,73 @@ mod tests {
         assert!(reminders[0].fire_at < reminders[1].fire_at);
     }
 
-    /// The background path's only ways to change anything are the two
-    /// functions above (a task, a suggestion); it never touches tools.
+    #[test]
+    fn a_reply_closes_only_open_reply_needed_tasks_for_that_email() {
+        let db = Db::open_in_memory().unwrap();
+        let (asked, _) = db.record_mail(&new_mail("<q1@example.invalid>")).unwrap();
+        let (billed, _) = db.record_mail(&new_mail("<b1@example.invalid>")).unwrap();
+        let reply_task = create_task_from_mail(
+            &db,
+            &asked,
+            &Extraction {
+                kind: extract::Kind::ReplyNeeded,
+                title: "Reply to Pat about the field trip".into(),
+                ..bill(0.9)
+            },
+        )
+        .unwrap();
+        let bill_task = create_task_from_mail(&db, &billed, &bill(0.9)).unwrap();
+        assert_eq!(reply_task.kind, "reply_needed");
+        assert_eq!(bill_task.kind, "bill");
+
+        // A reply to both: only the reply-needed task closes.
+        let (sent, _) = db
+            .record_mail(&NewMailMessage {
+                replies_to: vec!["<b1@example.invalid>".into(), "<q1@example.invalid>".into()],
+                ..new_mail("<s1@example.invalid>")
+            })
+            .unwrap();
+        let closed = close_replied(&db, &sent);
+        assert_eq!(
+            closed.iter().map(|t| t.id).collect::<Vec<_>>(),
+            [reply_task.id]
+        );
+        assert_eq!(db.get_task(reply_task.id).unwrap().status, TaskStatus::Done);
+        assert_eq!(db.get_task(bill_task.id).unwrap().status, TaskStatus::Open);
+        assert!(db
+            .task_reminders(reply_task.id)
+            .unwrap()
+            .iter()
+            .all(|r| r.fired_at.is_some()));
+
+        // Again: nothing left to close. A reply to something else: nothing.
+        assert!(close_replied(&db, &sent).is_empty());
+        let (other, _) = db
+            .record_mail(&NewMailMessage {
+                replies_to: vec!["<zzz@example.invalid>".into()],
+                ..new_mail("<s2@example.invalid>")
+            })
+            .unwrap();
+        assert!(close_replied(&db, &other).is_empty());
+    }
+
+    fn new_mail(message_id: &str) -> NewMailMessage {
+        NewMailMessage {
+            message_id: message_id.into(),
+            account: "acct".into(),
+            folder: "INBOX".into(),
+            from_addr: "pat@example.invalid".into(),
+            from_name: "Pat".into(),
+            subject: "Field trip".into(),
+            date: "2026-10-15T09:00:00-05:00".into(),
+            mbox_path: "/p/INBOX".into(),
+            ..Default::default()
+        }
+    }
+
+    /// The background path's only ways to change anything are the
+    /// functions above (a task, a suggestion, a reply closing a task); it
+    /// never touches tools.
     #[test]
     fn background_path_has_no_tool_access() {
         // Only the real code counts; this test's own words don't.
@@ -447,9 +558,15 @@ mod tests {
             "pipeline must not call task tools"
         );
         assert!(!src.contains("delete_task"), "pipeline must never delete");
-        assert!(
-            !src.contains("complete_task"),
-            "pipeline must never complete"
-        );
+        assert!(!src.contains("dismiss_task"), "pipeline must never dismiss");
+        // Completing a task happens in exactly one place: a sent reply
+        // closing a "reply needed" task.
+        let closer = src
+            .find("pub fn close_replied")
+            .expect("close_replied exists");
+        let closer_end = closer + src[closer..].find("\n}\n").unwrap();
+        let uses: Vec<usize> = src.match_indices("complete_task").map(|(i, _)| i).collect();
+        assert_eq!(uses.len(), 1, "complete_task used outside close_replied");
+        assert!(uses[0] > closer && uses[0] < closer_end);
     }
 }

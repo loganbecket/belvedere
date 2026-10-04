@@ -4,6 +4,7 @@
 
 #![allow(dead_code)]
 
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
 
@@ -83,6 +84,71 @@ impl Drop for Bus {
     }
 }
 
+/// A made-up Thunderbird profile with one IMAP account and the given
+/// folders, each starting empty. Returns the profile directory and each
+/// folder's mbox file, in the order given.
+pub fn fake_profile(root: &std::path::Path, folders: &[&str]) -> (PathBuf, Vec<PathBuf>) {
+    let profile = root.join("abcd1234.default");
+    let imap = profile.join("ImapMail").join("imap.example.invalid");
+    std::fs::create_dir_all(&imap).unwrap();
+    std::fs::write(
+        profile.join("prefs.js"),
+        r#"user_pref("mail.accountmanager.accounts", "account1");
+user_pref("mail.account.account1.server", "server1");
+user_pref("mail.server.server1.type", "imap");
+user_pref("mail.server.server1.hostname", "imap.example.invalid");
+user_pref("mail.server.server1.name", "someone@example.invalid");
+user_pref("mail.server.server1.directory-rel", "[ProfD]ImapMail/imap.example.invalid");
+"#,
+    )
+    .unwrap();
+    let mut files = Vec::new();
+    for name in folders {
+        let f = imap.join(name);
+        std::fs::write(&f, "").unwrap();
+        std::fs::write(imap.join(format!("{name}.msf")), "// msf").unwrap();
+        files.push(f);
+    }
+    (profile, files)
+}
+
+/// One message in Thunderbird's mbox form. `replies_to` becomes an
+/// In-Reply-To header when given.
+pub fn mbox_message(
+    id: &str,
+    from: &str,
+    subject: &str,
+    body: &str,
+    date: &str,
+    replies_to: Option<&str>,
+) -> String {
+    let reply = replies_to
+        .map(|r| format!("In-Reply-To: <{r}@example.invalid>\n"))
+        .unwrap_or_default();
+    format!(
+        "From - Mon Oct 20 09:00:00 2026\nX-Mozilla-Status: 0001\nFrom: {from}\nTo: me@example.invalid\nSubject: {subject}\nDate: {date}\nMessage-ID: <{id}@example.invalid>\n{reply}\n{body}\n"
+    )
+}
+
+/// Appends text to a file.
+pub fn append(path: &std::path::Path, text: &str) {
+    use std::io::Write;
+    let mut f = std::fs::OpenOptions::new().append(true).open(path).unwrap();
+    write!(f, "{text}").unwrap();
+}
+
+/// User plus system CPU time the process has used so far.
+pub fn cpu_time(pid: u32) -> Duration {
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).unwrap();
+    // Fields after the parenthesized command name; utime and stime are
+    // the 14th and 15th fields overall.
+    let rest = &stat[stat.rfind(')').unwrap() + 2..];
+    let fields: Vec<&str> = rest.split_whitespace().collect();
+    let ticks: u64 = fields[11].parse::<u64>().unwrap() + fields[12].parse::<u64>().unwrap();
+    let hz = unsafe { sysconf(2) } as u64; // _SC_CLK_TCK
+    Duration::from_millis(ticks * 1000 / hz.max(1))
+}
+
 /// Waits until the service answers Ping.
 pub async fn wait_ready(conn: &zbus::Connection) -> ServiceProxy<'_> {
     let proxy = ServiceProxy::new(conn).await.unwrap();
@@ -112,4 +178,5 @@ pub async fn stop(mut child: Child) -> std::process::ExitStatus {
 
 extern "C" {
     fn kill(pid: i32, sig: i32) -> i32;
+    fn sysconf(name: i32) -> i64;
 }

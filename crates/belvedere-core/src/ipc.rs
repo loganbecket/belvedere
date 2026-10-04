@@ -376,6 +376,7 @@ mod tests {
             updated_at: "2026-10-03T00:00:00.000Z".into(),
             completed_at: None,
             deleted_at: None,
+            kind: String::new(),
         };
         let dto = TaskDto::from(task);
         assert_eq!(dto.source_kind, "");
