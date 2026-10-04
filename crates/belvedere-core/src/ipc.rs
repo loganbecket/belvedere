@@ -113,6 +113,11 @@ pub trait Service {
     /// Fired after any change to any task.
     #[zbus(signal)]
     fn tasks_changed(&self) -> zbus::Result<()>;
+
+    /// Asks the window to show one task, e.g. after a notification was
+    /// clicked.
+    #[zbus(signal)]
+    fn show_task(&self, id: i64) -> zbus::Result<()>;
 }
 
 #[cfg(test)]

@@ -45,17 +45,22 @@ impl Bus {
             .unwrap()
     }
 
-    /// The service binary, pointed at this bus and the given database.
-    pub fn spawn_service(&self, db_path: &std::path::Path) -> Child {
-        Command::new(env!("CARGO_BIN_EXE_belvedered"))
-            .env("DBUS_SESSION_BUS_ADDRESS", &self.address)
+    /// The service binary, pointed at this bus and the given database,
+    /// ready to spawn (so tests can add environment first).
+    pub fn service_command(&self, db_path: &std::path::Path) -> Command {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_belvedered"));
+        cmd.env("DBUS_SESSION_BUS_ADDRESS", &self.address)
             .env("BELVEDERE_DB", db_path)
             .env("RUST_LOG", "info")
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
-            .kill_on_drop(true)
-            .spawn()
-            .unwrap()
+            .kill_on_drop(true);
+        cmd
+    }
+
+    /// The service binary, pointed at this bus and the given database.
+    pub fn spawn_service(&self, db_path: &std::path::Path) -> Child {
+        self.service_command(db_path).spawn().unwrap()
     }
 }
 

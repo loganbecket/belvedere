@@ -10,6 +10,7 @@ rust-version.workspace = true
 [dependencies]
 anyhow = "1.0.104"
 belvedere-core.workspace = true
+chrono = "0.4.45"
 futures-util = "0.3.34"
 tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "signal", "time"] }
 tracing = "0.1.44"
