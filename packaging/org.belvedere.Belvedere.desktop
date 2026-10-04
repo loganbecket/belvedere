@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Belvedere
+Comment=Your butler for mail, calendar, and tasks
+Exec=belvedere
+Icon=org.belvedere.Belvedere
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=assistant;tasks;todo;butler;
+StartupNotify=true

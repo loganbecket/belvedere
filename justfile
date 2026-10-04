@@ -40,6 +40,22 @@ install-service:
     systemctl --user restart belvedere.service
     systemctl --user --no-pager status belvedere.service
 
+app_dir := home_directory() / ".local/share/applications"
+icon_dir := home_directory() / ".local/share/icons/hicolor/scalable/apps"
+
+# Build the window app in release mode and put it in the launcher
+install-app:
+    cargo build --release -p belvedere
+    install -Dm755 target/release/belvedere "{{bin_dir}}/belvedere"
+    install -Dm644 packaging/org.belvedere.Belvedere.desktop "{{app_dir}}/org.belvedere.Belvedere.desktop"
+    install -Dm644 packaging/icons/hicolor/scalable/apps/org.belvedere.Belvedere.svg "{{icon_dir}}/org.belvedere.Belvedere.svg"
+    -update-desktop-database "{{app_dir}}" 2>/dev/null
+
+# Remove the window app from the launcher
+uninstall-app:
+    rm -f "{{bin_dir}}/belvedere" "{{app_dir}}/org.belvedere.Belvedere.desktop" "{{icon_dir}}/org.belvedere.Belvedere.svg"
+    -update-desktop-database "{{app_dir}}" 2>/dev/null
+
 # Stop the service and remove it
 uninstall-service:
     -systemctl --user disable --now belvedere.service
