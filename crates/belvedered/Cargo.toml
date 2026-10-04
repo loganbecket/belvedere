@@ -9,3 +9,10 @@ rust-version.workspace = true
 
 [dependencies]
 belvedere-core.workspace = true
+tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "signal", "time"] }
+tracing = "0.1.44"
+tracing-journald = "0.3.2"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+
+[dev-dependencies]
+nix = { version = "0.31.3", features = ["signal", "process"] }

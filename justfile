@@ -26,3 +26,21 @@ run-app:
 
 # Everything CI checks, in one go
 ci: lint test
+
+bin_dir := home_directory() / ".local/bin"
+unit_dir := home_directory() / ".config/systemd/user"
+
+# Build the service in release mode, install it, and start it at login
+install-service:
+    cargo build --release -p belvedered
+    install -Dm755 target/release/belvedered "{{bin_dir}}/belvedered"
+    install -Dm644 packaging/systemd/belvedere.service "{{unit_dir}}/belvedere.service"
+    systemctl --user daemon-reload
+    systemctl --user enable --now belvedere.service
+    systemctl --user --no-pager status belvedere.service
+
+# Stop the service and remove it
+uninstall-service:
+    -systemctl --user disable --now belvedere.service
+    rm -f "{{unit_dir}}/belvedere.service" "{{bin_dir}}/belvedered"
+    systemctl --user daemon-reload

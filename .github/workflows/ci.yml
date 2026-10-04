@@ -49,7 +49,7 @@ jobs:
         run: |
           cargo build --workspace
           for bin in belvedered belvedere belvedere-applet; do
-            out="$(./target/debug/$bin)"
+            out="$(./target/debug/$bin --version)"
             echo "$out"
             test "$out" = "$bin 0.1.0"
           done

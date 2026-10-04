@@ -37,6 +37,15 @@ just lint    # formatting and clippy, same as CI
 just         # list every recipe
 ```
 
+## Running the background service
+
+```sh
+just install-service     # build, install to ~/.local/bin, start now and at every login
+just uninstall-service   # stop it and remove it
+```
+
+Logs go to the journal: `journalctl --user -u belvedere -f`.
+
 ## License
 
 GPL-3.0. See [LICENSE](LICENSE).
