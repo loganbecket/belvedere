@@ -200,3 +200,53 @@ async fn complete_reopen_delete_restore_keep_everything() {
 
     stop(service).await;
 }
+
+#[tokio::test]
+async fn chat_without_a_working_model_fails_cleanly_and_keeps_the_question() {
+    let bus = Bus::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    // The machine running this test may well have models installed, so
+    // instead point the service at a helper that doesn't exist: any load
+    // fails at once, which is the failure path we want to see handled.
+    let mut cmd = bus.service_command(&dir.path().join("belvedere.db"));
+    cmd.env("XDG_DATA_HOME", dir.path())
+        .env("BELVEDERE_MODEL_HELPER", dir.path().join("no-such-helper"));
+    let service = cmd.spawn().unwrap();
+    let conn = bus.connect().await;
+    let proxy = wait_ready(&conn).await;
+
+    assert!(proxy.list_conversations().await.unwrap().is_empty());
+    let conversation = proxy.new_conversation().await.unwrap();
+    assert_eq!(conversation.title, "");
+
+    let mut failed = proxy.receive_chat_failed().await.unwrap();
+    let request = proxy
+        .send_message(conversation.id, "What's due today?")
+        .await
+        .unwrap();
+    let signal = timeout(Duration::from_secs(30), failed.next())
+        .await
+        .expect("no ChatFailed")
+        .unwrap();
+    let args = signal.args().unwrap();
+    assert_eq!(args.request, request);
+    assert_eq!(args.conversation_id, conversation.id);
+    assert!(
+        args.message.contains("No model") || args.message.contains("Could not load"),
+        "was: {}",
+        args.message
+    );
+
+    // The question was saved and titled the conversation.
+    let messages = proxy.get_messages(conversation.id).await.unwrap();
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].role, "user");
+    assert_eq!(messages[0].content, "What's due today?");
+    let listed = proxy.list_conversations().await.unwrap();
+    assert_eq!(listed[0].title, "What's due today?");
+
+    // An empty message is refused.
+    assert!(proxy.send_message(conversation.id, "   ").await.is_err());
+
+    stop(service).await;
+}

@@ -113,7 +113,11 @@ impl Application for Applet {
                     self.lists = lists;
                 }
                 Event::Tasks(lists) => self.lists = lists,
-                Event::ShowTask(_) => {}
+                Event::ShowTask(_)
+                | Event::ChatStatus { .. }
+                | Event::ChatText { .. }
+                | Event::ChatDone { .. }
+                | Event::ChatFailed { .. } => {}
                 Event::Disconnected => {
                     self.connected = false;
                     self.service = None;

@@ -7,13 +7,27 @@
 
 use serde::{Deserialize, Serialize};
 
+/// One turn of a conversation, for the model's chat template.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChatMessage {
+    /// `system`, `user`, or `assistant`.
+    pub role: String,
+    pub content: String,
+}
+
 /// Service -> helper.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "cmd", rename_all = "snake_case")]
 pub enum Command {
-    /// Generate a reply to `prompt`, streaming `Event::Text` until
-    /// `Event::Done`.
+    /// Generate a reply to a raw `prompt`, streaming `Event::Text` until
+    /// `Event::Done`. Debug use.
     Generate { prompt: String, max_tokens: u32 },
+    /// Continue a conversation: the helper applies the model's own chat
+    /// template to `messages` and streams the assistant's reply.
+    Chat {
+        messages: Vec<ChatMessage>,
+        max_tokens: u32,
+    },
     /// Stop the generation in progress, if any. A `Done` follows.
     Cancel,
 }

@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
-use belvedere_core::ipc::{ServiceProxy, TaskDto};
+use belvedere_core::ipc::{ConversationDto, MessageDto, ServiceProxy, TaskDto};
 use belvedere_core::schedule::{self, DueInput, Section};
 use chrono::Local;
 use cosmic::app::{Core, Task};
@@ -20,8 +20,13 @@ pub struct Belvedere {
     core: Core,
     /// What's typed in the chat box but not yet sent.
     draft: String,
-    /// Lines sent so far. Nothing answers yet; that arrives with the model.
-    transcript: Vec<String>,
+    /// Conversations, most recent first, and the one being viewed.
+    conversations: Vec<ConversationDto>,
+    current: Option<i64>,
+    /// Messages of the current conversation.
+    messages: Vec<MessageDto>,
+    /// A reply being streamed right now.
+    reply: Option<Reply>,
     /// Live connection to the service, once it has answered.
     service: Option<ServiceProxy<'static>>,
     lists: Lists,
@@ -39,6 +44,17 @@ pub struct Belvedere {
     undo: Option<Undo>,
     /// Something went wrong talking to the service; shown briefly.
     error: Option<String>,
+}
+
+/// A reply in progress.
+#[derive(Debug, Clone)]
+pub struct Reply {
+    pub request: u64,
+    pub conversation_id: i64,
+    /// What has arrived so far.
+    pub text: String,
+    /// "loading model", "thinking", "writing".
+    pub status: String,
 }
 
 /// The edit form for one task.
@@ -94,6 +110,11 @@ pub enum Message {
     // Chat
     Draft(String),
     Send,
+    Stop,
+    NewConversation,
+    OpenConversation(i64),
+    /// Fresh lists from the service after a chat action.
+    ChatLoaded(Vec<ConversationDto>, Option<i64>, Vec<MessageDto>),
     // Service
     Service(service::Event),
     /// A call to the service finished; `Err` holds a message to show.
@@ -137,7 +158,10 @@ impl Application for Belvedere {
         let mut app = Belvedere {
             core,
             draft: String::new(),
-            transcript: Vec::new(),
+            conversations: Vec::new(),
+            current: None,
+            messages: Vec::new(),
+            reply: None,
             service: None,
             lists: Lists::default(),
             connected: false,
@@ -163,29 +187,127 @@ impl Application for Belvedere {
             Message::Draft(text) => self.draft = text,
             Message::Send => {
                 let line = self.draft.trim().to_string();
-                if !line.is_empty() {
-                    self.transcript.push(line);
-                    self.draft.clear();
+                if line.is_empty() || self.reply.is_some() {
+                    return Task::none();
+                }
+                self.draft.clear();
+                let Some(proxy) = self.service.clone() else {
+                    self.error = Some("The background service isn't running.".into());
+                    return Task::none();
+                };
+                let current = self.current;
+                return Task::perform(
+                    async move {
+                        let conversation = match current {
+                            Some(id) => id,
+                            None => proxy.new_conversation().await?.id,
+                        };
+                        proxy.send_message(conversation, &line).await?;
+                        Ok::<_, zbus::Error>(conversation)
+                    },
+                    |result| match result {
+                        Ok(_) => cosmic::Action::App(Message::Done(Ok(()))),
+                        Err(e) => cosmic::Action::App(Message::Done(Err(e.to_string()))),
+                    },
+                )
+                .chain(self.reload_chat());
+            }
+            Message::Stop => {
+                if let (Some(reply), Some(proxy)) = (&self.reply, self.service.clone()) {
+                    let request = reply.request;
+                    return Task::perform(
+                        async move { proxy.stop_generation(request).await },
+                        |r| cosmic::Action::App(Message::Done(r.map_err(|e| e.to_string()))),
+                    );
                 }
             }
-
-            Message::Service(event) => match event {
-                service::Event::Connected(proxy, lists) => {
-                    self.connected = true;
-                    self.service = Some(proxy);
-                    self.lists = lists;
+            Message::NewConversation => {
+                if self.reply.is_none() {
+                    self.current = None;
+                    self.messages.clear();
                 }
-                service::Event::Tasks(lists) => self.lists = lists,
-                service::Event::ShowTask(id) => {
-                    if let Some(task) = self.find(id) {
-                        self.editor = Some(Editor::for_task(task));
+            }
+            Message::OpenConversation(id) => {
+                if self.reply.is_none() {
+                    self.current = Some(id);
+                    return self.reload_chat();
+                }
+            }
+            Message::ChatLoaded(conversations, current, messages) => {
+                self.conversations = conversations;
+                if let Some(id) = current {
+                    self.current = Some(id);
+                }
+                self.messages = messages;
+            }
+
+            Message::Service(event) => {
+                match event {
+                    service::Event::Connected(proxy, lists) => {
+                        self.connected = true;
+                        self.service = Some(proxy);
+                        self.lists = lists;
+                        return self.reload_chat();
+                    }
+                    service::Event::ChatStatus {
+                        request,
+                        conversation_id,
+                        status,
+                    } => {
+                        if self.current.is_none() {
+                            self.current = Some(conversation_id);
+                        }
+                        match &mut self.reply {
+                            Some(r) if r.request == request => r.status = status,
+                            _ => {
+                                self.reply = Some(Reply {
+                                    request,
+                                    conversation_id,
+                                    text: String::new(),
+                                    status,
+                                })
+                            }
+                        }
+                    }
+                    service::Event::ChatText {
+                        request,
+                        conversation_id,
+                        text,
+                    } => {
+                        if let Some(r) = self.reply.as_mut().filter(|r| {
+                            r.request == request && r.conversation_id == conversation_id
+                        }) {
+                            r.text.push_str(&text);
+                            r.status = "writing".into();
+                        }
+                    }
+                    service::Event::ChatDone { request, .. } => {
+                        if self.reply.as_ref().is_some_and(|r| r.request == request) {
+                            self.reply = None;
+                            return self.reload_chat();
+                        }
+                    }
+                    service::Event::ChatFailed {
+                        request, message, ..
+                    } => {
+                        if self.reply.as_ref().is_some_and(|r| r.request == request) {
+                            self.reply = None;
+                            self.error = Some(message);
+                            return self.reload_chat();
+                        }
+                    }
+                    service::Event::Tasks(lists) => self.lists = lists,
+                    service::Event::ShowTask(id) => {
+                        if let Some(task) = self.find(id) {
+                            self.editor = Some(Editor::for_task(task));
+                        }
+                    }
+                    service::Event::Disconnected => {
+                        self.connected = false;
+                        self.service = None;
                     }
                 }
-                service::Event::Disconnected => {
-                    self.connected = false;
-                    self.service = None;
-                }
-            },
+            }
             Message::Done(Ok(())) => {}
             Message::Done(Err(problem)) => self.error = Some(problem),
 
@@ -387,33 +509,97 @@ impl Belvedere {
         }
     }
 
+    /// Fetches conversations and the current conversation's messages.
+    fn reload_chat(&self) -> Task<Message> {
+        let Some(proxy) = self.service.clone() else {
+            return Task::none();
+        };
+        let current = self.current;
+        Task::perform(
+            async move {
+                let conversations = proxy.list_conversations().await?;
+                let current = current.or_else(|| conversations.first().map(|c| c.id));
+                let messages = match current {
+                    Some(id) => proxy.get_messages(id).await?,
+                    None => Vec::new(),
+                };
+                Ok::<_, zbus::Error>((conversations, current, messages))
+            },
+            |result| match result {
+                Ok((c, cur, m)) => cosmic::Action::App(Message::ChatLoaded(c, cur, m)),
+                Err(e) => cosmic::Action::App(Message::Done(Err(e.to_string()))),
+            },
+        )
+    }
+
     fn chat_pane(&self) -> Element<'_, Message> {
         let spacing = cosmic::theme::spacing();
+        let busy = self.reply.is_some();
 
-        let mut lines =
-            widget::column::with_capacity(self.transcript.len().max(1)).spacing(spacing.space_xs);
-        if self.transcript.is_empty() {
-            lines = lines.push(text::body(
-                "Say something to Belvedere. Replies arrive once a model is connected.",
+        // Conversation list down the left of the pane.
+        let mut list = widget::column::with_capacity(self.conversations.len() + 1)
+            .spacing(spacing.space_xxs)
+            .push(button::standard("New conversation").on_press_maybe(
+                (!busy && self.current.is_some()).then_some(Message::NewConversation),
             ));
+        for c in &self.conversations {
+            let title = if c.title.is_empty() {
+                "Untitled"
+            } else {
+                c.title.as_str()
+            };
+            let mut b = button::text(title).width(Length::Fill);
+            if !busy {
+                b = b.on_press(Message::OpenConversation(c.id));
+            }
+            list = list.push(b);
         }
-        for line in &self.transcript {
-            lines = lines.push(
-                container(text::body(line.as_str()))
-                    .padding(spacing.space_xs)
-                    .class(cosmic::theme::Container::Card),
-            );
+
+        // The transcript.
+        let mut lines =
+            widget::column::with_capacity(self.messages.len() + 2).spacing(spacing.space_xs);
+        if self.messages.is_empty() && self.reply.is_none() {
+            lines = lines.push(text::body("Say something to Belvedere."));
+        }
+        for m in &self.messages {
+            if m.role == "user" || m.role == "assistant" {
+                lines = lines.push(bubble(&m.content, m.role == "user"));
+            }
+        }
+        if let Some(reply) = &self.reply {
+            if reply.text.is_empty() {
+                let label = match reply.status.as_str() {
+                    "loading model" => "Belvedere is loading a model…",
+                    "thinking" => "Belvedere is thinking…",
+                    _ => "Belvedere is writing…",
+                };
+                lines = lines.push(text::caption(label));
+            } else {
+                lines = lines.push(bubble(&reply.text, false));
+            }
         }
 
         let input = widget::text_input("Ask Belvedere…", &self.draft)
             .on_input(Message::Draft)
             .on_submit(|_| Message::Send);
+        let mut controls = widget::row::with_capacity(2)
+            .spacing(spacing.space_xs)
+            .push(input);
+        if busy {
+            controls = controls.push(button::destructive("Stop").on_press(Message::Stop));
+        }
 
-        widget::column::with_capacity(3)
+        let transcript = widget::column::with_capacity(3)
             .spacing(spacing.space_s)
             .push(text::title4("Chat"))
             .push(widget::scrollable(lines).height(Length::Fill))
-            .push(input)
+            .push(controls)
+            .width(Length::Fill);
+
+        widget::row::with_capacity(2)
+            .spacing(spacing.space_s)
+            .push(widget::scrollable(list).width(Length::Fixed(200.0)))
+            .push(transcript)
             .width(Length::FillPortion(3))
             .into()
     }
@@ -581,6 +767,25 @@ fn notice<'a>(message: &'a str) -> Element<'a, Message> {
             }
         }))
         .into()
+}
+
+/// One chat message: the user's on the right in the accent color, Belvedere's
+/// on the left.
+fn bubble(content: &str, from_user: bool) -> Element<'_, Message> {
+    let spacing = cosmic::theme::spacing();
+    let card = container(text::body(content))
+        .padding(spacing.space_xs)
+        .max_width(560.0)
+        .class(if from_user {
+            cosmic::theme::Container::Primary
+        } else {
+            cosmic::theme::Container::Card
+        });
+    let mut row = widget::row::with_capacity(2).width(Length::Fill);
+    if from_user {
+        row = row.push(cosmic::iced::widget::space().width(Length::Fill));
+    }
+    row.push(card).into()
 }
 
 fn task_row<'a>(

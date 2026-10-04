@@ -30,6 +30,30 @@ pub enum Event {
     Tasks(Lists),
     /// The service wants one task shown (a notification was clicked).
     ShowTask(i64),
+    /// Progress on a chat reply: "loading model", "thinking", ...
+    ChatStatus {
+        request: u64,
+        conversation_id: i64,
+        status: String,
+    },
+    /// A piece of a chat reply.
+    ChatText {
+        request: u64,
+        conversation_id: i64,
+        text: String,
+    },
+    /// A chat reply finished and was saved as `message_id`.
+    ChatDone {
+        request: u64,
+        conversation_id: i64,
+        message_id: i64,
+    },
+    /// A chat reply failed.
+    ChatFailed {
+        request: u64,
+        conversation_id: i64,
+        message: String,
+    },
     /// The service stopped answering.
     Disconnected,
 }
@@ -103,11 +127,40 @@ async fn run_until_disconnected(
             return Ok(());
         }
     };
+    let (Ok(mut chat_status), Ok(mut chat_text), Ok(mut chat_done), Ok(mut chat_failed)) = (
+        proxy.receive_chat_status().await,
+        proxy.receive_chat_text().await,
+        proxy.receive_chat_done().await,
+        proxy.receive_chat_failed().await,
+    ) else {
+        out.send(Event::Disconnected).await.map_err(|_| ())?;
+        return Ok(());
+    };
     let mut ping = tokio::time::interval(PING_EVERY);
     ping.tick().await;
 
     loop {
         tokio::select! {
+            Some(signal) = chat_status.next() => {
+                if let Ok(a) = signal.args() {
+                    out.send(Event::ChatStatus { request: a.request, conversation_id: a.conversation_id, status: a.status.to_string() }).await.map_err(|_| ())?;
+                }
+            }
+            Some(signal) = chat_text.next() => {
+                if let Ok(a) = signal.args() {
+                    out.send(Event::ChatText { request: a.request, conversation_id: a.conversation_id, text: a.text.to_string() }).await.map_err(|_| ())?;
+                }
+            }
+            Some(signal) = chat_done.next() => {
+                if let Ok(a) = signal.args() {
+                    out.send(Event::ChatDone { request: a.request, conversation_id: a.conversation_id, message_id: a.message_id }).await.map_err(|_| ())?;
+                }
+            }
+            Some(signal) = chat_failed.next() => {
+                if let Ok(a) = signal.args() {
+                    out.send(Event::ChatFailed { request: a.request, conversation_id: a.conversation_id, message: a.message.to_string() }).await.map_err(|_| ())?;
+                }
+            }
             signal = show.next() => {
                 if let Some(signal) = signal {
                     if let Ok(args) = signal.args() {

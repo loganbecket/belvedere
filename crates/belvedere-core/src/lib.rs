@@ -5,6 +5,7 @@ pub mod ipc;
 pub mod model_ipc;
 pub mod models;
 pub mod schedule;
+pub mod think;
 pub mod watch;
 
 /// The version every Belvedere binary reports, taken from the workspace.

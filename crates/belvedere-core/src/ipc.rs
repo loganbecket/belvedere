@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 use zbus::zvariant::Type;
 
-use crate::db::{Model, ModelSource, Task, TaskStatus};
+use crate::db::{Conversation, Message, Model, ModelSource, Role, Task, TaskStatus};
 
 /// The bus name the service claims.
 pub const BUS_NAME: &str = "org.belvedere.Service";
@@ -107,6 +107,55 @@ impl From<Model> for ModelDto {
     }
 }
 
+/// A chat conversation as it crosses the bus.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ConversationDto {
+    pub id: i64,
+    pub title: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl From<Conversation> for ConversationDto {
+    fn from(c: Conversation) -> Self {
+        ConversationDto {
+            id: c.id,
+            title: c.title,
+            created_at: c.created_at,
+            updated_at: c.updated_at,
+        }
+    }
+}
+
+/// A chat message as it crosses the bus.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct MessageDto {
+    pub id: i64,
+    pub conversation_id: i64,
+    /// `user`, `assistant`, `system`, or `tool`.
+    pub role: String,
+    pub content: String,
+    pub created_at: String,
+}
+
+impl From<Message> for MessageDto {
+    fn from(m: Message) -> Self {
+        MessageDto {
+            id: m.id,
+            conversation_id: m.conversation_id,
+            role: match m.role {
+                Role::User => "user",
+                Role::Assistant => "assistant",
+                Role::System => "system",
+                Role::Tool => "tool",
+            }
+            .to_string(),
+            content: m.content,
+            created_at: m.created_at,
+        }
+    }
+}
+
 /// Client proxy. `ServiceProxy::new(&connection).await?` connects to the
 /// running service on whatever bus `connection` is on.
 #[zbus::proxy(
@@ -167,6 +216,36 @@ pub trait Service {
     /// text arrives through `GenerationText` signals and ends with
     /// `GenerationDone` or `GenerationFailed`. Debug use for now.
     fn generate(&self, prompt: &str, max_tokens: u32) -> zbus::Result<u64>;
+
+    /// Conversations, most recently active first.
+    fn list_conversations(&self) -> zbus::Result<Vec<ConversationDto>>;
+
+    /// Starts an empty conversation.
+    fn new_conversation(&self) -> zbus::Result<ConversationDto>;
+
+    /// Messages of one conversation, oldest first.
+    fn get_messages(&self, conversation_id: i64) -> zbus::Result<Vec<MessageDto>>;
+
+    /// Stores the user's message and starts Belvedere's reply. Returns a
+    /// request id; the reply streams in `ChatText` signals and ends with
+    /// `ChatDone` or `ChatFailed`. `ChatStatus` reports progress such as
+    /// a model being loaded first.
+    fn send_message(&self, conversation_id: i64, text: &str) -> zbus::Result<u64>;
+
+    /// Stops the reply in progress; what was produced so far is kept.
+    fn stop_generation(&self, request: u64) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    fn chat_status(&self, request: u64, conversation_id: i64, status: &str) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    fn chat_text(&self, request: u64, conversation_id: i64, text: &str) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    fn chat_done(&self, request: u64, conversation_id: i64, message_id: i64) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    fn chat_failed(&self, request: u64, conversation_id: i64, message: &str) -> zbus::Result<()>;
 
     #[zbus(signal)]
     fn generation_text(&self, request: u64, text: &str) -> zbus::Result<()>;
