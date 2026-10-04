@@ -98,6 +98,18 @@ pub trait Service {
     /// Soft-deletes a task. It can be restored later; nothing is lost.
     fn delete_task(&self, id: i64) -> zbus::Result<TaskDto>;
 
+    /// Brings a soft-deleted task back exactly as it was.
+    fn restore_task(&self, id: i64) -> zbus::Result<TaskDto>;
+
+    /// Soft-deleted tasks, most recently deleted first.
+    fn list_deleted_tasks(&self) -> zbus::Result<Vec<TaskDto>>;
+
+    /// Marks a task done.
+    fn complete_task(&self, id: i64) -> zbus::Result<TaskDto>;
+
+    /// Marks a done or dismissed task open again.
+    fn reopen_task(&self, id: i64) -> zbus::Result<TaskDto>;
+
     /// Fired after any change to any task.
     #[zbus(signal)]
     fn tasks_changed(&self) -> zbus::Result<()>;
