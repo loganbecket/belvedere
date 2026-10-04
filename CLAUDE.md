@@ -12,7 +12,7 @@ Belvedere is a personal assistant for the COSMIC desktop, written in Rust. It is
 
 - The default branch is `master`. Never commit to it directly.
 - Branch name is the one `PLAN.md` gives the chunk. Branch off a fresh `master`.
-- Open the PR with `gh pr create` against `master` when the chunk's Done when items are all met. Logan merges by hand; never merge yourself.
+- One commit per chunk, and the full PR description goes in that commit's message body (GitHub pre-fills the PR from it). When the branch is pushed, tell Logan only the compare link; he opens and merges the PR himself. Never give him copy-paste commands or the PR text in chat.
 - The PR description is the only thing Logan reads, and he checks nothing by hand. It must contain: the chunk number and title; every Done when item as a checkbox with proof next to it (command output, test names, eval scores, screenshot); and anything that did not get done, said plainly. A ticked box without proof is a lie.
 
 ## Baseline gates for every PR

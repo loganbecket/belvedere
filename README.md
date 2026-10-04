@@ -37,12 +37,14 @@ just lint    # formatting and clippy, same as CI
 just         # list every recipe
 ```
 
-## Running the background service
+## Installing
 
 ```sh
-just install-service     # build, install to ~/.local/bin, start now and at every login
-just uninstall-service   # stop it and remove it
+just install     # service (starts at login), window (in the launcher), panel applet
+just uninstall   # remove all three; keeps your data
 ```
+
+Each piece can also be installed on its own: `just install-service`, `just install-app`, `just install-applet`. After installing the applet, add "Belvedere" to the panel from COSMIC Settings → Desktop → Panel → Configure panel applets.
 
 Logs go to the journal: `journalctl --user -u belvedere -f`.
 

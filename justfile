@@ -51,6 +51,25 @@ install-app:
     install -Dm644 packaging/icons/hicolor/scalable/apps/org.belvedere.Belvedere.svg "{{icon_dir}}/org.belvedere.Belvedere.svg"
     -update-desktop-database "{{app_dir}}" 2>/dev/null
 
+# Build the panel applet in release mode and make it available to the COSMIC panel
+install-applet:
+    cargo build --release -p belvedere-applet
+    install -Dm755 target/release/belvedere-applet "{{bin_dir}}/belvedere-applet"
+    install -Dm644 packaging/org.belvedere.Applet.desktop "{{app_dir}}/org.belvedere.Applet.desktop"
+    install -Dm644 packaging/icons/hicolor/scalable/apps/org.belvedere.Belvedere-symbolic.svg "{{icon_dir}}/org.belvedere.Belvedere-symbolic.svg"
+    -update-desktop-database "{{app_dir}}" 2>/dev/null
+
+# Remove the panel applet
+uninstall-applet:
+    rm -f "{{bin_dir}}/belvedere-applet" "{{app_dir}}/org.belvedere.Applet.desktop" "{{icon_dir}}/org.belvedere.Belvedere-symbolic.svg"
+    -update-desktop-database "{{app_dir}}" 2>/dev/null
+
+# Install everything: service, window, and panel applet
+install: install-service install-app install-applet
+
+# Remove everything. Keeps your data.
+uninstall: uninstall-applet uninstall-app uninstall-service
+
 # Remove the window app from the launcher
 uninstall-app:
     rm -f "{{bin_dir}}/belvedere" "{{app_dir}}/org.belvedere.Belvedere.desktop" "{{icon_dir}}/org.belvedere.Belvedere.svg"
