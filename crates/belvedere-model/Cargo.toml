@@ -1,0 +1,16 @@
+[package]
+name = "belvedere-model"
+description = "Belvedere's model helper: runs one model in its own low-priority process"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+belvedere-core.workspace = true
+libc = "0.2"
+llama-cpp-2 = { version = "0.1.158", features = ["sampler", "vulkan"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }

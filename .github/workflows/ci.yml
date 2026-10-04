@@ -26,7 +26,7 @@ jobs:
             libxkbcommon-dev libwayland-dev libinput-dev libudev-dev \
             libgbm-dev libseat-dev libpixman-1-dev libdbus-1-dev \
             libvulkan-dev libfontconfig-dev libfreetype-dev libexpat1-dev \
-            libssl-dev libsqlite3-dev dbus just
+            libssl-dev libsqlite3-dev dbus glslc spirv-headers just
 
       # Picks up the toolchain from rust-toolchain.toml.
       - uses: dtolnay/rust-toolchain@stable
@@ -48,7 +48,7 @@ jobs:
       - name: Binaries report their version
         run: |
           cargo build --workspace
-          for bin in belvedered belvedere belvedere-applet; do
+          for bin in belvedered belvedere belvedere-applet belvedere-model; do
             out="$(./target/debug/$bin --version)"
             echo "$out"
             test "$out" = "$bin 0.1.0"

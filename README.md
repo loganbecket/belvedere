@@ -25,8 +25,10 @@ sudo apt install build-essential pkg-config cmake clang \
   libxkbcommon-dev libwayland-dev libinput-dev libudev-dev \
   libgbm-dev libseat-dev libpixman-1-dev libdbus-1-dev \
   libvulkan-dev libfontconfig-dev libfreetype-dev libexpat1-dev \
-  libssl-dev libsqlite3-dev
+  libssl-dev libsqlite3-dev glslc spirv-headers
 ```
+
+`glslc` and `spirv-headers` are build-time only: they compile the AI library's graphics-chip code once, during the build. The installed Belvedere never calls them.
 
 Then:
 
@@ -44,7 +46,7 @@ just install     # service (starts at login), window (in the launcher), panel ap
 just uninstall   # remove all three; keeps your data
 ```
 
-Each piece can also be installed on its own: `just install-service`, `just install-app`, `just install-applet`. After installing the applet, add "Belvedere" to the panel from COSMIC Settings → Desktop → Panel → Configure panel applets.
+Each piece can also be installed on its own: `just install-service`, `just install-app`, `just install-applet`. The service install also places `belvedere-model`, the helper that runs AI models in its own low-priority process; the service starts it when a model is needed and stops it after five idle minutes. After installing the applet, add "Belvedere" to the panel from COSMIC Settings → Desktop → Panel → Configure panel applets.
 
 Logs go to the journal: `journalctl --user -u belvedere -f`.
 

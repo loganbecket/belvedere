@@ -4,6 +4,7 @@
 //! shuts down cleanly when asked. Everything else arrives in later chunks.
 
 mod dbus;
+mod engine;
 mod models;
 mod notify;
 mod scheduler;
@@ -48,7 +49,8 @@ fn main() {
 /// Logs go to journald when it is reachable, otherwise to stderr (which
 /// systemd also captures). `RUST_LOG` controls verbosity; default `info`.
 fn init_logging() {
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info,llama_cpp_2=warn,llama_cpp_sys_2=warn"));
     let registry = tracing_subscriber::registry().with(filter);
 
     match tracing_journald::layer() {
@@ -73,12 +75,43 @@ fn open_database() -> anyhow::Result<Db> {
     Ok(db)
 }
 
+/// Unloads the model after it has sat unused for the configured time
+/// (setting `model_idle_unload_minutes`, default 5), so its memory is only
+/// held while something is actually being asked of it.
+async fn idle_unload(engine: engine::Engine, db: dbus::SharedDb) {
+    let mut tick = tokio::time::interval(Duration::from_secs(15));
+    loop {
+        tick.tick().await;
+        let minutes = db
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_setting("model_idle_unload_minutes")
+            .ok()
+            .flatten()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(5);
+        let idle_after = Duration::from_secs(minutes * 60);
+        let state = engine.state();
+        if engine::should_unload(
+            &state,
+            engine.last_used(),
+            std::time::Instant::now(),
+            idle_after,
+        ) {
+            info!(model = state.model_name(), minutes, "model idle; unloading");
+            engine.unload().await;
+        }
+    }
+}
+
 async fn run(db: Db) {
     info!(version = belvedere_core::VERSION, "belvedered starting");
 
     let db = Arc::new(Mutex::new(db));
+    let engine = engine::Engine::new();
+    tokio::spawn(idle_unload(engine.clone(), db.clone()));
     // Kept alive for the whole run; dropping it would leave the bus.
-    let bus = match dbus::serve(db.clone()).await {
+    let bus = match dbus::serve(db.clone(), engine).await {
         Ok(conn) => conn,
         Err(err) => {
             error!("could not start D-Bus service: {err}");

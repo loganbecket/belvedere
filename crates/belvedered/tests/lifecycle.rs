@@ -27,7 +27,9 @@ fn version_flag_prints_name_and_version_and_exits() {
 async fn stays_alive_then_exits_cleanly_on_sigterm() {
     let bus = Bus::start().await;
     let dir = tempfile::tempdir().unwrap();
-    let mut child = bus.spawn_service(&dir.path().join("belvedere.db"));
+    let mut cmd = bus.service_command(&dir.path().join("belvedere.db"));
+    cmd.stderr(Stdio::piped());
+    let mut child = cmd.spawn().unwrap();
     let conn = bus.connect().await;
     wait_ready(&conn).await;
 
