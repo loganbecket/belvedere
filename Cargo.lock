@@ -510,6 +510,10 @@ name = "belvedere-applet"
 version = "0.1.0"
 dependencies = [
  "belvedere-core",
+ "chrono",
+ "libcosmic",
+ "tokio",
+ "zbus",
 ]
 
 [[package]]
@@ -517,10 +521,13 @@ name = "belvedere-core"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "futures-channel",
+ "futures-util",
  "rusqlite",
  "serde",
  "tempfile",
  "thiserror 2.0.21",
+ "tokio",
  "zbus",
 ]
 
@@ -999,6 +1006,20 @@ dependencies = [
  "thiserror 2.0.21",
  "tracing",
  "xdg",
+]
+
+[[package]]
+name = "cosmic-panel-config"
+version = "1.9.0"
+source = "git+https://github.com/pop-os/cosmic-panel#f4ba4efb89bf070df91efe291272788e6d009da7"
+dependencies = [
+ "anyhow",
+ "cosmic-config",
+ "serde",
+ "smithay-client-toolkit",
+ "tracing",
+ "wayland-protocols-wlr",
+ "xdg-shell-wrapper-config",
 ]
 
 [[package]]
@@ -2820,6 +2841,7 @@ dependencies = [
  "cosmic-client-toolkit",
  "cosmic-config",
  "cosmic-freedesktop-icons",
+ "cosmic-panel-config",
  "cosmic-settings-daemon",
  "cosmic-theme",
  "css-color",
@@ -6416,6 +6438,15 @@ name = "xdg"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fb433233f2df9344722454bc7e96465c9d03bff9d77c248f9e7523fe79585b5"
+
+[[package]]
+name = "xdg-shell-wrapper-config"
+version = "1.9.0"
+source = "git+https://github.com/pop-os/cosmic-panel#f4ba4efb89bf070df91efe291272788e6d009da7"
+dependencies = [
+ "serde",
+ "wayland-protocols-wlr",
+]
 
 [[package]]
 name = "xkbcommon"

@@ -3,6 +3,7 @@
 pub mod db;
 pub mod ipc;
 pub mod schedule;
+pub mod watch;
 
 /// The version every Belvedere binary reports, taken from the workspace.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

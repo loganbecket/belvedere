@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=Belvedere
+Comment=Tasks due today, at a glance
+Type=Application
+Exec=belvedere-applet
+Terminal=false
+Categories=COSMIC;
+Keywords=COSMIC;Applet;Belvedere;Tasks;
+Icon=org.belvedere.Belvedere-symbolic
+StartupNotify=true
+NoDisplay=true
+X-CosmicApplet=true
+X-CosmicShrinkable=true
+X-OverflowPriority=5
