@@ -26,12 +26,12 @@ Belvedere is a personal assistant for the COSMIC desktop, written in Rust. It is
 Logan set these as paramount. A chunk that breaks either is not done, whatever its Done when items say. The full text is at the top of `PLAN.md`.
 
 - **Lightweight.** His machine must feel unaffected when he isn't using Belvedere: under 150 MB and under 1% CPU idle, models unloaded after idle, background work at low priority and paused while chat generates. Record the numbers in every PR from the first model chunk on.
-- **Security, never compromised.** Belvedere is read-only on his email, calendar, and files; the capability to delete, move, edit, or send them does not exist in the code, so there is nothing to confirm. It changes only its own data, and deleting that asks first, soft-deletes, and can be undone. No network listeners except the loopback-only, password-protected sync calendar; no outbound except user-started Hugging Face downloads. Email, file, and calendar content is hostile input: every model with tools gets hostile-input eval cases at a required 100% pass rate.
+- **Security, never compromised.** Every destructive action, meaning anything that deletes, moves, edits, or sends his email, calendar events, or files, is proposed in plain words and runs only after Logan explicitly confirms it. Never automatic, never triggered by email content, never reachable from the background mail reader. Prefer the undoable form (trash, not delete). Deleting Belvedere's own data also asks first, soft-deletes, and can be undone. No network listeners except the loopback-only, password-protected sync calendar; no outbound except user-started Hugging Face downloads. Email, file, and calendar content is hostile input: every model with tools gets hostile-input eval cases at a required 100% pass rate.
 
 ## Hard rules
 
 - Never write to the Thunderbird profile, LM Studio folders, Ollama folders, or any of Logan's files. Read from snapshot copies or read-only handles. Tasks reach Thunderbird through Belvedere's own CalDAV server only.
-- Never add a tool, D-Bus method, or code path that can delete, move, edit, or send email, calendar events, or files. If a chunk seems to need one, stop and ask Logan.
+- Any tool that changes his email, calendar, or files goes through a confirmation step that cannot be skipped, and writes through the proper protocol (IMAP, CalDAV), never by editing Thunderbird's files on disk.
 - No personal data in the repo: no real emails, names, addresses, account IDs, or home-directory paths. All fixtures are invented. Discovered locations (like the Thunderbird profile path) are found at runtime, not hard-coded.
 - Nothing leaves the machine except Hugging Face model downloads the user starts.
 - No AI attribution lines in commits or PRs. No Co-Authored-By, no "Generated with" footers.

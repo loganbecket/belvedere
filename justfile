@@ -36,7 +36,8 @@ install-service:
     install -Dm755 target/release/belvedered "{{bin_dir}}/belvedered"
     install -Dm644 packaging/systemd/belvedere.service "{{unit_dir}}/belvedere.service"
     systemctl --user daemon-reload
-    systemctl --user enable --now belvedere.service
+    systemctl --user enable belvedere.service
+    systemctl --user restart belvedere.service
     systemctl --user --no-pager status belvedere.service
 
 # Stop the service and remove it

@@ -1,12 +1,14 @@
 //! The Belvedere background service.
 //!
-//! Right now it only stays alive, logs to the journal, and shuts down
-//! cleanly when asked. Everything else arrives in later chunks.
+//! Right now it opens its database, stays alive, logs to the journal, and
+//! shuts down cleanly when asked. Everything else arrives in later chunks.
 
 use std::time::Duration;
 
+use anyhow::Context;
+use belvedere_core::db::Db;
 use tokio::signal::unix::{signal, SignalKind};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 /// How often the service writes a heartbeat line, so a glance at the
@@ -21,11 +23,19 @@ fn main() {
 
     init_logging();
 
+    let db = match open_database() {
+        Ok(db) => db,
+        Err(err) => {
+            error!("{err:#}");
+            std::process::exit(1);
+        }
+    };
+
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .expect("tokio runtime")
-        .block_on(run());
+        .block_on(run(db));
 }
 
 /// Logs go to journald when it is reachable, otherwise to stderr (which
@@ -43,7 +53,20 @@ fn init_logging() {
     }
 }
 
-async fn run() {
+/// Opens Belvedere's database at its default location, creating it on
+/// first run. `BELVEDERE_DB` overrides the path (used by tests).
+fn open_database() -> anyhow::Result<Db> {
+    let path = match std::env::var_os("BELVEDERE_DB") {
+        Some(p) => std::path::PathBuf::from(p),
+        None => Db::default_path()
+            .context("cannot determine data directory: neither XDG_DATA_HOME nor HOME is set")?,
+    };
+    let db = Db::open(&path).with_context(|| format!("opening database at {}", path.display()))?;
+    info!(path = %path.display(), schema = db.schema_version()?, "database ready");
+    Ok(db)
+}
+
+async fn run(_db: Db) {
     info!(version = belvedere_core::VERSION, "belvedered starting");
 
     let mut sigterm = signal(SignalKind::terminate()).expect("SIGTERM handler");
