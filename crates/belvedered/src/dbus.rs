@@ -7,7 +7,10 @@ use crate::chat::{self, Replies};
 use belvedere_core::engine::{self, Chunk, Engine};
 
 use belvedere_core::db::{Db, DbError, NewTask, Role};
-use belvedere_core::ipc::{ConversationDto, MessageDto, ModelDto, TaskDto, BUS_NAME, OBJECT_PATH};
+use belvedere_core::ipc::{
+    ConversationDto, MailAccountDto, MailFolderDto, MessageDto, ModelDto, TaskDto, BUS_NAME,
+    OBJECT_PATH,
+};
 use belvedere_core::schedule;
 use chrono::Local;
 use tracing::info;
@@ -230,6 +233,30 @@ impl Service {
             }
         });
         Ok(request)
+    }
+
+    fn list_mail_accounts(&self) -> fdo::Result<Vec<MailAccountDto>> {
+        let profile = belvedere_core::thunderbird::find_profile()
+            .ok_or_else(|| fdo::Error::Failed("no Thunderbird profile found".into()))?;
+        let accounts = belvedere_core::thunderbird::accounts(&profile.dir)
+            .map_err(|e| fdo::Error::Failed(format!("reading Thunderbird accounts: {e}")))?;
+        Ok(accounts
+            .into_iter()
+            .map(|a| MailAccountDto {
+                key: a.key,
+                name: a.name,
+                kind: a.kind,
+                folders: a
+                    .folders
+                    .into_iter()
+                    .map(|f| MailFolderDto {
+                        path: f.path,
+                        role: f.role.as_str().to_string(),
+                        has_local_mail: f.mbox.is_some(),
+                    })
+                    .collect(),
+            })
+            .collect())
     }
 
     fn list_conversations(&self) -> fdo::Result<Vec<ConversationDto>> {

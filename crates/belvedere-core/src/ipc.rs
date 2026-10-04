@@ -156,6 +156,28 @@ impl From<Message> for MessageDto {
     }
 }
 
+/// A mail folder as it crosses the bus.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct MailFolderDto {
+    /// Path within the account, e.g. `INBOX` or `[Gmail]/Sent Mail`.
+    pub path: String,
+    /// `inbox`, `sent`, `drafts`, `junk`, `trash`, `archive`, `templates`,
+    /// `outbox`, or `other`.
+    pub role: String,
+    /// Whether any messages are stored locally for it.
+    pub has_local_mail: bool,
+}
+
+/// A mail account as it crosses the bus.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct MailAccountDto {
+    pub key: String,
+    pub name: String,
+    /// `imap`, `pop3`, `none` (Local Folders), ...
+    pub kind: String,
+    pub folders: Vec<MailFolderDto>,
+}
+
 /// Client proxy. `ServiceProxy::new(&connection).await?` connects to the
 /// running service on whatever bus `connection` is on.
 #[zbus::proxy(
@@ -216,6 +238,10 @@ pub trait Service {
     /// text arrives through `GenerationText` signals and ends with
     /// `GenerationDone` or `GenerationFailed`. Debug use for now.
     fn generate(&self, prompt: &str, max_tokens: u32) -> zbus::Result<u64>;
+
+    /// Thunderbird's mail accounts and their folders, read from the
+    /// default profile. Debug use for now.
+    fn list_mail_accounts(&self) -> zbus::Result<Vec<MailAccountDto>>;
 
     /// Conversations, most recently active first.
     fn list_conversations(&self) -> zbus::Result<Vec<ConversationDto>>;
