@@ -323,12 +323,12 @@ impl Application for Belvedere {
 
         let mut page = widget::column::with_capacity(4).spacing(spacing.space_s);
         if !self.connected {
-            page = page.push(widget::warning(
+            page = page.push(notice(
                 "Belvedere's background service isn't running. Tasks will appear once it's back.",
             ));
         }
         if let Some(error) = &self.error {
-            page = page.push(widget::warning(error.as_str()));
+            page = page.push(notice(error.as_str()));
         }
         if let Some(undo) = &self.undo {
             page = page.push(
@@ -522,7 +522,7 @@ impl Belvedere {
                     ),
             );
         if let Some(problem) = &editor.problem {
-            form = form.push(widget::warning(problem.as_str()));
+            form = form.push(notice(problem.as_str()));
         }
 
         let is_done = self.find(editor.id).is_some_and(|t| t.status != "open");
@@ -552,6 +552,35 @@ impl Belvedere {
             .class(cosmic::theme::Container::Card)
             .into()
     }
+}
+
+/// A warning bar that stays readable in light and dark themes: a soft
+/// tint of the theme's warning color behind the theme's normal text, with
+/// a solid warning-colored edge on the left.
+fn notice<'a>(message: &'a str) -> Element<'a, Message> {
+    let spacing = cosmic::theme::spacing();
+    container(text::body(message))
+        .padding([spacing.space_xs, spacing.space_s])
+        .width(Length::Fill)
+        .class(cosmic::theme::Container::custom(|theme| {
+            let cosmic = theme.cosmic();
+            let warning = cosmic.warning_color();
+            let mut tint = warning;
+            tint.alpha = 0.18;
+            cosmic::iced::widget::container::Style {
+                icon_color: None,
+                text_color: Some(cosmic.on_bg_color().into()),
+                background: Some(cosmic::iced::Color::from(tint).into()),
+                border: cosmic::iced::Border {
+                    color: warning.into(),
+                    width: 0.0,
+                    radius: cosmic.corner_radii.radius_s.into(),
+                },
+                shadow: Default::default(),
+                snap: false,
+            }
+        }))
+        .into()
 }
 
 fn task_row<'a>(

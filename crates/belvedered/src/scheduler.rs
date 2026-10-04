@@ -151,8 +151,11 @@ async fn handle_click(db: &SharedDb, bus: &zbus::Connection, clicked: Clicked) {
 }
 
 /// Starts (or focuses) the window, then asks it to show the task.
+/// `BELVEDERE_NO_WINDOW_LAUNCH` skips the launch (tests set it, so a
+/// test run never pops a real window onto the desktop).
 async fn open_window(bus: &zbus::Connection, task_id: i64) {
-    let launched = std::process::Command::new("belvedere").spawn().is_ok()
+    let launched = std::env::var_os("BELVEDERE_NO_WINDOW_LAUNCH").is_some()
+        || std::process::Command::new("belvedere").spawn().is_ok()
         || std::env::var_os("HOME")
             .map(|h| std::path::PathBuf::from(h).join(".local/bin/belvedere"))
             .is_some_and(|p| std::process::Command::new(p).spawn().is_ok());
