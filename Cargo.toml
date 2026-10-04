@@ -6,6 +6,7 @@ members = [
     "crates/belvedere",
     "crates/belvedere-applet",
     "crates/belvedere-model",
+    "crates/belvedere-eval",
 ]
 
 [workspace.package]

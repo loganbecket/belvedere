@@ -7,7 +7,7 @@ use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use belvedere_core::model_ipc::{ChatMessage, Command, Event};
+use crate::model_ipc::{ChatMessage, Command, Event};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin};
 use tokio::sync::mpsc;

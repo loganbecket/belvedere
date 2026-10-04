@@ -12,7 +12,7 @@ use chrono::Local;
 use tracing::{info, warn};
 
 use crate::dbus::{Service, SharedDb};
-use crate::engine::{self, Chunk, Engine, State};
+use belvedere_core::engine::{self, Chunk, Engine, State};
 
 /// How much of a reply to allow.
 const MAX_REPLY_TOKENS: u32 = 1024;

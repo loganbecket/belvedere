@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::chat::{self, Replies};
-use crate::engine::{self, Chunk, Engine};
+use belvedere_core::engine::{self, Chunk, Engine};
 
 use belvedere_core::db::{Db, DbError, NewTask, Role};
 use belvedere_core::ipc::{ConversationDto, MessageDto, ModelDto, TaskDto, BUS_NAME, OBJECT_PATH};

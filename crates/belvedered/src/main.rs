@@ -5,7 +5,6 @@
 
 mod chat;
 mod dbus;
-mod engine;
 mod models;
 mod notify;
 mod scheduler;
@@ -79,7 +78,7 @@ fn open_database() -> anyhow::Result<Db> {
 /// Unloads the model after it has sat unused for the configured time
 /// (setting `model_idle_unload_minutes`, default 5), so its memory is only
 /// held while something is actually being asked of it.
-async fn idle_unload(engine: engine::Engine, db: dbus::SharedDb) {
+async fn idle_unload(engine: belvedere_core::engine::Engine, db: dbus::SharedDb) {
     let mut tick = tokio::time::interval(Duration::from_secs(15));
     loop {
         tick.tick().await;
@@ -93,7 +92,7 @@ async fn idle_unload(engine: engine::Engine, db: dbus::SharedDb) {
             .unwrap_or(5);
         let idle_after = Duration::from_secs(minutes * 60);
         let state = engine.state();
-        if engine::should_unload(
+        if belvedere_core::engine::should_unload(
             &state,
             engine.last_used(),
             std::time::Instant::now(),
@@ -109,7 +108,7 @@ async fn run(db: Db) {
     info!(version = belvedere_core::VERSION, "belvedered starting");
 
     let db = Arc::new(Mutex::new(db));
-    let engine = engine::Engine::new();
+    let engine = belvedere_core::engine::Engine::new();
     tokio::spawn(idle_unload(engine.clone(), db.clone()));
     // Kept alive for the whole run; dropping it would leave the bus.
     let bus = match dbus::serve(db.clone(), engine).await {

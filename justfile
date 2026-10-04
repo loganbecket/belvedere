@@ -24,6 +24,10 @@ run-service:
 run-app:
     cargo run -p belvedere
 
+# Score a suite of eval cases against the model: just eval chat-tasks
+eval suite *args:
+    cargo run --release -p belvedere-eval -- --suite {{suite}} {{args}}
+
 # Everything CI checks, in one go
 ci: lint test
 

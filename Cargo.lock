@@ -529,7 +529,21 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
+ "tracing",
  "zbus",
+]
+
+[[package]]
+name = "belvedere-eval"
+version = "0.1.0"
+dependencies = [
+ "belvedere-core",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
