@@ -167,7 +167,8 @@ async fn main() {
             println!("       {f}");
         }
     })
-    .await;
+    .await
+    .with_cases(&suite);
     runner.shutdown().await;
 
     print!("\n{}", results.table());

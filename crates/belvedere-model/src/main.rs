@@ -129,13 +129,14 @@ fn main() {
     }
 
     while let Ok(cmd) = rx.recv() {
-        let (prompt, max_tokens, grammar) = match cmd {
-            Command::Generate { prompt, max_tokens } => (prompt, max_tokens, None),
+        let (prompt, max_tokens, grammar, temperature) = match cmd {
+            Command::Generate { prompt, max_tokens } => (prompt, max_tokens, None, None),
             Command::Chat {
                 messages,
                 max_tokens,
                 grammar,
                 no_think,
+                temperature,
             } => match render_chat(&model, &messages) {
                 Ok(mut prompt) => {
                     // Pre-fill an empty reasoning block so a Qwen-style
@@ -143,7 +144,7 @@ fn main() {
                     if no_think && prompt.contains("<|im_start|>") {
                         prompt.push_str("<think>\n\n</think>\n\n");
                     }
-                    (prompt, max_tokens, grammar)
+                    (prompt, max_tokens, grammar, temperature)
                 }
                 Err(message) => {
                     emit(&mut out, &Event::Error { message });
@@ -165,6 +166,7 @@ fn main() {
             &prompt,
             max_tokens,
             grammar.as_ref(),
+            temperature.unwrap_or(0.7),
             &cancel,
             &mut out,
             &emit,
@@ -203,6 +205,7 @@ fn generate(
     prompt: &str,
     max_tokens: u32,
     grammar: Option<&Grammar>,
+    temperature: f32,
     cancel: &AtomicBool,
     out: &mut std::io::StdoutLock<'_>,
     emit: &dyn Fn(&mut std::io::StdoutLock<'_>, &Event),
@@ -261,7 +264,7 @@ fn generate(
         .map_err(|e| format!("bad grammar: {e}"))?;
         chain.push(sampler);
     }
-    chain.push(LlamaSampler::temp(0.7));
+    chain.push(LlamaSampler::temp(temperature.clamp(0.0, 2.0)));
     chain.push(LlamaSampler::top_p(0.9, 1));
     chain.push(LlamaSampler::dist(1234));
     let mut sampler = LlamaSampler::chain_simple(chain);

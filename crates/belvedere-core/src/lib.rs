@@ -3,6 +3,7 @@
 pub mod agent;
 pub mod db;
 pub mod engine;
+pub mod extract;
 pub mod ipc;
 pub mod mail;
 pub mod model_ipc;

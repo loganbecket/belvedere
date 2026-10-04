@@ -103,6 +103,28 @@ pub struct Expect {
     /// Words the reply must not contain.
     #[serde(default)]
     pub reply_lacks: Vec<String>,
+    /// For email cases: what the extraction must say. Present means the
+    /// case runs through extraction rather than chat.
+    #[serde(default)]
+    pub extract: Option<ExtractExpect>,
+}
+
+/// Expectations on an extraction result. Absent fields are unchecked.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ExtractExpect {
+    pub action_needed: bool,
+    #[serde(default)]
+    pub kind: Option<String>,
+    /// `YYYY-MM-DD`.
+    #[serde(default)]
+    pub due_date: Option<String>,
+    #[serde(default)]
+    pub amount: Option<f64>,
+    #[serde(default)]
+    pub title_contains: Vec<String>,
+    /// Words that must never appear in the title (injected instructions).
+    #[serde(default)]
+    pub title_lacks: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
