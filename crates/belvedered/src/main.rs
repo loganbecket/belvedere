@@ -3,6 +3,7 @@
 //! Right now it opens its database, stays alive, logs to the journal, and
 //! shuts down cleanly when asked. Everything else arrives in later chunks.
 
+mod chat;
 mod dbus;
 mod engine;
 mod models;

@@ -3,10 +3,11 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
+use crate::chat::{self, Replies};
 use crate::engine::{self, Chunk, Engine};
 
-use belvedere_core::db::{Db, DbError, NewTask};
-use belvedere_core::ipc::{ModelDto, TaskDto, BUS_NAME, OBJECT_PATH};
+use belvedere_core::db::{Db, DbError, NewTask, Role};
+use belvedere_core::ipc::{ConversationDto, MessageDto, ModelDto, TaskDto, BUS_NAME, OBJECT_PATH};
 use belvedere_core::schedule;
 use chrono::Local;
 use tracing::info;
@@ -21,6 +22,7 @@ pub struct Service {
     db: SharedDb,
     engine: Engine,
     next_request: AtomicU64,
+    replies: Arc<Replies>,
 }
 
 impl Service {
@@ -29,6 +31,7 @@ impl Service {
             db,
             engine,
             next_request: AtomicU64::new(1),
+            replies: Arc::new(Replies::default()),
         }
     }
 
@@ -228,6 +231,98 @@ impl Service {
         });
         Ok(request)
     }
+
+    fn list_conversations(&self) -> fdo::Result<Vec<ConversationDto>> {
+        let list = self.db().list_conversations().map_err(to_fdo)?;
+        Ok(list.into_iter().map(ConversationDto::from).collect())
+    }
+
+    fn new_conversation(&self) -> fdo::Result<ConversationDto> {
+        self.db()
+            .create_conversation("")
+            .map(ConversationDto::from)
+            .map_err(to_fdo)
+    }
+
+    fn get_messages(&self, conversation_id: i64) -> fdo::Result<Vec<MessageDto>> {
+        let list = self
+            .db()
+            .conversation_messages(conversation_id)
+            .map_err(to_fdo)?;
+        Ok(list.into_iter().map(MessageDto::from).collect())
+    }
+
+    async fn send_message(
+        &self,
+        #[zbus(connection)] bus: &zbus::Connection,
+        conversation_id: i64,
+        text: &str,
+    ) -> fdo::Result<u64> {
+        let text = text.trim();
+        if text.is_empty() {
+            return Err(fdo::Error::InvalidArgs("message is empty".into()));
+        }
+        {
+            let db = self.db();
+            let conversation = db.get_conversation(conversation_id).map_err(to_fdo)?;
+            db.add_message(conversation_id, Role::User, text)
+                .map_err(to_fdo)?;
+            if conversation.title.is_empty() {
+                let title: String = text.chars().take(60).collect();
+                let _ = db.rename_conversation(conversation_id, title.trim());
+            }
+        }
+        let request = self.next_request.fetch_add(1, Ordering::Relaxed);
+        self.replies.start(request, conversation_id);
+        tokio::spawn(chat::reply(
+            self.db.clone(),
+            self.engine.clone(),
+            self.replies.clone(),
+            bus.clone(),
+            request,
+            conversation_id,
+        ));
+        Ok(request)
+    }
+
+    async fn stop_generation(&self, request: u64) {
+        if self.replies.is_active(request) {
+            self.replies.finish(request);
+            self.engine.cancel().await;
+        }
+    }
+
+    #[zbus(signal)]
+    pub async fn chat_status(
+        emitter: &SignalEmitter<'_>,
+        request: u64,
+        conversation_id: i64,
+        status: &str,
+    ) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    pub async fn chat_text(
+        emitter: &SignalEmitter<'_>,
+        request: u64,
+        conversation_id: i64,
+        text: &str,
+    ) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    pub async fn chat_done(
+        emitter: &SignalEmitter<'_>,
+        request: u64,
+        conversation_id: i64,
+        message_id: i64,
+    ) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    pub async fn chat_failed(
+        emitter: &SignalEmitter<'_>,
+        request: u64,
+        conversation_id: i64,
+        message: &str,
+    ) -> zbus::Result<()>;
 
     #[zbus(signal)]
     pub async fn generation_text(

@@ -19,6 +19,7 @@ use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
 use llama_cpp_2::model::params::LlamaModelParams;
+use llama_cpp_2::model::LlamaChatMessage;
 use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::sampling::LlamaSampler;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
@@ -128,18 +129,47 @@ fn main() {
     }
 
     while let Ok(cmd) = rx.recv() {
-        match cmd {
-            Command::Generate { prompt, max_tokens } => {
-                cancel.store(false, Ordering::Relaxed);
-                if let Err(message) = generate(
-                    &backend, &model, n_ctx, threads, &prompt, max_tokens, &cancel, &mut out, &emit,
-                ) {
+        let (prompt, max_tokens) = match cmd {
+            Command::Generate { prompt, max_tokens } => (prompt, max_tokens),
+            Command::Chat {
+                messages,
+                max_tokens,
+            } => match render_chat(&model, &messages) {
+                Ok(prompt) => (prompt, max_tokens),
+                Err(message) => {
                     emit(&mut out, &Event::Error { message });
+                    continue;
                 }
-            }
-            Command::Cancel => {}
+            },
+            Command::Cancel => continue,
+        };
+        cancel.store(false, Ordering::Relaxed);
+        if let Err(message) = generate(
+            &backend, &model, n_ctx, threads, &prompt, max_tokens, &cancel, &mut out, &emit,
+        ) {
+            emit(&mut out, &Event::Error { message });
         }
     }
+}
+
+/// Lays a conversation out the way this model was trained to read it,
+/// using the chat template stored in the model file, and opens the
+/// assistant's turn.
+fn render_chat(
+    model: &LlamaModel,
+    messages: &[belvedere_core::model_ipc::ChatMessage],
+) -> Result<String, String> {
+    let template = model
+        .chat_template(None)
+        .map_err(|e| format!("this model has no chat template: {e}"))?;
+    let chat: Vec<LlamaChatMessage> = messages
+        .iter()
+        .map(|m| LlamaChatMessage::new(m.role.clone(), m.content.clone()))
+        .collect::<Result<_, _>>()
+        .map_err(|e| format!("bad chat message: {e}"))?;
+    model
+        .apply_chat_template(&template, &chat, true)
+        .map_err(|e| format!("could not apply the chat template: {e}"))
 }
 
 #[allow(clippy::too_many_arguments)]

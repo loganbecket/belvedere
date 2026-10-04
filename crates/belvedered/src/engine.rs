@@ -7,7 +7,7 @@ use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use belvedere_core::model_ipc::{Command, Event};
+use belvedere_core::model_ipc::{ChatMessage, Command, Event};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin};
 use tokio::sync::mpsc;
@@ -159,6 +159,24 @@ impl Engine {
         prompt: String,
         max_tokens: u32,
     ) -> mpsc::UnboundedReceiver<Chunk> {
+        self.run(Command::Generate { prompt, max_tokens }).await
+    }
+
+    /// Streams the assistant's next turn in a conversation; the helper
+    /// applies the model's chat template. Dropping the receiver cancels.
+    pub async fn chat(
+        &self,
+        messages: Vec<ChatMessage>,
+        max_tokens: u32,
+    ) -> mpsc::UnboundedReceiver<Chunk> {
+        self.run(Command::Chat {
+            messages,
+            max_tokens,
+        })
+        .await
+    }
+
+    async fn run(&self, cmd: Command) -> mpsc::UnboundedReceiver<Chunk> {
         let (out, rx) = mpsc::unbounded_channel();
         let mut inner = self.inner.lock().await;
         let Some(helper) = inner.helper.as_mut() else {
@@ -166,7 +184,6 @@ impl Engine {
             return rx;
         };
         *helper.listener.lock().unwrap_or_else(|e| e.into_inner()) = Some(out.clone());
-        let cmd = Command::Generate { prompt, max_tokens };
         if let Err(err) = send(&mut helper.stdin, &cmd).await {
             let _ = out.send(Chunk::Failed(format!("model helper unreachable: {err}")));
             return rx;
@@ -208,7 +225,8 @@ impl Engine {
         }
     }
 
-    async fn cancel(&self) {
+    /// Stops the generation in progress, if any.
+    pub async fn cancel(&self) {
         let mut inner = self.inner.lock().await;
         if let Some(helper) = inner.helper.as_mut() {
             let _ = send(&mut helper.stdin, &Command::Cancel).await;
