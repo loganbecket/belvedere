@@ -5,16 +5,15 @@ Belvedere is a personal assistant for the COSMIC desktop, written in Rust. It is
 ## The plan is the contract
 
 - `PLAN.md` in this folder (local only, not committed) lists every chunk of work in order. Work only on the chunk Logan names ("start chunk 0.1"). If `PLAN.md` is missing, stop and ask for it.
-- Read the chunk's Scope, Not in this chunk, Done when, and Logan checks before writing anything. Build exactly the Scope. Nothing from Not in this chunk, nothing from later chunks, no "while I'm here" improvements.
+- Read the chunk's Scope, Not in this chunk, and Done when before writing anything. Build exactly the Scope. Nothing from Not in this chunk, nothing from later chunks, no "while I'm here" improvements.
 - Work you discover that isn't in the chunk goes in the Parking lot at the bottom of `PLAN.md`, with one line on why. Do not build it.
-- A chunk that grows past about 1,500 changed lines (excluding lockfiles and test fixtures) stops, and the PR proposes a split instead.
 
 ## One chunk, one branch, one PR
 
 - The default branch is `master`. Never commit to it directly.
 - Branch name is the one `PLAN.md` gives the chunk. Branch off a fresh `master`.
 - Open the PR with `gh pr create` against `master` when the chunk's Done when items are all met. Logan merges by hand; never merge yourself.
-- The PR description is the only thing Logan reads. It must contain: the chunk number and title; every Done when item as a checkbox with proof next to it (command output, test names, eval scores, screenshot); the Logan checks steps, written for someone who won't read code; and anything that did not get done, said plainly. A ticked box without proof is a lie.
+- The PR description is the only thing Logan reads, and he checks nothing by hand. It must contain: the chunk number and title; every Done when item as a checkbox with proof next to it (command output, test names, eval scores, screenshot); and anything that did not get done, said plainly. A ticked box without proof is a lie.
 
 ## Baseline gates for every PR
 
@@ -35,6 +34,7 @@ Belvedere is a personal assistant for the COSMIC desktop, written in Rust. It is
 
 - He is not reading code and does not want the mechanism. Say what happened and what it means for him, in a sentence or two. No file paths, function names, or framework jargon unless he asks.
 - When something is blocked or unclear, say what you don't know and what you'd do by default. Don't present menus of options.
+- Ideas, best practices, or extras he didn't ask for: propose them in a sentence or two and ask. Never build them unasked, never silently drop them.
 - Answer questions as questions. Act only on an explicit instruction.
 
 ## Stack reminders
