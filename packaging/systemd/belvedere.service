@@ -1,0 +1,15 @@
+[Unit]
+Description=Belvedere background service
+Documentation=https://github.com/loganbecket/belvedere
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/belvedered
+Restart=on-failure
+RestartSec=1
+TimeoutStopSec=10
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=default.target
