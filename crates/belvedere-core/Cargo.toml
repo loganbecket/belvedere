@@ -10,7 +10,9 @@ rust-version.workspace = true
 [dependencies]
 chrono = "0.4.45"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"
+zbus = { version = "5.19.0", default-features = false, features = ["tokio"] }
 
 [dev-dependencies]
 tempfile = "3.27.0"

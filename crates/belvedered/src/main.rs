@@ -3,6 +3,9 @@
 //! Right now it opens its database, stays alive, logs to the journal, and
 //! shuts down cleanly when asked. Everything else arrives in later chunks.
 
+mod dbus;
+
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::Context;
@@ -66,8 +69,18 @@ fn open_database() -> anyhow::Result<Db> {
     Ok(db)
 }
 
-async fn run(_db: Db) {
+async fn run(db: Db) {
     info!(version = belvedere_core::VERSION, "belvedered starting");
+
+    let db = Arc::new(Mutex::new(db));
+    // Kept alive for the whole run; dropping it would leave the bus.
+    let _bus = match dbus::serve(db).await {
+        Ok(conn) => conn,
+        Err(err) => {
+            error!("could not start D-Bus service: {err}");
+            std::process::exit(1);
+        }
+    };
 
     let mut sigterm = signal(SignalKind::terminate()).expect("SIGTERM handler");
     let mut sigint = signal(SignalKind::interrupt()).expect("SIGINT handler");
