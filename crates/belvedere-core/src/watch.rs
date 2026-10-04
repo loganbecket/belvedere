@@ -11,13 +11,14 @@ use std::time::Duration;
 use futures_channel::mpsc::Sender;
 use futures_util::{SinkExt, StreamExt};
 
-use crate::ipc::{ServiceProxy, TaskDto};
+use crate::ipc::{ServiceProxy, SuggestionDto, TaskDto};
 
 /// Live tasks and soft-deleted tasks, fetched together.
 #[derive(Debug, Clone, Default)]
 pub struct Lists {
     pub tasks: Vec<TaskDto>,
     pub deleted: Vec<TaskDto>,
+    pub suggestions: Vec<SuggestionDto>,
 }
 
 /// What the loop tells the client.
@@ -66,6 +67,7 @@ async fn fetch(proxy: &ServiceProxy<'static>) -> zbus::Result<Lists> {
     Ok(Lists {
         tasks: proxy.list_tasks().await?,
         deleted: proxy.list_deleted_tasks().await?,
+        suggestions: proxy.list_suggestions().await.unwrap_or_default(),
     })
 }
 
@@ -120,6 +122,13 @@ async fn run_until_disconnected(
             return Ok(());
         }
     };
+    let mut suggestions_changed = match proxy.receive_suggestions_changed().await {
+        Ok(stream) => stream,
+        Err(_) => {
+            out.send(Event::Disconnected).await.map_err(|_| ())?;
+            return Ok(());
+        }
+    };
     let mut show = match proxy.receive_show_task().await {
         Ok(stream) => stream,
         Err(_) => {
@@ -159,6 +168,15 @@ async fn run_until_disconnected(
             Some(signal) = chat_failed.next() => {
                 if let Ok(a) = signal.args() {
                     out.send(Event::ChatFailed { request: a.request, conversation_id: a.conversation_id, message: a.message.to_string() }).await.map_err(|_| ())?;
+                }
+            }
+            Some(_) = suggestions_changed.next() => {
+                match fetch(&proxy).await {
+                    Ok(lists) => out.send(Event::Tasks(lists)).await.map_err(|_| ())?,
+                    Err(_) => {
+                        out.send(Event::Disconnected).await.map_err(|_| ())?;
+                        return Ok(());
+                    }
                 }
             }
             signal = show.next() => {

@@ -178,6 +178,37 @@ pub fn due_label(due_rfc3339: &str, now: DateTime<Local>) -> String {
     }
 }
 
+/// Reminder times for a task found in mail: the defaults plus one
+/// `lead_days` before the due day at 9:00, when that is still ahead.
+pub fn plan_reminders_with_lead(
+    due_rfc3339: &str,
+    now: DateTime<Local>,
+    lead_days: i64,
+) -> Vec<String> {
+    let mut times = plan_reminders(due_rfc3339, now);
+    if let Some(due) = parse_rfc3339(due_rfc3339) {
+        let due = due.with_timezone(&Local);
+        if let Some(early) = Local
+            .from_local_datetime(&NaiveDateTime::new(
+                due.date_naive() - chrono::Duration::days(lead_days),
+                DEFAULT_DUE_TIME,
+            ))
+            .earliest()
+        {
+            if early > now {
+                times.push(
+                    early
+                        .with_timezone(&Utc)
+                        .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                );
+            }
+        }
+    }
+    times.sort();
+    times.dedup();
+    times
+}
+
 /// Default reminder times for a task due at `due_rfc3339`, as of `now`:
 /// 9:00 local on the due day, plus the due time itself when one was set
 /// (a date-only task is stored at 9:00, so that collapses to one).
@@ -226,6 +257,8 @@ mod tests {
             updated_at: String::new(),
             completed_at: String::new(),
             deleted_at: if deleted { "x".into() } else { String::new() },
+            source_kind: String::new(),
+            source_label: String::new(),
         }
     }
 
@@ -388,6 +421,16 @@ mod tests {
             planned,
             [due(2026, 10, 20, 9, 0), due(2026, 10, 20, 14, 30)]
         );
+    }
+
+    #[test]
+    fn lead_reminder_is_added_when_still_ahead() {
+        let now = local(2026, 10, 1, 12, 0);
+        let planned = plan_reminders_with_lead(&due(2026, 10, 20, 9, 0), now, 3);
+        assert_eq!(planned, [due(2026, 10, 17, 9, 0), due(2026, 10, 20, 9, 0)]);
+        // Too close for a lead reminder: just the due day.
+        let soon = plan_reminders_with_lead(&due(2026, 10, 3, 9, 0), now, 3);
+        assert_eq!(soon, [due(2026, 10, 3, 9, 0)]);
     }
 
     #[test]

@@ -35,6 +35,8 @@ enum Message {
     PopupClosed(Id),
     Service(Event),
     SetDone(i64, bool),
+    AcceptSuggestion(i64),
+    RejectSuggestion(i64),
     OpenWindow,
     Done(Result<(), String>),
 }
@@ -138,6 +140,22 @@ impl Application for Applet {
                     |r| cosmic::Action::App(Message::Done(r.map_err(|e| e.to_string()))),
                 );
             }
+            Message::AcceptSuggestion(id) | Message::RejectSuggestion(id) => {
+                let accept = matches!(message, Message::AcceptSuggestion(_));
+                let Some(proxy) = self.service.clone() else {
+                    return Task::none();
+                };
+                return Task::perform(
+                    async move {
+                        if accept {
+                            proxy.accept_suggestion(id).await.map(|_| ())
+                        } else {
+                            proxy.reject_suggestion(id).await
+                        }
+                    },
+                    |r| cosmic::Action::App(Message::Done(r.map_err(|e| e.to_string()))),
+                );
+            }
             Message::OpenWindow => {
                 open_window();
                 if let Some(id) = self.popup.take() {
@@ -216,11 +234,29 @@ impl Application for Applet {
             );
         }
 
-        let content = widget::column::with_capacity(3)
+        let mut suggestions = widget::column::with_capacity(self.lists.suggestions.len() + 1)
+            .spacing(spacing.space_xxs);
+        if !self.lists.suggestions.is_empty() {
+            suggestions = suggestions.push(text::title4("Suggested"));
+            for s in &self.lists.suggestions {
+                let id = s.id;
+                suggestions = suggestions.push(
+                    widget::row::with_capacity(3)
+                        .align_y(Alignment::Center)
+                        .spacing(spacing.space_xs)
+                        .push(text::body(s.title.as_str()).width(Length::Fill))
+                        .push(button::text("Accept").on_press(Message::AcceptSuggestion(id)))
+                        .push(button::text("Reject").on_press(Message::RejectSuggestion(id))),
+                );
+            }
+        }
+
+        let content = widget::column::with_capacity(4)
             .spacing(spacing.space_s)
             .padding(spacing.space_s)
             .push(text::title4("Due today"))
             .push(list)
+            .push(suggestions)
             .push(
                 button::suggested("Open Belvedere")
                     .on_press(Message::OpenWindow)

@@ -123,6 +123,24 @@ pub(crate) const MIGRATIONS: &[&str] = &[
         updated_at TEXT    NOT NULL
     );
     "#,
+    // 2 -> 3: suggested tasks awaiting a yes or no.
+    r#"
+    CREATE TABLE suggestions (
+        id              INTEGER PRIMARY KEY,
+        mail_message_id INTEGER NOT NULL REFERENCES mail_messages (id) ON DELETE CASCADE,
+        title           TEXT    NOT NULL,
+        notes           TEXT    NOT NULL DEFAULT '',
+        due_at          TEXT,
+        kind            TEXT    NOT NULL DEFAULT 'other',
+        amount          REAL,
+        confidence      REAL    NOT NULL DEFAULT 0,
+        created_at      TEXT    NOT NULL,
+        resolved_at     TEXT,
+        resolution      TEXT    CHECK (resolution IN ('accepted', 'rejected')),
+        task_id         INTEGER
+    );
+    CREATE INDEX suggestions_open ON suggestions (id) WHERE resolved_at IS NULL;
+    "#,
 ];
 
 /// The schema version this build expects.
@@ -201,6 +219,7 @@ mod tests {
                 "reminders",
                 "rules",
                 "settings",
+                "suggestions",
                 "task_sources",
                 "tasks",
             ]

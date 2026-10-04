@@ -125,6 +125,17 @@ impl Db {
         Ok((row, true))
     }
 
+    pub fn get_mail(&self, id: i64) -> Result<MailMessage> {
+        self.conn
+            .query_row(
+                &format!("SELECT {COLUMNS} FROM mail_messages WHERE id = ?1"),
+                [id],
+                MailMessage::from_row,
+            )
+            .optional()?
+            .ok_or(super::DbError::NotFound(id))
+    }
+
     pub fn mail_by_message_id(&self, message_id: &str) -> Result<Option<MailMessage>> {
         Ok(self
             .conn
