@@ -92,6 +92,37 @@ pub(crate) const MIGRATIONS: &[&str] = &[
         updated_at TEXT NOT NULL
     );
     "#,
+    // 1 -> 2: mail Belvedere has seen, and how far each mbox was read.
+    r#"
+    CREATE TABLE mail_messages (
+        id           INTEGER PRIMARY KEY,
+        message_id   TEXT    NOT NULL UNIQUE,
+        account      TEXT    NOT NULL,
+        folder       TEXT    NOT NULL,
+        from_addr    TEXT    NOT NULL DEFAULT '',
+        from_name    TEXT    NOT NULL DEFAULT '',
+        to_addrs     TEXT    NOT NULL DEFAULT '',
+        subject      TEXT    NOT NULL DEFAULT '',
+        date         TEXT    NOT NULL DEFAULT '',
+        body_text    TEXT    NOT NULL DEFAULT '',
+        attachments  TEXT    NOT NULL DEFAULT '[]',
+        mbox_path    TEXT    NOT NULL,
+        mbox_offset  INTEGER NOT NULL DEFAULT 0,
+        seen_at      TEXT    NOT NULL,
+        processed_at TEXT
+    );
+    CREATE INDEX mail_messages_unprocessed ON mail_messages (id) WHERE processed_at IS NULL;
+    CREATE INDEX mail_messages_seen ON mail_messages (seen_at);
+
+    CREATE TABLE mail_folder_state (
+        mbox_path  TEXT    PRIMARY KEY,
+        scanned_to INTEGER NOT NULL DEFAULT 0,
+        size       INTEGER NOT NULL DEFAULT 0,
+        mtime      INTEGER NOT NULL DEFAULT 0,
+        head       BLOB    NOT NULL DEFAULT X'',
+        updated_at TEXT    NOT NULL
+    );
+    "#,
 ];
 
 /// The schema version this build expects.
@@ -163,6 +194,8 @@ mod tests {
             table_names(&conn),
             [
                 "conversations",
+                "mail_folder_state",
+                "mail_messages",
                 "messages",
                 "models",
                 "reminders",

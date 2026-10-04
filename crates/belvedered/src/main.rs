@@ -5,6 +5,7 @@
 
 mod chat;
 mod dbus;
+mod mail;
 mod models;
 mod notify;
 mod scheduler;
@@ -164,7 +165,15 @@ async fn run(db: Db) {
     };
     let name_lost = dbus::name_lost(&bus);
     tokio::pin!(name_lost);
-    tokio::spawn(scheduler::run(db, bus.clone()));
+    tokio::spawn(scheduler::run(db.clone(), bus.clone()));
+    // Mail: scan Thunderbird's folders at startup and whenever they change.
+    let (mail_tx, mut mail_rx) = tokio::sync::mpsc::unbounded_channel::<usize>();
+    tokio::spawn(mail::run(db, mail_tx));
+    tokio::spawn(async move {
+        while let Some(n) = mail_rx.recv().await {
+            info!(new = n, "new mail recorded");
+        }
+    });
 
     let mut sigterm = signal(SignalKind::terminate()).expect("SIGTERM handler");
     let mut sigint = signal(SignalKind::interrupt()).expect("SIGINT handler");

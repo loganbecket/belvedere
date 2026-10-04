@@ -18,8 +18,11 @@ tracing = "0.1.44"
 tracing-journald = "0.3.2"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
 zbus = { version = "5.19.0", default-features = false, features = ["tokio"] }
+notify = "8"
+libc = "0.2.190"
 
 [dev-dependencies]
+chrono = "0.4.45"
 futures-util = "0.3.34"
 tempfile = "3.27.0"
 tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "time", "process"] }
