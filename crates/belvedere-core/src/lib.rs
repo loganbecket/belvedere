@@ -1,6 +1,7 @@
 //! Shared code for every Belvedere binary.
 
 pub mod db;
+pub mod ipc;
 
 /// The version every Belvedere binary reports, taken from the workspace.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
