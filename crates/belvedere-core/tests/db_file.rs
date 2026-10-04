@@ -11,7 +11,7 @@ fn first_open_creates_the_file_and_parent_directory() {
 
     let db = Db::open(&path).unwrap();
     assert!(path.is_file());
-    assert_eq!(db.schema_version().unwrap(), 4);
+    assert_eq!(db.schema_version().unwrap(), 5);
 }
 
 #[test]
@@ -37,7 +37,7 @@ fn second_open_changes_nothing() {
     }
 
     let after = std::fs::read(&path).unwrap();
-    assert_eq!(before_version, 4);
+    assert_eq!(before_version, 5);
     assert_eq!(before, after, "reopening must not modify the database file");
 }
 

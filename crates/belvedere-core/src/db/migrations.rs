@@ -147,6 +147,11 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     ALTER TABLE mail_messages ADD COLUMN replies_to TEXT NOT NULL DEFAULT '';
     ALTER TABLE tasks ADD COLUMN kind TEXT NOT NULL DEFAULT '';
     "#,
+    // 4 -> 5: the account or invoice number a mail-born task is about, so
+    // a follow-up email can be matched to it.
+    r#"
+    ALTER TABLE tasks ADD COLUMN reference TEXT NOT NULL DEFAULT '';
+    "#,
 ];
 
 /// The schema version this build expects.

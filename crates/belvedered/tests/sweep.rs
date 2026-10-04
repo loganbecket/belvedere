@@ -52,7 +52,7 @@ async fn a_sent_reply_closes_the_reply_needed_task_within_one_sweep() {
                 .unwrap();
             db.add_task_source(task.id, SourceKind::Email, &message_id, title)
                 .unwrap();
-            db.set_task_kind(task.id, kind).unwrap();
+            db.set_task_kind(task.id, kind, "").unwrap();
             db.create_reminder(task.id, "2099-01-01T09:00:00.000Z")
                 .unwrap();
             seeded.push(task.id);

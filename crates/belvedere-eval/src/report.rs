@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::cases::Suite;
 use crate::runner::Runner;
-use crate::score::{judge, Summary, Verdict};
+use crate::score::{judge, normalize_assignments, Summary, Verdict};
 
 /// Everything from one run, saved as JSON.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,6 +19,26 @@ pub struct Results {
     pub verdicts: Vec<Verdict>,
     #[serde(default)]
     pub extraction_summary: Option<ExtractionSummary>,
+    #[serde(default)]
+    pub thread_summary: Option<ThreadSummary>,
+}
+
+/// The plan's numbers for a threads suite.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ThreadSummary {
+    pub threads: usize,
+    pub emails: usize,
+    /// Follow-ups that wrongly became a task of their own.
+    pub duplicates: usize,
+    /// Emails expected to join an existing task.
+    pub followups_total: usize,
+    /// ... that joined the right one.
+    pub followups_right: usize,
+    /// Emails expected to start a new task while an earlier one existed
+    /// (next month's bill).
+    pub new_cycle_total: usize,
+    pub new_cycle_right: usize,
+    pub avg_seconds_per_email: f32,
 }
 
 /// The plan's numbers for an extraction suite.
@@ -59,6 +79,7 @@ pub async fn run_suite<R: Runner>(
         summary: Summary::of(&verdicts),
         verdicts,
         extraction_summary: None,
+        thread_summary: None,
     }
 }
 
@@ -101,7 +122,80 @@ impl Results {
         if let Some(m) = self.extraction_metrics() {
             out.push_str(&m);
         }
+        if let Some(m) = &self.thread_summary {
+            out.push_str(&format!(
+                "\nthread metrics\n  threads / emails:        {} / {}\n  duplicate tasks:         {}\n  follow-ups attached right: {}/{} ({:.0}%)\n  new cycle made new task: {}/{} ({:.0}%)\n  average seconds/email:   {:.1}\n",
+                m.threads, m.emails, m.duplicates,
+                m.followups_right, m.followups_total, Summary::percent(m.followups_right, m.followups_total),
+                m.new_cycle_right, m.new_cycle_total, Summary::percent(m.new_cycle_right, m.new_cycle_total),
+                m.avg_seconds_per_email
+            ));
+        }
         out
+    }
+
+    /// Computes the thread metrics from the cases and verdicts.
+    fn thread_metrics(suite: &Suite, verdicts: &[Verdict]) -> Option<ThreadSummary> {
+        let mut m = ThreadSummary::default();
+        let mut seconds = 0.0f32;
+        for (case, v) in suite.cases.iter().zip(verdicts.iter()) {
+            let Some(want) = &case.expect.thread else {
+                continue;
+            };
+            m.threads += 1;
+            m.emails += want.attach.len();
+            seconds += v.seconds;
+            let expected = normalize_assignments(&want.attach);
+            let actual = v
+                .thread
+                .as_ref()
+                .map(|t| normalize_assignments(&t.assignments))
+                .unwrap_or_default();
+            let mut seen_e: Vec<usize> = Vec::new();
+            let mut seen_a: Vec<usize> = Vec::new();
+            // Which actual task each expected task first landed in.
+            let mut landed: Vec<Option<usize>> = Vec::new();
+            for (i, e) in expected.iter().enumerate() {
+                let a = actual.get(i).copied().flatten();
+                let a_is_new = a.is_some_and(|x| !seen_a.contains(&x));
+                if let Some(x) = a {
+                    if a_is_new {
+                        seen_a.push(x);
+                    }
+                }
+                let Some(ej) = e else { continue };
+                if seen_e.contains(ej) {
+                    // A follow-up.
+                    m.followups_total += 1;
+                    if a_is_new {
+                        m.duplicates += 1;
+                    } else if a.is_some() && landed.get(*ej).copied().flatten() == a {
+                        m.followups_right += 1;
+                    }
+                } else {
+                    seen_e.push(*ej);
+                    if landed.len() <= *ej {
+                        landed.resize(*ej + 1, None);
+                    }
+                    landed[*ej] = a;
+                    if *ej > 0 {
+                        m.new_cycle_total += 1;
+                        if a_is_new {
+                            m.new_cycle_right += 1;
+                        }
+                    }
+                }
+            }
+        }
+        if m.threads == 0 {
+            return None;
+        }
+        m.avg_seconds_per_email = if m.emails > 0 {
+            seconds / m.emails as f32
+        } else {
+            0.0
+        };
+        Some(m)
     }
 
     /// The plan's specific numbers for an extraction suite, when the
@@ -138,7 +232,7 @@ impl Results {
             if got.validate().is_ok() {
                 m.valid += 1;
             }
-            if got.action_needed == want.action_needed {
+            if want.action_needed.is_none_or(|w| w == got.action_needed) {
                 m.action_correct += 1;
             }
             if case.kind == "marketing" || case.kind == "newsletter" {
@@ -176,6 +270,7 @@ impl Results {
             };
             self.extraction_summary = Some(m);
         }
+        self.thread_summary = Self::thread_metrics(suite, &self.verdicts);
         self
     }
 }
@@ -236,6 +331,7 @@ mod tests {
                 error: None,
                 extraction: None,
                 seconds: 0.0,
+                thread: None,
             },
         );
         let mut seen = Vec::new();
@@ -257,5 +353,74 @@ mod tests {
         assert_eq!(latest.verdicts.len(), 3);
         assert!(!latest.verdicts[1].pass);
         assert!(latest.verdicts[1].failures[0].contains("expected 1 task(s) created, got 0"));
+    }
+
+    #[tokio::test]
+    async fn thread_metrics_count_duplicates_followups_and_new_cycles() {
+        use crate::cases::{EmailFixture, ThreadExpect};
+        use crate::score::ThreadOutcome;
+        let email = |d: &str| EmailFixture {
+            from: "Billing <b@x.invalid>".into(),
+            subject: "Bill".into(),
+            body: "Pay".into(),
+            date: d.into(),
+            id: String::new(),
+            in_reply_to: String::new(),
+        };
+        let thread = |id: &str, attach: Vec<Option<usize>>| Case {
+            id: id.into(),
+            kind: "bill".into(),
+            now: "2026-10-15T09:00:00-05:00".into(),
+            input: Input::Thread {
+                emails: attach
+                    .iter()
+                    .map(|_| email("2026-10-15T09:00:00-05:00"))
+                    .collect(),
+            },
+            tasks: vec![],
+            expect: Expect {
+                thread: Some(ThreadExpect { attach }),
+                ..Default::default()
+            },
+        };
+        let suite = Suite {
+            name: "mail-threads".into(),
+            cases: vec![
+                // statement, reminder, next month: all right
+                thread("right", vec![Some(0), Some(0), Some(1)]),
+                // the reminder became its own task: a duplicate
+                thread("dup", vec![Some(0), Some(0)]),
+                // next month wrongly joined the old task
+                thread("merged", vec![Some(0), Some(1)]),
+            ],
+        };
+        let outcome = |assign: Vec<Option<usize>>| Outcome {
+            thread: Some(ThreadOutcome {
+                assignments: assign,
+                reasons: vec![],
+                titles: vec![],
+            }),
+            ..Outcome::unchanged(&[])
+        };
+        let mut runner = Scripted::default();
+        runner
+            .outcomes
+            .insert("right".into(), outcome(vec![Some(0), Some(0), Some(1)]));
+        runner
+            .outcomes
+            .insert("dup".into(), outcome(vec![Some(0), Some(1)]));
+        runner
+            .outcomes
+            .insert("merged".into(), outcome(vec![Some(0), Some(0)]));
+        let results = run_suite(&suite, &mut runner, |_| {})
+            .await
+            .with_cases(&suite);
+        assert_eq!(results.summary.passed, 1);
+        let m = results.thread_summary.clone().unwrap();
+        assert_eq!((m.threads, m.emails), (3, 7));
+        assert_eq!(m.duplicates, 1);
+        assert_eq!((m.followups_right, m.followups_total), (1, 2));
+        assert_eq!((m.new_cycle_right, m.new_cycle_total), (1, 2));
+        assert!(results.table().contains("duplicate tasks:         1"));
     }
 }

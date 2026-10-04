@@ -211,6 +211,40 @@ async fn a_bill_email_becomes_a_task_with_a_notification() {
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
 
+    // A reminder about the same bill updates that task; no second task.
+    append(
+        &inbox,
+        &message(
+            "bill-1-reminder",
+            "City Power <billing@citypower.invalid>",
+            "Reminder: payment due soon",
+            &format!(
+                "Account 4471-02\n\nThis is a reminder that your payment of $84.12 is due on {}.",
+                due.format("%B %-d, %Y")
+            ),
+            &now.to_rfc2822(),
+        ),
+    );
+    let started = Instant::now();
+    loop {
+        let tasks = proxy.list_tasks().await.unwrap();
+        assert_eq!(tasks.len(), 1, "the reminder must not become a second task");
+        if tasks[0].notes.contains("Update ") {
+            eprintln!(
+                "follow-up attached after {:?}: {}",
+                started.elapsed(),
+                tasks[0].notes
+            );
+            assert!(tasks[0].notes.contains("Reminder: payment due soon"));
+            break;
+        }
+        assert!(
+            started.elapsed() < Duration::from_secs(120),
+            "the reminder was not attached to the task"
+        );
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+
     // Opening the email is wired (the test machine may have no Thunderbird;
     // either way the method must not fail for the wrong reason).
     match proxy.open_email(task.id).await {

@@ -375,6 +375,7 @@ impl Service {
                 }),
                 amount: s.amount,
                 from_whom: String::new(),
+                reference: None,
                 confidence: s.confidence as f32,
             };
             let task = crate::pipeline::create_task_from_mail(&db, &mail, &extraction)
@@ -405,7 +406,7 @@ impl Service {
             db.task_sources(task_id)
                 .map_err(to_fdo)?
                 .into_iter()
-                .find(|s| s.kind == SourceKind::Email)
+                .rfind(|s| s.kind == SourceKind::Email)
                 .map(|s| s.reference)
                 .ok_or_else(|| fdo::Error::Failed("this task did not come from an email".into()))?
         };
