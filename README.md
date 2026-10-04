@@ -36,6 +36,7 @@ Then:
 just build   # compile everything
 just test    # run the tests
 just lint    # formatting and clippy, same as CI
+just eval chat-tasks   # score the model against the cases in evals/chat-tasks
 just         # list every recipe
 ```
 

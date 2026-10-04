@@ -1,6 +1,7 @@
 //! Shared code for every Belvedere binary.
 
 pub mod db;
+pub mod engine;
 pub mod ipc;
 pub mod model_ipc;
 pub mod models;
