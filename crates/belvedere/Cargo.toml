@@ -1,0 +1,11 @@
+[package]
+name = "belvedere"
+description = "Belvedere chat and task window"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+belvedere-core.workspace = true

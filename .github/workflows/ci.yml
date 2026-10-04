@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  check:
+    name: Format, lint, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # System libraries libcosmic will need once the UI crates grow real code.
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config cmake clang \
+            libxkbcommon-dev libwayland-dev libinput-dev libudev-dev \
+            libgbm-dev libseat-dev libpixman-1-dev libdbus-1-dev \
+            libvulkan-dev libfontconfig-dev libfreetype-dev libexpat1-dev \
+            libssl-dev libsqlite3-dev just
+
+      # Picks up the toolchain from rust-toolchain.toml.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.92.0
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Binaries report their version
+        run: |
+          cargo build --workspace
+          for bin in belvedered belvedere belvedere-applet; do
+            out="$(./target/debug/$bin)"
+            echo "$out"
+            test "$out" = "$bin 0.1.0"
+          done
