@@ -8,8 +8,8 @@ use belvedere_core::engine::{self, Chunk, Engine};
 
 use belvedere_core::db::{Db, DbError, NewTask, Role};
 use belvedere_core::ipc::{
-    ConversationDto, MailAccountDto, MailFolderDto, MessageDto, ModelDto, TaskDto, BUS_NAME,
-    OBJECT_PATH,
+    ConversationDto, MailAccountDto, MailFolderDto, MailMessageDto, MessageDto, ModelDto, TaskDto,
+    BUS_NAME, OBJECT_PATH,
 };
 use belvedere_core::schedule;
 use chrono::Local;
@@ -255,6 +255,38 @@ impl Service {
                         has_local_mail: f.mbox.is_some(),
                     })
                     .collect(),
+            })
+            .collect())
+    }
+
+    fn list_recent_mail(&self, limit: u32) -> fdo::Result<Vec<MailMessageDto>> {
+        let mail = self
+            .db()
+            .recent_mail(limit.clamp(1, 500) as usize)
+            .map_err(to_fdo)?;
+        Ok(mail
+            .into_iter()
+            .map(|m| {
+                let attachment_count = serde_json::from_str::<Vec<String>>(&m.attachments)
+                    .map(|v| v.len() as u32)
+                    .unwrap_or(0);
+                MailMessageDto {
+                    id: m.id,
+                    account: m.account,
+                    folder: m.folder,
+                    from_name: m.from_name,
+                    from_addr: m.from_addr,
+                    subject: m.subject,
+                    date: m.date,
+                    snippet: m
+                        .body_text
+                        .chars()
+                        .take(160)
+                        .collect::<String>()
+                        .replace('\n', " "),
+                    attachment_count,
+                    seen_at: m.seen_at,
+                }
             })
             .collect())
     }

@@ -53,6 +53,12 @@ impl Bus {
             .env("BELVEDERE_DB", db_path)
             .env("RUST_LOG", "info")
             .env("BELVEDERE_NO_WINDOW_LAUNCH", "1")
+            // Never read the real mailbox from a test. Tests that want
+            // mail point this at a made-up profile.
+            .env(
+                "BELVEDERE_TB_PROFILE",
+                "/nonexistent/belvedere-test-profile",
+            )
             .stdout(Stdio::null())
             // Not piped: nobody reads it, and a full pipe would stall the
             // service. Tests that want the log set `.stderr(piped())`.

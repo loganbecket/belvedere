@@ -178,6 +178,24 @@ pub struct MailAccountDto {
     pub folders: Vec<MailFolderDto>,
 }
 
+/// A seen email as it crosses the bus (essentials only, never the raw
+/// message).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct MailMessageDto {
+    pub id: i64,
+    pub account: String,
+    pub folder: String,
+    pub from_name: String,
+    pub from_addr: String,
+    pub subject: String,
+    /// RFC 3339 or empty.
+    pub date: String,
+    /// The first words of the body.
+    pub snippet: String,
+    pub attachment_count: u32,
+    pub seen_at: String,
+}
+
 /// Client proxy. `ServiceProxy::new(&connection).await?` connects to the
 /// running service on whatever bus `connection` is on.
 #[zbus::proxy(
@@ -242,6 +260,9 @@ pub trait Service {
     /// Thunderbird's mail accounts and their folders, read from the
     /// default profile. Debug use for now.
     fn list_mail_accounts(&self) -> zbus::Result<Vec<MailAccountDto>>;
+
+    /// Mail Belvedere has seen, most recent first. Debug use for now.
+    fn list_recent_mail(&self, limit: u32) -> zbus::Result<Vec<MailMessageDto>>;
 
     /// Conversations, most recently active first.
     fn list_conversations(&self) -> zbus::Result<Vec<ConversationDto>>;
