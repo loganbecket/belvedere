@@ -168,7 +168,8 @@ async fn chat_streams_persists_and_stops_quickly() {
     assert_eq!(messages[1].id, message_id);
     assert_eq!(messages[1].content, streamed.trim());
 
-    // Stop: ask for a long reply, stop it, and expect Done within a second.
+    // Stop: ask for a long reply, stop it as soon as the service reports
+    // it is working on it, and expect Done within a second.
     let request = proxy
         .send_message(
             conversation.id,
@@ -176,16 +177,17 @@ async fn chat_streams_persists_and_stops_quickly() {
         )
         .await
         .unwrap();
-    // Wait for the first piece so generation is really underway.
     loop {
-        let t = timeout(Duration::from_secs(60), text.next())
+        let s = timeout(Duration::from_secs(60), status.next())
             .await
-            .expect("no text for the long reply")
+            .expect("no status for the long reply")
             .unwrap();
-        if t.args().unwrap().request == request {
+        if s.args().unwrap().request == request {
             break;
         }
     }
+    // Give generation a moment to actually be underway.
+    tokio::time::sleep(Duration::from_millis(1500)).await;
     let stopped_at = tokio::time::Instant::now();
     proxy.stop_generation(request).await.unwrap();
     let finished = loop {

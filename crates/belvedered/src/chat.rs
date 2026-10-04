@@ -1,34 +1,26 @@
-//! Chat: turns a conversation into a reply from the model, streams it to
-//! the bus, and saves it.
+//! Chat: turns a conversation into a reply from the model, lets the model
+//! use the task tools, streams the answer to the bus, and saves it.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use belvedere_core::db::{Db, Model, Role};
+use belvedere_core::agent::{self, Progress};
+use belvedere_core::db::{Db, Model, NewTask, Role, TaskStatus};
+use belvedere_core::engine::{self, Engine, State};
 use belvedere_core::ipc::OBJECT_PATH;
 use belvedere_core::model_ipc::ChatMessage;
-use belvedere_core::think::ThinkFilter;
+use belvedere_core::tools::{TaskStore, ToolTask};
 use chrono::Local;
 use tracing::{info, warn};
+use zbus::object_server::SignalEmitter;
 
 use crate::dbus::{Service, SharedDb};
-use belvedere_core::engine::{self, Chunk, Engine, State};
 
-/// How much of a reply to allow.
+/// How much of a reply to allow per model round.
 const MAX_REPLY_TOKENS: u32 = 1024;
 
-/// The persona and the facts every conversation starts with.
-pub fn system_prompt(now: chrono::DateTime<Local>) -> String {
-    format!(
-        "You are Belvedere, a discreet and capable personal butler who runs on the user's own computer. \
-You help with tasks, reminders, mail, and the calendar. Be brief, plain, and useful; answer directly \
-without preamble. Use American English. Today is {}.",
-        now.format("%A, %B %-d, %Y")
-    )
-}
-
 /// Which model to chat with: the configured one, else the best guess
-/// among what's on disk (the 9B Qwen if present, then anything that can
+/// among what's on disk (the 4B Qwen if present, then anything that can
 /// use tools, then anything at all).
 pub fn pick_chat_model(db: &Db) -> Option<Model> {
     let models = db.list_models().ok()?;
@@ -45,7 +37,7 @@ pub fn pick_chat_model(db: &Db) -> Option<Model> {
     let lower = |m: &Model| m.name.to_ascii_lowercase();
     models
         .iter()
-        .find(|m| lower(m).contains("qwen3.5") && lower(m).contains("9b"))
+        .find(|m| lower(m).contains("qwen3.5") && lower(m).contains("4b"))
         .or_else(|| models.iter().find(|m| m.supports_tools == Some(true)))
         .or_else(|| models.first())
         .cloned()
@@ -82,6 +74,134 @@ impl Replies {
 
 fn lock(db: &SharedDb) -> std::sync::MutexGuard<'_, Db> {
     db.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// The database as the tools see it. Each call takes the lock briefly.
+struct DbStore(SharedDb);
+
+fn to_tool_task(t: belvedere_core::db::Task) -> ToolTask {
+    ToolTask {
+        id: t.id,
+        title: t.title,
+        notes: t.notes,
+        due_at: t.due_at.unwrap_or_default(),
+        status: match t.status {
+            TaskStatus::Open => "open",
+            TaskStatus::Done => "done",
+            TaskStatus::Dismissed => "dismissed",
+        }
+        .into(),
+    }
+}
+
+impl TaskStore for DbStore {
+    fn list(&mut self) -> Result<Vec<ToolTask>, String> {
+        lock(&self.0)
+            .list_tasks()
+            .map(|v| v.into_iter().map(to_tool_task).collect())
+            .map_err(|e| e.to_string())
+    }
+
+    fn create(
+        &mut self,
+        title: &str,
+        notes: &str,
+        due_at: Option<&str>,
+    ) -> Result<ToolTask, String> {
+        let db = lock(&self.0);
+        let task = db
+            .create_task(&NewTask {
+                title: title.to_string(),
+                notes: notes.to_string(),
+                due_at: due_at.map(str::to_string),
+            })
+            .map_err(|e| e.to_string())?;
+        if let Some(due) = &task.due_at {
+            let plan = belvedere_core::schedule::plan_reminders(due, Local::now());
+            let _ = db.replace_task_reminders(task.id, &plan);
+        }
+        Ok(to_tool_task(task))
+    }
+
+    fn update(
+        &mut self,
+        id: i64,
+        title: Option<&str>,
+        notes: Option<&str>,
+        due_at: Option<Option<&str>>,
+    ) -> Result<ToolTask, String> {
+        let db = lock(&self.0);
+        let current = db.get_task(id).map_err(|e| e.to_string())?;
+        let new = NewTask {
+            title: title.map(str::to_string).unwrap_or(current.title),
+            notes: notes.map(str::to_string).unwrap_or(current.notes),
+            due_at: match due_at {
+                Some(d) => d.map(str::to_string),
+                None => current.due_at.clone(),
+            },
+        };
+        let task = db.update_task(id, &new).map_err(|e| e.to_string())?;
+        if due_at.is_some() {
+            let plan = task
+                .due_at
+                .as_deref()
+                .map(|d| belvedere_core::schedule::plan_reminders(d, Local::now()))
+                .unwrap_or_default();
+            let _ = db.replace_task_reminders(task.id, &plan);
+        }
+        Ok(to_tool_task(task))
+    }
+
+    fn complete(&mut self, id: i64) -> Result<ToolTask, String> {
+        let db = lock(&self.0);
+        let task = db.complete_task(id).map_err(|e| e.to_string())?;
+        let _ = db.cancel_task_reminders(id);
+        Ok(to_tool_task(task))
+    }
+
+    fn reopen(&mut self, id: i64) -> Result<ToolTask, String> {
+        lock(&self.0)
+            .reopen_task(id)
+            .map(to_tool_task)
+            .map_err(|e| e.to_string())
+    }
+
+    fn delete(&mut self, id: i64) -> Result<ToolTask, String> {
+        let db = lock(&self.0);
+        let task = db.delete_task(id).map_err(|e| e.to_string())?;
+        let _ = db.cancel_task_reminders(id);
+        Ok(to_tool_task(task))
+    }
+}
+
+/// Forwards the agent's progress to the bus.
+struct BusProgress {
+    emitter: SignalEmitter<'static>,
+    request: u64,
+    conversation_id: i64,
+    answer: String,
+    handle: tokio::runtime::Handle,
+}
+
+impl Progress for BusProgress {
+    fn text(&mut self, piece: &str) {
+        self.answer.push_str(piece);
+        let emitter = self.emitter.clone();
+        let (request, conversation_id, piece) =
+            (self.request, self.conversation_id, piece.to_string());
+        self.handle.spawn(async move {
+            let _ = Service::chat_text(&emitter, request, conversation_id, &piece).await;
+        });
+    }
+
+    fn status(&mut self, status: &str) {
+        let emitter = self.emitter.clone();
+        let (request, conversation_id, status) =
+            (self.request, self.conversation_id, status.to_string());
+        self.handle.spawn(async move {
+            let _ = Service::chat_status(&emitter, request, conversation_id, &status).await;
+        });
+    }
 }
 
 /// Runs one reply end to end. Spawned by `SendMessage`; everything it
@@ -141,7 +261,7 @@ pub async fn reply(
         }
     }
 
-    // Build the conversation for the model.
+    // The conversation for the model: user and assistant turns only.
     let history = lock(&db).conversation_messages(conversation_id);
     let history = match history {
         Ok(h) => h,
@@ -151,66 +271,46 @@ pub async fn reply(
             return;
         }
     };
-    let mut messages = vec![ChatMessage {
-        role: "system".into(),
-        content: system_prompt(Local::now()),
-    }];
-    messages.extend(history.iter().filter(|m| !m.content.is_empty()).map(|m| {
-        ChatMessage {
-            role: match m.role {
-                Role::User => "user",
-                Role::Assistant => "assistant",
-                Role::System => "system",
-                Role::Tool => "user",
+    let history: Vec<ChatMessage> = history
+        .iter()
+        .filter(|m| !m.content.is_empty() && matches!(m.role, Role::User | Role::Assistant))
+        .map(|m| ChatMessage {
+            role: if m.role == Role::User {
+                "user"
+            } else {
+                "assistant"
             }
             .into(),
             content: m.content.clone(),
-        }
-    }));
+        })
+        .collect();
 
-    let _ = Service::chat_status(&emitter, request, conversation_id, "thinking").await;
-    let mut chunks = engine.chat(messages, MAX_REPLY_TOKENS).await;
-    let mut filter = ThinkFilter::new();
-    let mut answer = String::new();
-    let mut was_thinking = false;
-    let mut failed: Option<String> = None;
-    while let Some(chunk) = chunks.recv().await {
-        if !replies.is_active(request) {
-            // Stopped: drop the receiver, which cancels the helper.
-            break;
-        }
-        match chunk {
-            Chunk::Text(piece) => {
-                let visible = filter.push(&piece);
-                if filter.thinking() != was_thinking {
-                    was_thinking = filter.thinking();
-                    let status = if was_thinking { "thinking" } else { "writing" };
-                    let _ = Service::chat_status(&emitter, request, conversation_id, status).await;
-                }
-                if !visible.is_empty() {
-                    answer.push_str(&visible);
-                    let _ = Service::chat_text(&emitter, request, conversation_id, &visible).await;
-                }
-            }
-            Chunk::Done { tokens, seconds } => {
-                info!(request, tokens, seconds, "chat reply finished");
-                break;
-            }
-            Chunk::Failed(message) => {
-                failed = Some(message);
-                break;
-            }
-        }
-    }
-    drop(chunks);
-    let tail = filter.finish();
-    if !tail.is_empty() {
-        answer.push_str(&tail);
-        let _ = Service::chat_text(&emitter, request, conversation_id, &tail).await;
-    }
+    let mut store = DbStore(db.clone());
+    let mut progress = BusProgress {
+        emitter: emitter.clone(),
+        request,
+        conversation_id,
+        answer: String::new(),
+        handle: tokio::runtime::Handle::current(),
+    };
+    let turn = tokio::select! {
+        turn = agent::run_turn(&engine, &mut store, &history, Local::now(), MAX_REPLY_TOKENS, &mut progress) => Some(turn),
+        _ = wait_for_stop(&replies, request) => None,
+    };
     replies.finish(request);
 
-    if let Some(message) = failed {
+    let (answer, changed, error) = match turn {
+        Some(t) => (t.reply, t.changed_tasks, t.error),
+        None => {
+            // Stopped: keep what streamed so far.
+            engine.cancel().await;
+            (progress.answer.trim().to_string(), false, None)
+        }
+    };
+    if changed {
+        let _ = Service::tasks_changed(&emitter).await;
+    }
+    if let Some(message) = error {
         if answer.is_empty() {
             fail(message).await;
             return;
@@ -222,9 +322,20 @@ pub async fn reply(
     let saved = lock(&db).add_message(conversation_id, Role::Assistant, answer.trim());
     match saved {
         Ok(m) => {
+            info!(request, "chat reply saved");
             let _ = Service::chat_done(&emitter, request, conversation_id, m.id).await;
         }
         Err(err) => fail(format!("Could not save the reply: {err}")).await,
+    }
+}
+
+/// Resolves when Stop has been pressed for `request`.
+async fn wait_for_stop(replies: &Replies, request: u64) {
+    loop {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        if !replies.is_active(request) {
+            return;
+        }
     }
 }
 
@@ -232,15 +343,6 @@ pub async fn reply(
 mod tests {
     use super::*;
     use belvedere_core::db::{ModelSource, NewModel};
-    use chrono::TimeZone;
-
-    #[test]
-    fn system_prompt_names_belvedere_and_the_date() {
-        let day = Local.with_ymd_and_hms(2026, 10, 20, 9, 0, 0).unwrap();
-        let p = system_prompt(day);
-        assert!(p.starts_with("You are Belvedere"));
-        assert!(p.contains("Tuesday, October 20, 2026"));
-    }
 
     fn model<'a>(name: &'a str, path: &'a str, tools: Option<bool>) -> NewModel<'a> {
         NewModel {
@@ -269,7 +371,7 @@ mod tests {
         assert_eq!(pick_chat_model(&db).unwrap().id, tools.id);
 
         let qwen = db
-            .upsert_model(&model("Qwen_Qwen3.5 9B", "/m/qwen.gguf", Some(true)))
+            .upsert_model(&model("Qwen3.5-4B", "/m/qwen.gguf", Some(true)))
             .unwrap();
         assert_eq!(pick_chat_model(&db).unwrap().id, qwen.id);
 
@@ -277,8 +379,42 @@ mod tests {
             .unwrap();
         assert_eq!(pick_chat_model(&db).unwrap().id, plain.id);
 
-        // A setting pointing at a model that no longer exists falls back.
         db.set_setting("chat_model_id", "999").unwrap();
         assert_eq!(pick_chat_model(&db).unwrap().id, qwen.id);
+    }
+
+    #[test]
+    fn db_store_round_trips_tasks_and_reminders() {
+        let db = Arc::new(Mutex::new(Db::open_in_memory().unwrap()));
+        let mut store = DbStore(db.clone());
+        let due =
+            belvedere_core::tools::due_from_parts(Some("2099-10-23"), Some("14:00"), Local::now())
+                .unwrap()
+                .unwrap();
+        let t = store.create("Call the dentist", "", Some(&due)).unwrap();
+        assert_eq!(store.list().unwrap().len(), 1);
+        assert_eq!(
+            lock(&db).task_reminders(t.id).unwrap().len(),
+            2,
+            "9:00 and 14:00 reminders planned"
+        );
+
+        let t = store
+            .update(t.id, Some("Call Dr. Patel"), None, Some(None))
+            .unwrap();
+        assert_eq!(t.title, "Call Dr. Patel");
+        assert_eq!(t.due_at, "");
+        assert!(
+            lock(&db).task_reminders(t.id).unwrap().is_empty(),
+            "cleared date clears reminders"
+        );
+
+        let t = store.complete(t.id).unwrap();
+        assert_eq!(t.status, "done");
+        let t = store.reopen(t.id).unwrap();
+        assert_eq!(t.status, "open");
+        let t = store.delete(t.id).unwrap();
+        assert!(store.list().unwrap().is_empty());
+        assert_eq!(lock(&db).list_deleted_tasks().unwrap()[0].id, t.id);
     }
 }

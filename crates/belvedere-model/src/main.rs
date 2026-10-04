@@ -14,7 +14,7 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Instant;
 
-use belvedere_core::model_ipc::{Command, Event};
+use belvedere_core::model_ipc::{Command, Event, Grammar};
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
@@ -129,13 +129,22 @@ fn main() {
     }
 
     while let Ok(cmd) = rx.recv() {
-        let (prompt, max_tokens) = match cmd {
-            Command::Generate { prompt, max_tokens } => (prompt, max_tokens),
+        let (prompt, max_tokens, grammar) = match cmd {
+            Command::Generate { prompt, max_tokens } => (prompt, max_tokens, None),
             Command::Chat {
                 messages,
                 max_tokens,
+                grammar,
+                no_think,
             } => match render_chat(&model, &messages) {
-                Ok(prompt) => (prompt, max_tokens),
+                Ok(mut prompt) => {
+                    // Pre-fill an empty reasoning block so a Qwen-style
+                    // model answers directly instead of thinking first.
+                    if no_think && prompt.contains("<|im_start|>") {
+                        prompt.push_str("<think>\n\n</think>\n\n");
+                    }
+                    (prompt, max_tokens, grammar)
+                }
                 Err(message) => {
                     emit(&mut out, &Event::Error { message });
                     continue;
@@ -144,8 +153,21 @@ fn main() {
             Command::Cancel => continue,
         };
         cancel.store(false, Ordering::Relaxed);
+        debug_log(&format!(
+            "PROMPT TAIL: {:?}",
+            &prompt[prompt.len().saturating_sub(400)..]
+        ));
         if let Err(message) = generate(
-            &backend, &model, n_ctx, threads, &prompt, max_tokens, &cancel, &mut out, &emit,
+            &backend,
+            &model,
+            n_ctx,
+            threads,
+            &prompt,
+            max_tokens,
+            grammar.as_ref(),
+            &cancel,
+            &mut out,
+            &emit,
         ) {
             emit(&mut out, &Event::Error { message });
         }
@@ -180,6 +202,7 @@ fn generate(
     threads: i32,
     prompt: &str,
     max_tokens: u32,
+    grammar: Option<&Grammar>,
     cancel: &AtomicBool,
     out: &mut std::io::StdoutLock<'_>,
     emit: &dyn Fn(&mut std::io::StdoutLock<'_>, &Event),
@@ -220,11 +243,28 @@ fn generate(
         ctx.decode(&mut batch).map_err(|e| e.to_string())?;
     }
 
-    let mut sampler = LlamaSampler::chain_simple([
-        LlamaSampler::temp(0.7),
-        LlamaSampler::top_p(0.9, 1),
-        LlamaSampler::dist(1234),
-    ]);
+    // A grammar, when given, goes first in the chain so it can veto
+    // tokens before sampling; lazy grammars sleep until a trigger word.
+    let mut chain = Vec::new();
+    if let Some(g) = grammar {
+        let sampler = if g.triggers.is_empty() {
+            LlamaSampler::grammar(model, &g.text, &g.root)
+        } else {
+            LlamaSampler::grammar_lazy(
+                model,
+                &g.text,
+                &g.root,
+                g.triggers.iter().map(|t| t.as_bytes()),
+                &[],
+            )
+        }
+        .map_err(|e| format!("bad grammar: {e}"))?;
+        chain.push(sampler);
+    }
+    chain.push(LlamaSampler::temp(0.7));
+    chain.push(LlamaSampler::top_p(0.9, 1));
+    chain.push(LlamaSampler::dist(1234));
+    let mut sampler = LlamaSampler::chain_simple(chain);
 
     let mut pos = tokens.len() as i32;
     let mut produced = 0u32;
@@ -244,6 +284,7 @@ fn generate(
         };
         if valid > 0 {
             let text = String::from_utf8_lossy(&pending[..valid]).into_owned();
+            debug_log(&format!("OUT: {text:?}"));
             emit(out, &Event::Text { text });
             pending.drain(..valid);
         }
@@ -272,6 +313,21 @@ fn generate(
         },
     );
     Ok(())
+}
+
+/// Appends a line to `$BELVEDERE_MODEL_DEBUG` when that variable names a
+/// file. For chasing down what the model actually saw and said.
+fn debug_log(line: &str) {
+    if let Some(path) = std::env::var_os("BELVEDERE_MODEL_DEBUG") {
+        use std::io::Write as _;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+        {
+            let _ = writeln!(f, "{line}");
+        }
+    }
 }
 
 /// Nice 10 and the idle I/O class for this process. Done before any thread

@@ -1,5 +1,6 @@
 //! Shared code for every Belvedere binary.
 
+pub mod agent;
 pub mod db;
 pub mod engine;
 pub mod ipc;
@@ -7,6 +8,7 @@ pub mod model_ipc;
 pub mod models;
 pub mod schedule;
 pub mod think;
+pub mod tools;
 pub mod watch;
 
 /// The version every Belvedere binary reports, taken from the workspace.

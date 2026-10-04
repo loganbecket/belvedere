@@ -15,6 +15,16 @@ pub struct ChatMessage {
     pub content: String,
 }
 
+/// A GBNF grammar that constrains output once a trigger word appears.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Grammar {
+    pub text: String,
+    pub root: String,
+    /// Words that switch the grammar on (e.g. `<tool_call>`). Empty means
+    /// the grammar applies from the first token.
+    pub triggers: Vec<String>,
+}
+
 /// Service -> helper.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "cmd", rename_all = "snake_case")]
@@ -27,6 +37,12 @@ pub enum Command {
     Chat {
         messages: Vec<ChatMessage>,
         max_tokens: u32,
+        #[serde(default)]
+        grammar: Option<Grammar>,
+        /// Skip the model's private reasoning block (models that have
+        /// one), trading a little judgment for a lot of speed.
+        #[serde(default)]
+        no_think: bool,
     },
     /// Stop the generation in progress, if any. A `Done` follows.
     Cancel,

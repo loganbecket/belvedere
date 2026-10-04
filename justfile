@@ -26,6 +26,7 @@ run-app:
 
 # Score a suite of eval cases against the model: just eval chat-tasks
 eval suite *args:
+    cargo build --release -p belvedere-model -p belvedere-eval
     cargo run --release -p belvedere-eval -- --suite {{suite}} {{args}}
 
 # Everything CI checks, in one go

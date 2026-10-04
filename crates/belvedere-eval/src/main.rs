@@ -2,6 +2,7 @@
 //! cases in `evals/chat-tasks/cases.json` and writes the results to
 //! `evals/results/chat-tasks/`.
 
+mod agent_runner;
 mod cases;
 mod report;
 mod runner;
@@ -99,7 +100,7 @@ fn choose_model(wanted: Option<&str>) -> Result<(PathBuf, String), String> {
     let pick = scan
         .found
         .iter()
-        .find(|f| lower(f).contains("qwen3.5") && lower(f).contains("9b"))
+        .find(|f| lower(f).contains("qwen3.5") && lower(f).contains("4b"))
         .or_else(|| scan.found.iter().find(|f| f.info.supports_tools()))
         .or_else(|| scan.found.first())
         .expect("non-empty");
@@ -108,6 +109,17 @@ fn choose_model(wanted: Option<&str>) -> Result<(PathBuf, String), String> {
 
 #[tokio::main]
 async fn main() {
+    // Show the model helper's own log lines (it writes them to stderr and
+    // the engine forwards them) so a crash there is not silent.
+    {
+        use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+        let filter = EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new("warn,belvedere_model=info"));
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(fmt::layer().with_target(false).with_writer(std::io::stderr))
+            .init();
+    }
     let args = match parse_args() {
         Ok(a) => a,
         Err(e) => {
@@ -140,7 +152,7 @@ async fn main() {
         "model: {model_name} ({})",
         if args.cpu { "CPU" } else { "GPU" }
     );
-    let mut runner = match runner::ChatRunner::new(model_path, model_name, !args.cpu).await {
+    let mut runner = match agent_runner::AgentRunner::new(model_path, model_name, !args.cpu).await {
         Ok(r) => r,
         Err(e) => {
             eprintln!("could not load the model: {e}");
