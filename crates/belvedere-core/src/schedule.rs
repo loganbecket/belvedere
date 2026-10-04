@@ -178,6 +178,38 @@ pub fn due_label(due_rfc3339: &str, now: DateTime<Local>) -> String {
     }
 }
 
+/// Default reminder times for a task due at `due_rfc3339`, as of `now`:
+/// 9:00 local on the due day, plus the due time itself when one was set
+/// (a date-only task is stored at 9:00, so that collapses to one).
+/// Times already in the past are skipped; nobody wants to be reminded of
+/// something they just typed in.
+pub fn plan_reminders(due_rfc3339: &str, now: DateTime<Local>) -> Vec<String> {
+    let Some(due) = parse_rfc3339(due_rfc3339) else {
+        return Vec::new();
+    };
+    let due = due.with_timezone(&Local);
+    let mut times = Vec::new();
+    if let Some(morning) = Local
+        .from_local_datetime(&NaiveDateTime::new(due.date_naive(), DEFAULT_DUE_TIME))
+        .earliest()
+    {
+        times.push(morning);
+    }
+    if due.time() != DEFAULT_DUE_TIME {
+        times.push(due);
+    }
+    times.sort();
+    times.dedup();
+    times
+        .into_iter()
+        .filter(|t| *t > now)
+        .map(|t| {
+            t.with_timezone(&Utc)
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -339,5 +371,34 @@ mod tests {
         assert_eq!(due_label(&due(2026, 10, 23, 9, 0), now), "Friday");
         assert_eq!(due_label(&due(2026, 11, 2, 9, 0), now), "Mon, Nov 2");
         assert_eq!(due_label("garbage", now), "garbage");
+    }
+
+    #[test]
+    fn date_only_task_gets_one_morning_reminder() {
+        let now = local(2026, 10, 1, 12, 0);
+        let planned = plan_reminders(&due(2026, 10, 20, 9, 0), now);
+        assert_eq!(planned, [due(2026, 10, 20, 9, 0)]);
+    }
+
+    #[test]
+    fn timed_task_gets_morning_and_due_time() {
+        let now = local(2026, 10, 1, 12, 0);
+        let planned = plan_reminders(&due(2026, 10, 20, 14, 30), now);
+        assert_eq!(
+            planned,
+            [due(2026, 10, 20, 9, 0), due(2026, 10, 20, 14, 30)]
+        );
+    }
+
+    #[test]
+    fn past_reminder_times_are_skipped() {
+        // Created at 10:00 on the due day: the 9:00 nudge is gone, the
+        // 14:30 one stays.
+        let now = local(2026, 10, 20, 10, 0);
+        let planned = plan_reminders(&due(2026, 10, 20, 14, 30), now);
+        assert_eq!(planned, [due(2026, 10, 20, 14, 30)]);
+        // Due earlier today: nothing to plan.
+        assert!(plan_reminders(&due(2026, 10, 20, 9, 0), now).is_empty());
+        assert!(plan_reminders("garbage", now).is_empty());
     }
 }

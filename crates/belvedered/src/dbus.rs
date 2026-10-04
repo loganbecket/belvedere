@@ -4,6 +4,8 @@ use std::sync::{Arc, Mutex};
 
 use belvedere_core::db::{Db, DbError, NewTask};
 use belvedere_core::ipc::{TaskDto, BUS_NAME, OBJECT_PATH};
+use belvedere_core::schedule;
+use chrono::Local;
 use tracing::info;
 use zbus::object_server::SignalEmitter;
 use zbus::{fdo, interface};
@@ -25,6 +27,18 @@ impl Service {
         // A poisoned lock means another call panicked mid-query. The
         // connection itself is still fine; carry on.
         self.db.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
+impl Service {
+    /// Sets a task's default reminders from its due date (none if undated).
+    fn plan_reminders(&self, task: &belvedere_core::db::Task) -> Result<(), DbError> {
+        let plan = match &task.due_at {
+            Some(due) => schedule::plan_reminders(due, Local::now()),
+            None => Vec::new(),
+        };
+        self.db().replace_task_reminders(task.id, &plan)?;
+        Ok(())
     }
 }
 
@@ -71,6 +85,7 @@ impl Service {
             due_at: opt(due_at),
         };
         let task = self.db().create_task(&new).map_err(to_fdo)?;
+        self.plan_reminders(&task).map_err(to_fdo)?;
         info!(id = task.id, "task created over D-Bus");
         Self::tasks_changed(&emitter).await?;
         Ok(task.into())
@@ -89,7 +104,11 @@ impl Service {
             notes: notes.to_string(),
             due_at: opt(due_at),
         };
+        let before = self.db().get_task(id).map_err(to_fdo)?;
         let task = self.db().update_task(id, &new).map_err(to_fdo)?;
+        if before.due_at != task.due_at {
+            self.plan_reminders(&task).map_err(to_fdo)?;
+        }
         Self::tasks_changed(&emitter).await?;
         Ok(task.into())
     }
@@ -143,7 +162,11 @@ impl Service {
     }
 
     #[zbus(signal)]
-    async fn tasks_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+    pub async fn tasks_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+
+    /// Asks any open window to show one task.
+    #[zbus(signal)]
+    pub async fn show_task(emitter: &SignalEmitter<'_>, id: i64) -> zbus::Result<()>;
 }
 
 /// Connects to the session bus, exports the service object, and claims

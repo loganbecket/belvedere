@@ -28,6 +28,8 @@ pub enum Event {
     Connected(ServiceProxy<'static>, Lists),
     /// Tasks changed; here are the new lists.
     Tasks(Lists),
+    /// The service wants one task shown (a notification was clicked).
+    ShowTask(i64),
     /// The service stopped answering.
     Disconnected,
 }
@@ -94,11 +96,25 @@ async fn run_until_disconnected(
             return Ok(());
         }
     };
+    let mut show = match proxy.receive_show_task().await {
+        Ok(stream) => stream,
+        Err(_) => {
+            out.send(Event::Disconnected).await.map_err(|_| ())?;
+            return Ok(());
+        }
+    };
     let mut ping = tokio::time::interval(PING_EVERY);
     ping.tick().await;
 
     loop {
         tokio::select! {
+            signal = show.next() => {
+                if let Some(signal) = signal {
+                    if let Ok(args) = signal.args() {
+                        out.send(Event::ShowTask(args.id)).await.map_err(|_| ())?;
+                    }
+                }
+            }
             change = changes.next() => {
                 if change.is_none() {
                     // Signal stream closed: the bus connection is gone.

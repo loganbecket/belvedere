@@ -176,6 +176,11 @@ impl Application for Belvedere {
                     self.lists = lists;
                 }
                 service::Event::Tasks(lists) => self.lists = lists,
+                service::Event::ShowTask(id) => {
+                    if let Some(task) = self.find(id) {
+                        self.editor = Some(Editor::for_task(task));
+                    }
+                }
                 service::Event::Disconnected => {
                     self.connected = false;
                     self.service = None;

@@ -4,6 +4,8 @@
 //! shuts down cleanly when asked. Everything else arrives in later chunks.
 
 mod dbus;
+mod notify;
+mod scheduler;
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -74,7 +76,7 @@ async fn run(db: Db) {
 
     let db = Arc::new(Mutex::new(db));
     // Kept alive for the whole run; dropping it would leave the bus.
-    let bus = match dbus::serve(db).await {
+    let bus = match dbus::serve(db.clone()).await {
         Ok(conn) => conn,
         Err(err) => {
             error!("could not start D-Bus service: {err}");
@@ -83,6 +85,7 @@ async fn run(db: Db) {
     };
     let name_lost = dbus::name_lost(&bus);
     tokio::pin!(name_lost);
+    tokio::spawn(scheduler::run(db, bus.clone()));
 
     let mut sigterm = signal(SignalKind::terminate()).expect("SIGTERM handler");
     let mut sigint = signal(SignalKind::interrupt()).expect("SIGINT handler");
