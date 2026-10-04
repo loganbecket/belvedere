@@ -4,6 +4,7 @@
 //! shuts down cleanly when asked. Everything else arrives in later chunks.
 
 mod dbus;
+mod models;
 mod notify;
 mod scheduler;
 
@@ -35,6 +36,7 @@ fn main() {
             std::process::exit(1);
         }
     };
+    models::rescan(&db);
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()

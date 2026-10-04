@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 
 use belvedere_core::db::{Db, DbError, NewTask};
-use belvedere_core::ipc::{TaskDto, BUS_NAME, OBJECT_PATH};
+use belvedere_core::ipc::{ModelDto, TaskDto, BUS_NAME, OBJECT_PATH};
 use belvedere_core::schedule;
 use chrono::Local;
 use tracing::info;
@@ -159,6 +159,11 @@ impl Service {
         let task = self.db().reopen_task(id).map_err(to_fdo)?;
         Self::tasks_changed(&emitter).await?;
         Ok(task.into())
+    }
+
+    fn list_models(&self) -> fdo::Result<Vec<ModelDto>> {
+        let models = self.db().list_models().map_err(to_fdo)?;
+        Ok(models.into_iter().map(ModelDto::from).collect())
     }
 
     #[zbus(signal)]

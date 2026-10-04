@@ -2,6 +2,7 @@
 
 pub mod db;
 pub mod ipc;
+pub mod models;
 pub mod schedule;
 pub mod watch;
 
