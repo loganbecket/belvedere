@@ -140,3 +140,63 @@ async fn a_second_instance_cannot_steal_the_name() {
     assert_eq!(listed[0].title, "Only in the first");
     stop(first).await;
 }
+
+#[tokio::test]
+async fn complete_reopen_delete_restore_keep_everything() {
+    let bus = Bus::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let service = bus.spawn_service(&dir.path().join("belvedere.db"));
+    let conn = bus.connect().await;
+    let proxy = wait_ready(&conn).await;
+    let mut changes = proxy.receive_tasks_changed().await.unwrap();
+
+    let created = proxy
+        .create_task(
+            "Renew the passport",
+            "Form DS-82",
+            "2026-11-01T14:00:00.000Z",
+        )
+        .await
+        .unwrap();
+    changes.next().await;
+
+    // Complete, then reopen.
+    let done = proxy.complete_task(created.id).await.unwrap();
+    assert_eq!(done.status, "done");
+    assert!(!done.completed_at.is_empty());
+    timeout(Duration::from_secs(2), changes.next())
+        .await
+        .expect("no TasksChanged after CompleteTask");
+    let open = proxy.reopen_task(created.id).await.unwrap();
+    assert_eq!(open.status, "open");
+    assert!(open.completed_at.is_empty());
+    timeout(Duration::from_secs(2), changes.next())
+        .await
+        .expect("no TasksChanged after ReopenTask");
+
+    // Delete: hidden from the main list, shown in the deleted list.
+    proxy.delete_task(created.id).await.unwrap();
+    changes.next().await;
+    assert!(proxy.list_tasks().await.unwrap().is_empty());
+    let deleted = proxy.list_deleted_tasks().await.unwrap();
+    assert_eq!(deleted.len(), 1);
+    assert!(deleted[0].is_deleted());
+
+    // Restore: back with title, notes, and due date intact.
+    let restored = proxy.restore_task(created.id).await.unwrap();
+    timeout(Duration::from_secs(2), changes.next())
+        .await
+        .expect("no TasksChanged after RestoreTask");
+    assert!(!restored.is_deleted());
+    assert_eq!(restored.title, "Renew the passport");
+    assert_eq!(restored.notes, "Form DS-82");
+    assert_eq!(restored.due_at, "2026-11-01T14:00:00.000Z");
+    assert_eq!(restored.status, "open");
+    assert_eq!(proxy.list_tasks().await.unwrap().len(), 1);
+    assert!(proxy.list_deleted_tasks().await.unwrap().is_empty());
+
+    // Restoring something that isn't deleted is an error, not a no-op.
+    assert!(proxy.restore_task(created.id).await.is_err());
+
+    stop(service).await;
+}

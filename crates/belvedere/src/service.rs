@@ -1,9 +1,9 @@
 //! Keeps the window in touch with the background service.
 //!
 //! One long-lived stream: it connects to the session bus, pings the
-//! service once a second, reloads the task list whenever the service
+//! service once a second, reloads the task lists whenever the service
 //! says tasks changed, and reports when the service goes away or comes
-//! back.
+//! back. It also hands the app a proxy to make its own calls with.
 
 use std::time::Duration;
 
@@ -12,13 +12,21 @@ use cosmic::iced::futures::channel::mpsc::Sender;
 use cosmic::iced::futures::{SinkExt, StreamExt};
 use cosmic::iced::{stream, Subscription};
 
+/// Live tasks and soft-deleted tasks, fetched together.
+#[derive(Debug, Clone, Default)]
+pub struct Lists {
+    pub tasks: Vec<TaskDto>,
+    pub deleted: Vec<TaskDto>,
+}
+
 /// What the stream tells the app.
 #[derive(Debug, Clone)]
 pub enum Event {
-    /// The service answered and here is the current task list.
-    Connected(Vec<TaskDto>),
-    /// Tasks changed; here is the new list.
-    Tasks(Vec<TaskDto>),
+    /// The service answered; here is a proxy to talk to it and the
+    /// current lists.
+    Connected(ServiceProxy<'static>, Lists),
+    /// Tasks changed; here are the new lists.
+    Tasks(Lists),
     /// The service stopped answering.
     Disconnected,
 }
@@ -29,6 +37,13 @@ const RETRY_EVERY: Duration = Duration::from_millis(500);
 
 pub fn subscription() -> Subscription<Event> {
     Subscription::run(events)
+}
+
+async fn fetch(proxy: &ServiceProxy<'static>) -> zbus::Result<Lists> {
+    Ok(Lists {
+        tasks: proxy.list_tasks().await?,
+        deleted: proxy.list_deleted_tasks().await?,
+    })
 }
 
 fn events() -> impl cosmic::iced::futures::Stream<Item = Event> {
@@ -49,14 +64,14 @@ fn events() -> impl cosmic::iced::futures::Stream<Item = Event> {
                     continue;
                 }
             };
-            run_until_disconnected(&proxy, &mut out).await;
+            run_until_disconnected(proxy, &mut out).await;
         }
     })
 }
 
 /// Drives one connected session, returning when the service stops
 /// answering. The caller reconnects.
-async fn run_until_disconnected(proxy: &ServiceProxy<'_>, out: &mut Sender<Event>) {
+async fn run_until_disconnected(proxy: ServiceProxy<'static>, out: &mut Sender<Event>) {
     // Wait for the service to show up.
     loop {
         if proxy.ping().await.is_ok() {
@@ -65,8 +80,12 @@ async fn run_until_disconnected(proxy: &ServiceProxy<'_>, out: &mut Sender<Event
         tokio::time::sleep(RETRY_EVERY).await;
     }
 
-    let tasks = proxy.list_tasks().await.unwrap_or_default();
-    if out.send(Event::Connected(tasks)).await.is_err() {
+    let lists = fetch(&proxy).await.unwrap_or_default();
+    if out
+        .send(Event::Connected(proxy.clone(), lists))
+        .await
+        .is_err()
+    {
         return;
     }
 
@@ -88,9 +107,9 @@ async fn run_until_disconnected(proxy: &ServiceProxy<'_>, out: &mut Sender<Event
                     let _ = out.send(Event::Disconnected).await;
                     return;
                 }
-                match proxy.list_tasks().await {
-                    Ok(tasks) => {
-                        if out.send(Event::Tasks(tasks)).await.is_err() {
+                match fetch(&proxy).await {
+                    Ok(lists) => {
+                        if out.send(Event::Tasks(lists)).await.is_err() {
                             return;
                         }
                     }

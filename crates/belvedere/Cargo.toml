@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [dependencies]
 belvedere-core.workspace = true
+chrono = "0.4.45"
 futures-util = "0.3.34"
 libcosmic = { git = "https://github.com/pop-os/libcosmic.git", version = "1.0.0", features = ["wgpu", "tokio", "single-instance"] }
 tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "time"] }

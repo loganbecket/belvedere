@@ -498,6 +498,7 @@ name = "belvedere"
 version = "0.1.0"
 dependencies = [
  "belvedere-core",
+ "chrono",
  "futures-util",
  "libcosmic",
  "tokio",

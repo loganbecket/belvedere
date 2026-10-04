@@ -106,6 +106,42 @@ impl Service {
         Ok(task.into())
     }
 
+    async fn restore_task(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        id: i64,
+    ) -> fdo::Result<TaskDto> {
+        let task = self.db().restore_task(id).map_err(to_fdo)?;
+        info!(id, "task restored over D-Bus");
+        Self::tasks_changed(&emitter).await?;
+        Ok(task.into())
+    }
+
+    fn list_deleted_tasks(&self) -> fdo::Result<Vec<TaskDto>> {
+        let tasks = self.db().list_deleted_tasks().map_err(to_fdo)?;
+        Ok(tasks.into_iter().map(TaskDto::from).collect())
+    }
+
+    async fn complete_task(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        id: i64,
+    ) -> fdo::Result<TaskDto> {
+        let task = self.db().complete_task(id).map_err(to_fdo)?;
+        Self::tasks_changed(&emitter).await?;
+        Ok(task.into())
+    }
+
+    async fn reopen_task(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        id: i64,
+    ) -> fdo::Result<TaskDto> {
+        let task = self.db().reopen_task(id).map_err(to_fdo)?;
+        Self::tasks_changed(&emitter).await?;
+        Ok(task.into())
+    }
+
     #[zbus(signal)]
     async fn tasks_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
