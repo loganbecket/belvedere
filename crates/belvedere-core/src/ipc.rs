@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 use zbus::zvariant::Type;
 
-use crate::db::{Task, TaskStatus};
+use crate::db::{Model, ModelSource, Task, TaskStatus};
 
 /// The bus name the service claims.
 pub const BUS_NAME: &str = "org.belvedere.Service";
@@ -68,6 +68,45 @@ impl TaskDto {
     }
 }
 
+/// A known model file as it crosses the bus.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ModelDto {
+    pub id: i64,
+    pub name: String,
+    pub path: String,
+    /// `lmstudio`, `ollama`, `belvedere`, or `import`.
+    pub source: String,
+    pub size_bytes: i64,
+    pub quantization: String,
+    /// `yes`, `no`, or `unknown`.
+    pub supports_tools: String,
+}
+
+impl From<Model> for ModelDto {
+    fn from(m: Model) -> Self {
+        ModelDto {
+            id: m.id,
+            name: m.name,
+            path: m.path,
+            source: match m.source {
+                ModelSource::LmStudio => "lmstudio",
+                ModelSource::Ollama => "ollama",
+                ModelSource::Belvedere => "belvedere",
+                ModelSource::Import => "import",
+            }
+            .to_string(),
+            size_bytes: m.size_bytes,
+            quantization: m.quantization,
+            supports_tools: match m.supports_tools {
+                Some(true) => "yes",
+                Some(false) => "no",
+                None => "unknown",
+            }
+            .to_string(),
+        }
+    }
+}
+
 /// Client proxy. `ServiceProxy::new(&connection).await?` connects to the
 /// running service on whatever bus `connection` is on.
 #[zbus::proxy(
@@ -109,6 +148,9 @@ pub trait Service {
 
     /// Marks a done or dismissed task open again.
     fn reopen_task(&self, id: i64) -> zbus::Result<TaskDto>;
+
+    /// Every model file Belvedere knows about, by name.
+    fn list_models(&self) -> zbus::Result<Vec<ModelDto>>;
 
     /// Fired after any change to any task.
     #[zbus(signal)]
