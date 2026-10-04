@@ -34,6 +34,10 @@ pub struct TaskDto {
     pub completed_at: String,
     /// RFC 3339 or empty. Non-empty means soft-deleted.
     pub deleted_at: String,
+    /// `email`, `event`, `file`, or empty when the task was typed in.
+    pub source_kind: String,
+    /// A label for the source, e.g. the email's subject.
+    pub source_label: String,
 }
 
 impl From<Task> for TaskDto {
@@ -54,6 +58,8 @@ impl From<Task> for TaskDto {
             updated_at: t.updated_at,
             completed_at: t.completed_at.unwrap_or_default(),
             deleted_at: t.deleted_at.unwrap_or_default(),
+            source_kind: String::new(),
+            source_label: String::new(),
         }
     }
 }
@@ -105,6 +111,23 @@ impl From<Model> for ModelDto {
             .to_string(),
         }
     }
+}
+
+/// A suggested task awaiting a yes or no, as it crosses the bus.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+pub struct SuggestionDto {
+    pub id: i64,
+    pub title: String,
+    pub notes: String,
+    /// RFC 3339 or empty.
+    pub due_at: String,
+    pub kind: String,
+    /// 0 when there is no amount.
+    pub amount: f64,
+    pub confidence: f64,
+    /// The email's subject, for context.
+    pub source_label: String,
+    pub created_at: String,
 }
 
 /// A chat conversation as it crosses the bus.
@@ -264,6 +287,23 @@ pub trait Service {
     /// Mail Belvedere has seen, most recent first. Debug use for now.
     fn list_recent_mail(&self, limit: u32) -> zbus::Result<Vec<MailMessageDto>>;
 
+    /// Suggested tasks awaiting a yes or no, newest first.
+    fn list_suggestions(&self) -> zbus::Result<Vec<SuggestionDto>>;
+
+    /// Turns a suggestion into a task.
+    fn accept_suggestion(&self, id: i64) -> zbus::Result<TaskDto>;
+
+    /// Drops a suggestion for good.
+    fn reject_suggestion(&self, id: i64) -> zbus::Result<()>;
+
+    /// Opens the email a task came from in Thunderbird. Errors if the
+    /// task has no email source.
+    fn open_email(&self, task_id: i64) -> zbus::Result<()>;
+
+    /// Fired when suggestions are added or resolved.
+    #[zbus(signal)]
+    fn suggestions_changed(&self) -> zbus::Result<()>;
+
     /// Conversations, most recently active first.
     fn list_conversations(&self) -> zbus::Result<Vec<ConversationDto>>;
 
@@ -320,7 +360,7 @@ mod tests {
     #[test]
     fn dto_signature_is_stable() {
         // Changing this breaks every client; do it on purpose or not at all.
-        assert_eq!(TaskDto::SIGNATURE.to_string(), "(xsssssssss)");
+        assert_eq!(TaskDto::SIGNATURE.to_string(), "(xsssssssssss)");
     }
 
     #[test]
@@ -338,6 +378,7 @@ mod tests {
             deleted_at: None,
         };
         let dto = TaskDto::from(task);
+        assert_eq!(dto.source_kind, "");
         assert_eq!(dto.due_at, "");
         assert_eq!(dto.due_at(), None);
         assert_eq!(dto.status, "dismissed");

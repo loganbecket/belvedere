@@ -8,6 +8,7 @@ mod dbus;
 mod mail;
 mod models;
 mod notify;
+mod pipeline;
 mod scheduler;
 
 use std::sync::{Arc, Mutex};
@@ -154,6 +155,7 @@ async fn run(db: Db) {
 
     let db = Arc::new(Mutex::new(db));
     let engine = belvedere_core::engine::Engine::new();
+    let engine_for_pipeline = engine.clone();
     tokio::spawn(idle_unload(engine.clone(), db.clone()));
     // Kept alive for the whole run; dropping it would leave the bus.
     let bus = match dbus::serve(db.clone(), engine).await {
@@ -167,13 +169,10 @@ async fn run(db: Db) {
     tokio::pin!(name_lost);
     tokio::spawn(scheduler::run(db.clone(), bus.clone()));
     // Mail: scan Thunderbird's folders at startup and whenever they change.
-    let (mail_tx, mut mail_rx) = tokio::sync::mpsc::unbounded_channel::<usize>();
-    tokio::spawn(mail::run(db, mail_tx));
-    tokio::spawn(async move {
-        while let Some(n) = mail_rx.recv().await {
-            info!(new = n, "new mail recorded");
-        }
-    });
+    let (mail_tx, mail_rx) = tokio::sync::mpsc::unbounded_channel::<usize>();
+    tokio::spawn(mail::run(db.clone(), mail_tx));
+    // New mail is read by the model and becomes tasks or suggestions.
+    tokio::spawn(pipeline::run(db, engine_for_pipeline, bus.clone(), mail_rx));
 
     let mut sigterm = signal(SignalKind::terminate()).expect("SIGTERM handler");
     let mut sigint = signal(SignalKind::interrupt()).expect("SIGINT handler");

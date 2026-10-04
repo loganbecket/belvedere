@@ -61,8 +61,12 @@ impl Bus {
             )
             .stdout(Stdio::null())
             // Not piped: nobody reads it, and a full pipe would stall the
-            // service. Tests that want the log set `.stderr(piped())`.
-            .stderr(Stdio::null())
+            // service. `BELVEDERE_TEST_LOG=1` shows it on the terminal instead.
+            .stderr(if std::env::var_os("BELVEDERE_TEST_LOG").is_some() {
+                Stdio::inherit()
+            } else {
+                Stdio::null()
+            })
             .kill_on_drop(true);
         cmd
     }

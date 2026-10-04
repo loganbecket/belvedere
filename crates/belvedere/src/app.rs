@@ -136,6 +136,9 @@ pub enum Message {
     ConfirmDelete,
     UndoDelete,
     Restore(i64),
+    AcceptSuggestion(i64),
+    RejectSuggestion(i64),
+    OpenEmail(i64),
     Tick,
 }
 
@@ -396,6 +399,16 @@ impl Application for Belvedere {
             Message::Restore(id) => {
                 return self.call(move |p| async move { p.restore_task(id).await.map(|_| ()) });
             }
+            Message::AcceptSuggestion(id) => {
+                return self
+                    .call(move |p| async move { p.accept_suggestion(id).await.map(|_| ()) });
+            }
+            Message::RejectSuggestion(id) => {
+                return self.call(move |p| async move { p.reject_suggestion(id).await });
+            }
+            Message::OpenEmail(id) => {
+                return self.call(move |p| async move { p.open_email(id).await });
+            }
             Message::Tick => {
                 let now = Instant::now();
                 if self.undo.as_ref().is_some_and(|u| u.expired(now)) {
@@ -641,6 +654,16 @@ impl Belvedere {
 
         let mut list = widget::column::with_capacity(16).spacing(spacing.space_xs);
         let mut any = false;
+        if !self.lists.suggestions.is_empty() {
+            any = true;
+            list = list.push(text::body(format!(
+                "Suggested  ·  {}",
+                self.lists.suggestions.len()
+            )));
+            for s in &self.lists.suggestions {
+                list = list.push(suggestion_row(s, now));
+            }
+        }
         for (section, tasks) in groups {
             if tasks.is_empty() {
                 continue;
@@ -719,6 +742,13 @@ impl Belvedere {
             .push(button::suggested("Save").on_press(Message::SaveEdit))
             .push(button::standard("Cancel").on_press(Message::CloseEditor))
             .push(cosmic::iced::widget::space().width(Length::Fill));
+        if self
+            .find(editor.id)
+            .is_some_and(|t| t.source_kind == "email")
+        {
+            actions = actions
+                .push(button::standard("Open email").on_press(Message::OpenEmail(editor.id)));
+        }
         if is_deleted {
             actions =
                 actions.push(button::standard("Restore").on_press(Message::Restore(editor.id)));
@@ -788,6 +818,48 @@ fn bubble(content: &str, from_user: bool) -> Element<'_, Message> {
     row.push(card).into()
 }
 
+/// A suggested task: what Belvedere thinks you might need to do, with the
+/// email it came from and buttons to accept or reject it.
+fn suggestion_row<'a>(
+    s: &'a belvedere_core::ipc::SuggestionDto,
+    now: chrono::DateTime<Local>,
+) -> Element<'a, Message> {
+    let spacing = cosmic::theme::spacing();
+    let mut words = widget::column::with_capacity(3).spacing(spacing.space_xxs);
+    words = words.push(text::body(s.title.as_str()));
+    let mut detail = String::new();
+    if !s.due_at.is_empty() {
+        detail.push_str(&format!("Due {}", schedule::due_label(&s.due_at, now)));
+    }
+    if s.amount > 0.0 {
+        if !detail.is_empty() {
+            detail.push_str("  ·  ");
+        }
+        detail.push_str(&format!("${:.2}", s.amount));
+    }
+    if !detail.is_empty() {
+        words = words.push(text::caption(detail));
+    }
+    if !s.source_label.is_empty() {
+        words = words.push(text::caption(format!("From email: {}", s.source_label)));
+    }
+    let buttons = widget::row::with_capacity(2)
+        .spacing(spacing.space_xxs)
+        .push(button::suggested("Accept").on_press(Message::AcceptSuggestion(s.id)))
+        .push(button::standard("Reject").on_press(Message::RejectSuggestion(s.id)));
+    container(
+        widget::row::with_capacity(2)
+            .align_y(Alignment::Center)
+            .spacing(spacing.space_xs)
+            .push(words.width(Length::Fill))
+            .push(buttons),
+    )
+    .padding(spacing.space_xs)
+    .width(Length::Fill)
+    .class(cosmic::theme::Container::Card)
+    .into()
+}
+
 fn task_row<'a>(
     task: &'a TaskDto,
     section: Section,
@@ -855,6 +927,8 @@ mod tests {
             updated_at: String::new(),
             completed_at: String::new(),
             deleted_at: String::new(),
+            source_kind: String::new(),
+            source_label: String::new(),
         };
         let start = Instant::now();
         let undo = Undo::new(task, start);
@@ -876,6 +950,8 @@ mod tests {
             updated_at: String::new(),
             completed_at: String::new(),
             deleted_at: String::new(),
+            source_kind: String::new(),
+            source_label: String::new(),
         };
         let editor = Editor::for_task(&task);
         assert_eq!(editor.id, 4);

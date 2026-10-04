@@ -6,10 +6,10 @@ use std::sync::{Arc, Mutex};
 use crate::chat::{self, Replies};
 use belvedere_core::engine::{self, Chunk, Engine};
 
-use belvedere_core::db::{Db, DbError, NewTask, Role};
+use belvedere_core::db::{Db, DbError, NewTask, Role, SourceKind};
 use belvedere_core::ipc::{
-    ConversationDto, MailAccountDto, MailFolderDto, MailMessageDto, MessageDto, ModelDto, TaskDto,
-    BUS_NAME, OBJECT_PATH,
+    ConversationDto, MailAccountDto, MailFolderDto, MailMessageDto, MessageDto, ModelDto,
+    SuggestionDto, TaskDto, BUS_NAME, OBJECT_PATH,
 };
 use belvedere_core::schedule;
 use chrono::Local;
@@ -57,6 +57,24 @@ impl Service {
     }
 }
 
+/// A task as the bus sees it: with its first source (the email it came
+/// from), if any.
+fn task_dto(db: &Db, task: belvedere_core::db::Task) -> TaskDto {
+    let mut dto = TaskDto::from(task);
+    if let Ok(sources) = db.task_sources(dto.id) {
+        if let Some(src) = sources.first() {
+            dto.source_kind = match src.kind {
+                SourceKind::Email => "email",
+                SourceKind::Event => "event",
+                SourceKind::File => "file",
+            }
+            .into();
+            dto.source_label = src.label.clone();
+        }
+    }
+    dto
+}
+
 fn to_fdo(err: DbError) -> fdo::Error {
     match err {
         DbError::NotFound(id) => fdo::Error::UnknownObject(format!("no task with id {id}")),
@@ -79,12 +97,14 @@ impl Service {
     }
 
     fn list_tasks(&self) -> fdo::Result<Vec<TaskDto>> {
-        let tasks = self.db().list_tasks().map_err(to_fdo)?;
-        Ok(tasks.into_iter().map(TaskDto::from).collect())
+        let db = self.db();
+        let tasks = db.list_tasks().map_err(to_fdo)?;
+        Ok(tasks.into_iter().map(|t| task_dto(&db, t)).collect())
     }
 
     fn get_task(&self, id: i64) -> fdo::Result<TaskDto> {
-        self.db().get_task(id).map(TaskDto::from).map_err(to_fdo)
+        let db = self.db();
+        db.get_task(id).map(|t| task_dto(&db, t)).map_err(to_fdo)
     }
 
     async fn create_task(
@@ -103,7 +123,7 @@ impl Service {
         self.plan_reminders(&task).map_err(to_fdo)?;
         info!(id = task.id, "task created over D-Bus");
         Self::tasks_changed(&emitter).await?;
-        Ok(task.into())
+        Ok(task_dto(&self.db(), task))
     }
 
     async fn update_task(
@@ -125,7 +145,7 @@ impl Service {
             self.plan_reminders(&task).map_err(to_fdo)?;
         }
         Self::tasks_changed(&emitter).await?;
-        Ok(task.into())
+        Ok(task_dto(&self.db(), task))
     }
 
     /// Soft delete: the task is hidden, kept, and restorable.
@@ -137,7 +157,7 @@ impl Service {
         let task = self.db().delete_task(id).map_err(to_fdo)?;
         info!(id, "task soft-deleted over D-Bus");
         Self::tasks_changed(&emitter).await?;
-        Ok(task.into())
+        Ok(task_dto(&self.db(), task))
     }
 
     async fn restore_task(
@@ -148,12 +168,13 @@ impl Service {
         let task = self.db().restore_task(id).map_err(to_fdo)?;
         info!(id, "task restored over D-Bus");
         Self::tasks_changed(&emitter).await?;
-        Ok(task.into())
+        Ok(task_dto(&self.db(), task))
     }
 
     fn list_deleted_tasks(&self) -> fdo::Result<Vec<TaskDto>> {
-        let tasks = self.db().list_deleted_tasks().map_err(to_fdo)?;
-        Ok(tasks.into_iter().map(TaskDto::from).collect())
+        let db = self.db();
+        let tasks = db.list_deleted_tasks().map_err(to_fdo)?;
+        Ok(tasks.into_iter().map(|t| task_dto(&db, t)).collect())
     }
 
     async fn complete_task(
@@ -163,7 +184,7 @@ impl Service {
     ) -> fdo::Result<TaskDto> {
         let task = self.db().complete_task(id).map_err(to_fdo)?;
         Self::tasks_changed(&emitter).await?;
-        Ok(task.into())
+        Ok(task_dto(&self.db(), task))
     }
 
     async fn reopen_task(
@@ -173,7 +194,7 @@ impl Service {
     ) -> fdo::Result<TaskDto> {
         let task = self.db().reopen_task(id).map_err(to_fdo)?;
         Self::tasks_changed(&emitter).await?;
-        Ok(task.into())
+        Ok(task_dto(&self.db(), task))
     }
 
     fn list_models(&self) -> fdo::Result<Vec<ModelDto>> {
@@ -290,6 +311,109 @@ impl Service {
             })
             .collect())
     }
+
+    fn list_suggestions(&self) -> fdo::Result<Vec<SuggestionDto>> {
+        let db = self.db();
+        let list = db.list_suggestions().map_err(to_fdo)?;
+        Ok(list
+            .into_iter()
+            .map(|s| {
+                let source_label = db
+                    .get_mail(s.mail_message_id)
+                    .map(|m| m.subject)
+                    .unwrap_or_default();
+                SuggestionDto {
+                    id: s.id,
+                    title: s.title,
+                    notes: s.notes,
+                    due_at: s.due_at.unwrap_or_default(),
+                    kind: s.kind,
+                    amount: s.amount.unwrap_or(0.0),
+                    confidence: s.confidence,
+                    source_label,
+                    created_at: s.created_at,
+                }
+            })
+            .collect())
+    }
+
+    async fn accept_suggestion(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        id: i64,
+    ) -> fdo::Result<TaskDto> {
+        let dto = {
+            let db = self.db();
+            let s = db.get_suggestion(id).map_err(to_fdo)?;
+            if s.resolved_at.is_some() {
+                return Err(fdo::Error::Failed(format!(
+                    "suggestion {id} was already {}",
+                    s.resolution.as_deref().unwrap_or("resolved")
+                )));
+            }
+            let mail = db.get_mail(s.mail_message_id).map_err(to_fdo)?;
+            let extraction = belvedere_core::extract::Extraction {
+                action_needed: true,
+                kind: match s.kind.as_str() {
+                    "bill" => belvedere_core::extract::Kind::Bill,
+                    "deadline" => belvedere_core::extract::Kind::Deadline,
+                    "reply_needed" => belvedere_core::extract::Kind::ReplyNeeded,
+                    "appointment" => belvedere_core::extract::Kind::Appointment,
+                    "renewal" => belvedere_core::extract::Kind::Renewal,
+                    _ => belvedere_core::extract::Kind::Other,
+                },
+                title: s.title.clone(),
+                due_date: s.due_at.as_deref().and_then(|d| {
+                    chrono::DateTime::parse_from_rfc3339(d)
+                        .ok()
+                        .map(|d| d.with_timezone(&Local).format("%Y-%m-%d").to_string())
+                }),
+                due_time: s.due_at.as_deref().and_then(|d| {
+                    chrono::DateTime::parse_from_rfc3339(d)
+                        .ok()
+                        .map(|d| d.with_timezone(&Local).format("%H:%M").to_string())
+                }),
+                amount: s.amount,
+                from_whom: String::new(),
+                confidence: s.confidence as f32,
+            };
+            let task = crate::pipeline::create_task_from_mail(&db, &mail, &extraction)
+                .map_err(fdo::Error::Failed)?;
+            db.accept_suggestion(id, task.id).map_err(to_fdo)?;
+            info!(suggestion = id, task = task.id, "suggestion accepted");
+            task_dto(&db, task)
+        };
+        Self::tasks_changed(&emitter).await?;
+        Self::suggestions_changed(&emitter).await?;
+        Ok(dto)
+    }
+
+    async fn reject_suggestion(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        id: i64,
+    ) -> fdo::Result<()> {
+        self.db().reject_suggestion(id).map_err(to_fdo)?;
+        info!(suggestion = id, "suggestion rejected");
+        Self::suggestions_changed(&emitter).await?;
+        Ok(())
+    }
+
+    fn open_email(&self, task_id: i64) -> fdo::Result<()> {
+        let message_id = {
+            let db = self.db();
+            db.task_sources(task_id)
+                .map_err(to_fdo)?
+                .into_iter()
+                .find(|s| s.kind == SourceKind::Email)
+                .map(|s| s.reference)
+                .ok_or_else(|| fdo::Error::Failed("this task did not come from an email".into()))?
+        };
+        crate::pipeline::open_in_thunderbird(&message_id).map_err(fdo::Error::Failed)
+    }
+
+    #[zbus(signal)]
+    pub async fn suggestions_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 
     fn list_conversations(&self) -> fdo::Result<Vec<ConversationDto>> {
         let list = self.db().list_conversations().map_err(to_fdo)?;

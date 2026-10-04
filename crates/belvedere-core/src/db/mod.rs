@@ -13,6 +13,7 @@ mod reminders;
 mod rules;
 mod settings;
 mod sources;
+mod suggestions;
 mod tasks;
 
 use std::path::{Path, PathBuf};
@@ -25,6 +26,7 @@ pub use models::{Model, ModelSource, NewModel};
 pub use reminders::Reminder;
 pub use rules::Rule;
 pub use sources::{SourceKind, TaskSource};
+pub use suggestions::{NewSuggestion, Suggestion};
 pub use tasks::{NewTask, Task, TaskStatus};
 
 /// Anything that can go wrong talking to the database.
