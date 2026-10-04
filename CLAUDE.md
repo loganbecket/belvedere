@@ -19,7 +19,7 @@ Belvedere is a personal assistant for the COSMIC desktop, written in Rust. It is
 
 - `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --workspace` pass. Run them before opening the PR and paste the summary.
 - New behavior has tests. A bug fix includes a test that failed before the fix.
-- Chunks that depend on model judgment are scored with `just eval <suite>` against made-up fixtures in `evals/`, and the score, model, and quantization go in the PR. Default eval model: Qwen3.5 9B Q4_K_M.
+- Chunks that depend on model judgment are scored with `just eval <suite>` against made-up fixtures in `evals/`, and the score, model, and quantization go in the PR. Default eval model: Qwen3.5 4B Q4_K_S. Never default to anything bigger than about 4B parameters; Logan ruled the 9B out as too big.
 
 ## Two rules above every other rule
 

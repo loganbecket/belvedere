@@ -7,7 +7,7 @@ use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::model_ipc::{ChatMessage, Command, Event};
+use crate::model_ipc::{ChatMessage, Command, Event, Grammar};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin};
 use tokio::sync::mpsc;
@@ -169,9 +169,39 @@ impl Engine {
         messages: Vec<ChatMessage>,
         max_tokens: u32,
     ) -> mpsc::UnboundedReceiver<Chunk> {
+        self.chat_with_grammar(messages, max_tokens, None).await
+    }
+
+    /// Like `chat`, with an optional grammar the helper applies once a
+    /// trigger word appears (used for tool calls).
+    pub async fn chat_with_grammar(
+        &self,
+        messages: Vec<ChatMessage>,
+        max_tokens: u32,
+        grammar: Option<Grammar>,
+    ) -> mpsc::UnboundedReceiver<Chunk> {
         self.run(Command::Chat {
             messages,
             max_tokens,
+            grammar,
+            no_think: false,
+        })
+        .await
+    }
+
+    /// `chat_with_grammar` without the model's private reasoning block,
+    /// for quick tool work.
+    pub async fn chat_fast(
+        &self,
+        messages: Vec<ChatMessage>,
+        max_tokens: u32,
+        grammar: Option<Grammar>,
+    ) -> mpsc::UnboundedReceiver<Chunk> {
+        self.run(Command::Chat {
+            messages,
+            max_tokens,
+            grammar,
+            no_think: true,
         })
         .await
     }
