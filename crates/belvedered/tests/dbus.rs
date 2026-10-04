@@ -1,108 +1,20 @@
 //! Drives the real service binary over a private D-Bus session: every
 //! method, the signal, and survival across a restart.
 
-use std::process::Stdio;
+mod common;
+
 use std::time::Duration;
 
-use belvedere_core::ipc::ServiceProxy;
+use common::{stop, wait_ready, Bus};
 use futures_util::StreamExt;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::{Child, Command};
 use tokio::time::timeout;
-
-/// A throwaway session bus. Dies with the struct.
-struct Bus {
-    daemon: Child,
-    address: String,
-}
-
-impl Bus {
-    async fn start() -> Self {
-        let mut daemon = Command::new("dbus-daemon")
-            .args(["--session", "--nofork", "--print-address=1"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .kill_on_drop(true)
-            .spawn()
-            .expect("dbus-daemon must be installed");
-        let stdout = daemon.stdout.take().unwrap();
-        let mut lines = BufReader::new(stdout).lines();
-        let address = timeout(Duration::from_secs(5), lines.next_line())
-            .await
-            .expect("dbus-daemon printed no address in time")
-            .unwrap()
-            .expect("dbus-daemon closed stdout");
-        Bus { daemon, address }
-    }
-
-    async fn connect(&self) -> zbus::Connection {
-        zbus::connection::Builder::address(self.address.as_str())
-            .unwrap()
-            .build()
-            .await
-            .unwrap()
-    }
-}
-
-impl Drop for Bus {
-    fn drop(&mut self) {
-        let _ = self.daemon.start_kill();
-    }
-}
-
-/// The service binary, pointed at a private bus and a private database.
-fn spawn_service(bus: &Bus, db_path: &std::path::Path) -> Child {
-    Command::new(env!("CARGO_BIN_EXE_belvedered"))
-        .env("DBUS_SESSION_BUS_ADDRESS", &bus.address)
-        .env("BELVEDERE_DB", db_path)
-        .env("RUST_LOG", "info")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .kill_on_drop(true)
-        .spawn()
-        .unwrap()
-}
-
-/// Waits until the service answers Ping.
-async fn wait_ready(conn: &zbus::Connection) -> ServiceProxy<'_> {
-    let proxy = ServiceProxy::new(conn).await.unwrap();
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
-    loop {
-        if let Ok(reply) = proxy.ping().await {
-            assert_eq!(reply, "pong");
-            return proxy;
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "service never answered Ping"
-        );
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-}
-
-async fn stop(mut child: Child) {
-    let pid = child.id().unwrap() as i32;
-    unsafe { libc_kill(pid) };
-    timeout(Duration::from_secs(5), child.wait())
-        .await
-        .expect("service did not exit after SIGTERM")
-        .unwrap();
-}
-
-// Avoid a `nix` dependency just for one call.
-unsafe fn libc_kill(pid: i32) {
-    extern "C" {
-        fn kill(pid: i32, sig: i32) -> i32;
-    }
-    kill(pid, 15);
-}
 
 #[tokio::test]
 async fn every_method_and_the_signal() {
     let bus = Bus::start().await;
     let dir = tempfile::tempdir().unwrap();
     let db_path = dir.path().join("belvedere.db");
-    let service = spawn_service(&bus, &db_path);
+    let service = bus.spawn_service(&db_path);
     let conn = bus.connect().await;
     let proxy = wait_ready(&conn).await;
 
@@ -177,7 +89,7 @@ async fn tasks_survive_a_service_restart() {
     let db_path = dir.path().join("belvedere.db");
     let conn = bus.connect().await;
 
-    let service = spawn_service(&bus, &db_path);
+    let service = bus.spawn_service(&db_path);
     let proxy = wait_ready(&conn).await;
     let created = proxy
         .create_task("Renew the car registration", "", "")
@@ -189,11 +101,42 @@ async fn tasks_survive_a_service_restart() {
     assert!(proxy.ping().await.is_err());
 
     // ...and back, with the same task.
-    let service = spawn_service(&bus, &db_path);
+    let service = bus.spawn_service(&db_path);
     let proxy = wait_ready(&conn).await;
     let listed = proxy.list_tasks().await.unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].id, created.id);
     assert_eq!(listed[0].title, "Renew the car registration");
     stop(service).await;
+}
+
+#[tokio::test]
+async fn a_second_instance_cannot_steal_the_name() {
+    // Two services on one bus: the second must not take over the name and
+    // knock the first off the air. This is what happened once when a test
+    // ran against the real session bus.
+    let bus = Bus::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let conn = bus.connect().await;
+
+    let first = bus.spawn_service(&dir.path().join("first.db"));
+    let proxy = wait_ready(&conn).await;
+    proxy
+        .create_task("Only in the first", "", "")
+        .await
+        .unwrap();
+
+    let mut second = bus.spawn_service(&dir.path().join("second.db"));
+    // The second instance must give up rather than run without its name.
+    let status = timeout(Duration::from_secs(10), second.wait())
+        .await
+        .expect("second instance kept running without owning the name")
+        .unwrap();
+    assert!(!status.success());
+
+    // The first is still the one answering.
+    let listed = proxy.list_tasks().await.unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].title, "Only in the first");
+    stop(first).await;
 }

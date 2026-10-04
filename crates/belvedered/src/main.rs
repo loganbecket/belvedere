@@ -74,13 +74,15 @@ async fn run(db: Db) {
 
     let db = Arc::new(Mutex::new(db));
     // Kept alive for the whole run; dropping it would leave the bus.
-    let _bus = match dbus::serve(db).await {
+    let bus = match dbus::serve(db).await {
         Ok(conn) => conn,
         Err(err) => {
             error!("could not start D-Bus service: {err}");
             std::process::exit(1);
         }
     };
+    let name_lost = dbus::name_lost(&bus);
+    tokio::pin!(name_lost);
 
     let mut sigterm = signal(SignalKind::terminate()).expect("SIGTERM handler");
     let mut sigint = signal(SignalKind::interrupt()).expect("SIGINT handler");
@@ -99,6 +101,12 @@ async fn run(db: Db) {
             }
             _ = heartbeat.tick() => {
                 info!("alive");
+            }
+            _ = &mut name_lost => {
+                // Unreachable on the bus is as good as dead; exit non-zero
+                // so systemd restarts us and we claim the name again.
+                error!("lost the bus name {}; exiting so systemd can restart the service", belvedere_core::ipc::BUS_NAME);
+                std::process::exit(1);
             }
         }
     }

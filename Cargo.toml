@@ -12,7 +12,7 @@ version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-only"
 repository = "https://github.com/loganbecket/belvedere"
-rust-version = "1.92"
+rust-version = "1.93"
 
 [workspace.dependencies]
 belvedere-core = { path = "crates/belvedere-core" }

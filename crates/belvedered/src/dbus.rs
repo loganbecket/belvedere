@@ -112,12 +112,35 @@ impl Service {
 
 /// Connects to the session bus, exports the service object, and claims
 /// the bus name. The returned connection must be kept alive.
+///
+/// The name is requested so that no other process can take it over: a
+/// second instance fails to start instead of knocking this one off the
+/// bus.
 pub async fn serve(db: SharedDb) -> zbus::Result<zbus::Connection> {
     let conn = zbus::connection::Builder::session()?
+        .allow_name_replacements(false)
+        .replace_existing_names(false)
         .name(BUS_NAME)?
         .serve_at(OBJECT_PATH, Service::new(db))?
         .build()
         .await?;
     info!(name = BUS_NAME, path = OBJECT_PATH, "D-Bus service ready");
     Ok(conn)
+}
+
+/// Resolves if the bus ever tells us we no longer own our name. That
+/// should be impossible given the flags above, but if it happens the
+/// service is unreachable and must restart rather than run on silently.
+pub async fn name_lost(conn: &zbus::Connection) -> zbus::Result<()> {
+    use futures_util::StreamExt;
+    let dbus = zbus::fdo::DBusProxy::new(conn).await?;
+    let mut lost = dbus.receive_name_lost().await?;
+    while let Some(signal) = lost.next().await {
+        if let Ok(args) = signal.args() {
+            if args.name.as_str() == BUS_NAME {
+                return Ok(());
+            }
+        }
+    }
+    Ok(())
 }

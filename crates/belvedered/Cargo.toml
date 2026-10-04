@@ -10,6 +10,7 @@ rust-version.workspace = true
 [dependencies]
 anyhow = "1.0.104"
 belvedere-core.workspace = true
+futures-util = "0.3.34"
 tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "signal", "time"] }
 tracing = "0.1.44"
 tracing-journald = "0.3.2"
@@ -18,6 +19,5 @@ zbus = { version = "5.19.0", default-features = false, features = ["tokio"] }
 
 [dev-dependencies]
 futures-util = "0.3.34"
-nix = { version = "0.31.3", features = ["signal", "process"] }
 tempfile = "3.27.0"
 tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "time", "process"] }
