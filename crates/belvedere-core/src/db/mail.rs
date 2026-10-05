@@ -33,6 +33,8 @@ pub struct MailMessage {
     pub processed_at: Option<String>,
     /// Message-IDs this message answers, space-separated, nearest first.
     pub replies_to: String,
+    /// Text read from PDF attachments, or empty.
+    pub attachment_text: String,
 }
 
 /// What a caller supplies for a newly seen message.
@@ -51,6 +53,7 @@ pub struct NewMailMessage {
     pub mbox_path: String,
     pub mbox_offset: i64,
     pub replies_to: Vec<String>,
+    pub attachment_text: String,
 }
 
 impl MailMessage {
@@ -77,11 +80,12 @@ impl MailMessage {
             seen_at: row.get("seen_at")?,
             processed_at: row.get("processed_at")?,
             replies_to: row.get("replies_to")?,
+            attachment_text: row.get("attachment_text")?,
         })
     }
 }
 
-const COLUMNS: &str = "id, message_id, account, folder, from_addr, from_name, to_addrs, subject, date, body_text, attachments, mbox_path, mbox_offset, seen_at, processed_at, replies_to";
+const COLUMNS: &str = "id, message_id, account, folder, from_addr, from_name, to_addrs, subject, date, body_text, attachments, mbox_path, mbox_offset, seen_at, processed_at, replies_to, attachment_text";
 
 /// Where reading of one mbox file stopped.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -107,8 +111,8 @@ impl Db {
         }
         let attachments = serde_json::to_string(&m.attachments).unwrap_or_else(|_| "[]".into());
         self.conn.execute(
-            "INSERT INTO mail_messages (message_id, account, folder, from_addr, from_name, to_addrs, subject, date, body_text, attachments, mbox_path, mbox_offset, seen_at, replies_to)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            "INSERT INTO mail_messages (message_id, account, folder, from_addr, from_name, to_addrs, subject, date, body_text, attachments, mbox_path, mbox_offset, seen_at, replies_to, attachment_text)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![
                 m.message_id,
                 m.account,
@@ -123,7 +127,8 @@ impl Db {
                 m.mbox_path,
                 m.mbox_offset,
                 now(),
-                m.replies_to.join(" ")
+                m.replies_to.join(" "),
+                m.attachment_text
             ],
         )?;
         let id = self.conn.last_insert_rowid();
@@ -272,6 +277,7 @@ mod tests {
             mbox_path: format!("/p/ImapMail/x/{folder}"),
             mbox_offset: 0,
             replies_to: vec!["<0@x>".into()],
+            attachment_text: String::new(),
         }
     }
 

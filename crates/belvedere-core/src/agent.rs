@@ -203,6 +203,7 @@ async fn task_from_file(
         date: String::new(),
         body,
         attachments: Vec::new(),
+        attachment_text: String::new(),
     };
     let rules: Vec<String> = store.list_rules()?.into_iter().map(|r| r.text).collect();
     let done = crate::extract::extract(engine, &email, now, false, &rules).await;

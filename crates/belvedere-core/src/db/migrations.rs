@@ -173,6 +173,10 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     r#"
     ALTER TABLE tasks ADD COLUMN caldav_name TEXT NOT NULL DEFAULT '';
     "#,
+    // 7 -> 8: text read from PDF attachments, kept with the message.
+    r#"
+    ALTER TABLE mail_messages ADD COLUMN attachment_text TEXT NOT NULL DEFAULT '';
+    "#,
 ];
 
 /// The schema version this build expects.

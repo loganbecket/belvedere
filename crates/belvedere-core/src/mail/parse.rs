@@ -22,7 +22,16 @@ pub struct Normalized {
     /// Message-IDs this message answers (In-Reply-To, then References),
     /// each in `<...>` form, nearest parent first, no duplicates.
     pub replies_to: Vec<String>,
+    /// Text pulled from PDF attachments, each under a line naming the
+    /// file. Empty when there are none (or none with a text layer).
+    pub attachment_text: String,
 }
+
+/// Most PDF attachments read per message, and the most bytes and
+/// characters kept from each.
+pub const MAX_PDF_ATTACHMENTS: usize = 3;
+pub const MAX_PDF_BYTES: usize = 10 * 1024 * 1024;
+pub const MAX_ATTACHMENT_CHARS: usize = 8_000;
 
 /// Longest body kept. Bills and notices are short; newsletters are not,
 /// and their tails are never what matters.
@@ -57,6 +66,31 @@ pub fn normalize(raw: &[u8]) -> Option<Normalized> {
         .attachments()
         .filter_map(|p| p.attachment_name().map(str::to_string))
         .collect();
+    let mut attachment_text = String::new();
+    let mut read = 0;
+    for part in message.attachments() {
+        if read >= MAX_PDF_ATTACHMENTS {
+            break;
+        }
+        let name = part.attachment_name().unwrap_or("attachment").to_string();
+        let is_pdf = name.to_lowercase().ends_with(".pdf")
+            || part.content_type().is_some_and(|c| {
+                c.ctype().eq_ignore_ascii_case("application")
+                    && c.subtype().is_some_and(|s| s.eq_ignore_ascii_case("pdf"))
+            });
+        if !is_pdf {
+            continue;
+        }
+        let bytes = part.contents();
+        if bytes.len() > MAX_PDF_BYTES {
+            continue;
+        }
+        read += 1;
+        if let Some(text) = pdf_text(bytes) {
+            attachment_text.push_str(&format!("--- attachment: {name} ---\n{text}\n"));
+        }
+    }
+    let attachment_text = attachment_text.trim().to_string();
 
     let mut replies_to = header_ids(message.in_reply_to());
     for id in header_ids(message.references()).into_iter().rev() {
@@ -80,6 +114,24 @@ pub fn normalize(raw: &[u8]) -> Option<Normalized> {
         body_text: body,
         attachments,
         replies_to,
+        attachment_text,
+    })
+}
+
+/// The text layer of a PDF, tidied and capped; `None` for a scan or a
+/// file that is not really a PDF.
+pub fn pdf_text(bytes: &[u8]) -> Option<String> {
+    let raw = pdf_extract::extract_text_from_mem(bytes).ok()?;
+    let text = tidy(&raw);
+    if text.trim().is_empty() {
+        return None;
+    }
+    Some(if text.chars().count() > MAX_ATTACHMENT_CHARS {
+        let mut t: String = text.chars().take(MAX_ATTACHMENT_CHARS).collect();
+        t.push_str("\n[... trimmed ...]");
+        t
+    } else {
+        text
     })
 }
 
@@ -378,6 +430,65 @@ pub mod fixtures {
 mod tests {
     use super::fixtures::ALL;
     use super::*;
+
+    #[test]
+    fn pdf_attachment_text_is_read_and_named() {
+        let dir = tempfile::tempdir().unwrap();
+        let pdf_path = dir.path().join("bill.pdf");
+        crate::readfile::fixtures::pdf(
+            &pdf_path,
+            &["City Power statement. Amount due: $84.12. Due date: October 31, 2026."],
+        );
+        let pdf = std::fs::read(&pdf_path).unwrap();
+        let b64 = crate::caldav::base64_encode(&String::from_utf8_lossy(&pdf));
+        let _ = b64;
+        // Base64 the raw bytes properly.
+        let encoded = base64_bytes(&pdf);
+        let raw = format!(
+            "From: City Power <billing@citypower.invalid>\r\nTo: me@example.invalid\r\nSubject: Your statement is attached\r\nDate: Thu, 15 Oct 2026 09:00:00 -0500\r\nMessage-ID: <att-1@example.invalid>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"XX\"\r\n\r\n--XX\r\nContent-Type: text/plain\r\n\r\nPlease see the attached statement.\r\n--XX\r\nContent-Type: application/pdf; name=\"statement.pdf\"\r\nContent-Disposition: attachment; filename=\"statement.pdf\"\r\nContent-Transfer-Encoding: base64\r\n\r\n{encoded}\r\n--XX\r\nContent-Type: image/png; name=\"logo.png\"\r\nContent-Disposition: attachment; filename=\"logo.png\"\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--XX--\r\n"
+        );
+        let n = normalize(raw.as_bytes()).unwrap();
+        assert_eq!(n.attachments, ["statement.pdf", "logo.png"]);
+        assert!(n.body_text.contains("Please see the attached statement."));
+        assert!(
+            n.attachment_text
+                .starts_with("--- attachment: statement.pdf ---"),
+            "{}",
+            n.attachment_text
+        );
+        assert!(n.attachment_text.contains("Amount due: $84.12"));
+        assert!(
+            !n.attachment_text.contains("logo.png"),
+            "only PDFs are read"
+        );
+        assert!(pdf_text(b"not a pdf").is_none());
+    }
+
+    fn base64_bytes(bytes: &[u8]) -> String {
+        const TABLE: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = String::new();
+        for chunk in bytes.chunks(3) {
+            let b = [
+                chunk[0],
+                *chunk.get(1).unwrap_or(&0),
+                *chunk.get(2).unwrap_or(&0),
+            ];
+            let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+            out.push(TABLE[((n >> 18) & 63) as usize] as char);
+            out.push(TABLE[((n >> 12) & 63) as usize] as char);
+            out.push(if chunk.len() > 1 {
+                TABLE[((n >> 6) & 63) as usize] as char
+            } else {
+                '='
+            });
+            out.push(if chunk.len() > 2 {
+                TABLE[(n & 63) as usize] as char
+            } else {
+                '='
+            });
+        }
+        out
+    }
 
     #[test]
     fn replies_to_lists_parent_then_older_ancestors_once() {
