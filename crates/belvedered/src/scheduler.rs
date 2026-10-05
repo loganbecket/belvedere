@@ -46,7 +46,11 @@ pub async fn run(db: SharedDb, bus: zbus::Connection, notifier: SharedNotifier) 
 
     loop {
         tokio::select! {
-            _ = tick.tick() => fire_due(&db, &mut *notifier.lock().await).await,
+            _ = tick.tick() => {
+                let mut n = notifier.lock().await;
+                fire_due(&db, &mut n).await;
+                fire_due_events(&db, &mut n).await;
+            }
             signal = clicks.next() => match signal {
                 Signal::Action { id, key } => {
                     let clicked = notifier.lock().await.resolve(id, &key);
@@ -94,6 +98,65 @@ async fn fire_due(db: &SharedDb, notifier: &mut crate::notify::Notifier) {
             error!(task = task.id, "could not show reminder: {err}");
         }
     }
+}
+
+async fn fire_due_events(db: &SharedDb, notifier: &mut crate::notify::Notifier) {
+    let fired = match lock(db).fire_due_event_reminders(&now_rfc3339(), LATE_AFTER) {
+        Ok(fired) => fired,
+        Err(err) => {
+            error!("checking event reminders: {err}");
+            return;
+        }
+    };
+    for (r, late) in fired {
+        let (title, body) = event_words(&r, late, Local::now());
+        if let Err(err) = notifier.event_reminder(&title, &body).await {
+            error!(event = r.event_key, "could not show event reminder: {err}");
+        } else {
+            info!(event = r.event_key, late, "event reminder shown");
+        }
+    }
+}
+
+/// Words for an event reminder: when it starts, in local time.
+pub fn event_words(
+    r: &belvedere_core::db::EventReminder,
+    late: bool,
+    now: chrono::DateTime<Local>,
+) -> (String, String) {
+    let start = chrono::DateTime::parse_from_rfc3339(&r.start_at)
+        .map(|d| d.with_timezone(&Local))
+        .unwrap_or(now);
+    let when = if r.all_day {
+        if start.date_naive() == now.date_naive() {
+            "Today, all day".to_string()
+        } else {
+            format!("{}, all day", start.format("%A, %B %-d"))
+        }
+    } else if start.date_naive() == now.date_naive() {
+        let minutes = (start - now).num_minutes();
+        if minutes > 0 {
+            format!(
+                "Starts at {} (in {} min)",
+                start.format("%-I:%M %p"),
+                minutes
+            )
+        } else {
+            format!("Started at {}", start.format("%-I:%M %p"))
+        }
+    } else {
+        format!(
+            "{} at {}",
+            start.format("%A, %B %-d"),
+            start.format("%-I:%M %p")
+        )
+    };
+    let body = if late {
+        format!("Missed reminder. {when}")
+    } else {
+        when
+    };
+    (r.title.clone(), body)
 }
 
 /// The notification's title and body.

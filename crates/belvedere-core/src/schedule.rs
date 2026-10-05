@@ -214,6 +214,60 @@ pub fn plan_reminders_with_lead(
 /// (a date-only task is stored at 9:00, so that collapses to one).
 /// Times already in the past are skipped; nobody wants to be reminded of
 /// something they just typed in.
+/// How Belvedere reminds about calendar events.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EventReminderSettings {
+    /// Minutes before a timed event. Setting `event_reminder_minutes`.
+    pub lead_minutes: i64,
+    /// Local time of day for all-day events, "HH:MM". Setting
+    /// `all_day_reminder_time`.
+    pub all_day_time: NaiveTime,
+    /// Remind even when Thunderbird's own alarm will fire. Setting
+    /// `event_reminders_despite_thunderbird`.
+    pub despite_thunderbird: bool,
+}
+
+impl Default for EventReminderSettings {
+    fn default() -> Self {
+        EventReminderSettings {
+            lead_minutes: 15,
+            all_day_time: NaiveTime::from_hms_opt(9, 0, 0).unwrap(),
+            despite_thunderbird: false,
+        }
+    }
+}
+
+/// When Belvedere should remind about an event, or `None` when it should
+/// not: the event already started, or Thunderbird will show its own alarm
+/// (an alarm on a calendar whose alarms are suppressed does not count).
+pub fn event_reminder_at(
+    start: DateTime<Utc>,
+    all_day: bool,
+    thunderbird_alarm: Option<DateTime<Utc>>,
+    calendar_alarms_suppressed: bool,
+    now: DateTime<Utc>,
+    settings: &EventReminderSettings,
+) -> Option<DateTime<Utc>> {
+    if thunderbird_alarm.is_some() && !calendar_alarms_suppressed && !settings.despite_thunderbird {
+        return None;
+    }
+    let at = if all_day {
+        let day = start.with_timezone(&Local).date_naive();
+        Local
+            .from_local_datetime(&day.and_time(settings.all_day_time))
+            .earliest()?
+            .with_timezone(&Utc)
+    } else {
+        start - chrono::Duration::minutes(settings.lead_minutes)
+    };
+    // Too late to be useful once the event has begun; a reminder a little
+    // past its time still fires (as "missed" if long past).
+    if start <= now {
+        return None;
+    }
+    Some(at)
+}
+
 pub fn plan_reminders(due_rfc3339: &str, now: DateTime<Local>) -> Vec<String> {
     let Some(due) = parse_rfc3339(due_rfc3339) else {
         return Vec::new();
@@ -443,5 +497,50 @@ mod tests {
         // Due earlier today: nothing to plan.
         assert!(plan_reminders(&due(2026, 10, 20, 9, 0), now).is_empty());
         assert!(plan_reminders("garbage", now).is_empty());
+    }
+
+    #[test]
+    fn event_reminders_follow_the_settings_and_defer_to_thunderbird() {
+        let settings = EventReminderSettings::default();
+        let now = Utc.with_ymd_and_hms(2026, 10, 20, 12, 0, 0).unwrap();
+        let start = Utc.with_ymd_and_hms(2026, 10, 20, 21, 0, 0).unwrap();
+        assert_eq!(
+            event_reminder_at(start, false, None, false, now, &settings),
+            Some(start - chrono::Duration::minutes(15))
+        );
+        // Thunderbird will remind: Belvedere stays quiet, unless told not to.
+        let alarm = Some(start - chrono::Duration::minutes(30));
+        assert_eq!(
+            event_reminder_at(start, false, alarm, false, now, &settings),
+            None
+        );
+        assert!(event_reminder_at(start, false, alarm, true, now, &settings).is_some());
+        let loud = EventReminderSettings {
+            despite_thunderbird: true,
+            ..settings.clone()
+        };
+        assert!(event_reminder_at(start, false, alarm, false, now, &loud).is_some());
+        // All-day: 9:00 local on the day.
+        let all_day_start = Local
+            .with_ymd_and_hms(2026, 10, 31, 0, 0, 0)
+            .unwrap()
+            .with_timezone(&Utc);
+        let at = event_reminder_at(all_day_start, true, None, false, now, &settings).unwrap();
+        assert_eq!(
+            at.with_timezone(&Local).time(),
+            NaiveTime::from_hms_opt(9, 0, 0).unwrap()
+        );
+        // Already started: nothing.
+        assert_eq!(
+            event_reminder_at(
+                now - chrono::Duration::minutes(1),
+                false,
+                None,
+                false,
+                now,
+                &settings
+            ),
+            None
+        );
     }
 }

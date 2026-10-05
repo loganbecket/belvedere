@@ -168,6 +168,30 @@ impl Notifier {
         Ok(id)
     }
 
+    /// A reminder about a calendar event. Normal urgency, no buttons (the
+    /// event lives in Thunderbird); stays until dismissed.
+    pub async fn event_reminder(&mut self, title: &str, body: &str) -> zbus::Result<u32> {
+        let mut hints: HashMap<&str, Value<'_>> = HashMap::new();
+        hints.insert("desktop-entry", Value::from("org.belvedere.Belvedere"));
+        hints.insert("urgency", Value::from(1u8));
+        hints.insert("category", Value::from("reminder"));
+        let id = self
+            .proxy
+            .notify(
+                "Belvedere",
+                0,
+                "org.belvedere.Belvedere",
+                title,
+                body,
+                vec![],
+                hints,
+                0,
+            )
+            .await?;
+        info!(notification = id, "event reminder shown");
+        Ok(id)
+    }
+
     /// A quiet mention with no task behind it (a bill a rule says is on
     /// autopay). Low urgency, goes away on its own, no buttons.
     pub async fn heads_up(

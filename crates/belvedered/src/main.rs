@@ -235,7 +235,7 @@ async fn run(db: Db) {
         tokio::spawn(scheduler::run(db.clone(), bus.clone(), n.clone()));
     }
     // Calendar: read at startup, on change, and checked every minute.
-    tokio::spawn(calendar::run(calendar_state, bus.clone()));
+    tokio::spawn(calendar::run(calendar_state, bus.clone(), db.clone()));
     // Mail: scan Thunderbird's folders at startup and whenever they change.
     let (mail_tx, mail_rx) = tokio::sync::mpsc::unbounded_channel::<usize>();
     tokio::spawn(mail::run(db.clone(), mail_tx));

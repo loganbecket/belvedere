@@ -31,6 +31,8 @@ pub struct Calendar {
     /// Network calendars with a local cache have their events on disk;
     /// without one, Thunderbird holds them only in memory.
     pub cached: bool,
+    /// Thunderbird is set not to show this calendar's alarms.
+    pub alarms_suppressed: bool,
 }
 
 /// One occurrence of an event.
@@ -47,6 +49,101 @@ pub struct Event {
     /// For an occurrence of a recurring event: when this occurrence was
     /// originally scheduled (RFC 3339), so it can be told from the others.
     pub recurrence_id: Option<String>,
+    /// When Thunderbird's own earliest alarm for this occurrence goes off,
+    /// if the event has one.
+    pub alarm: Option<DateTime<Utc>>,
+}
+
+impl Event {
+    /// A stable name for this occurrence across readings.
+    pub fn key(&self) -> String {
+        format!(
+            "{}|{}|{}",
+            self.calendar_id,
+            self.uid,
+            self.recurrence_id.as_deref().unwrap_or("")
+        )
+    }
+}
+
+/// When an alarm goes off, as stored in a VALARM.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Trigger {
+    /// Seconds relative to the start (or the end) of the event; negative
+    /// means before.
+    Relative {
+        seconds: i64,
+        from_end: bool,
+    },
+    Absolute(DateTime<Utc>),
+}
+
+impl Trigger {
+    /// The moment this trigger fires for an event running `start..end`.
+    pub fn at(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> DateTime<Utc> {
+        match self {
+            Trigger::Relative { seconds, from_end } => {
+                (if *from_end { end } else { start }) + Duration::seconds(*seconds)
+            }
+            Trigger::Absolute(t) => *t,
+        }
+    }
+}
+
+/// Reads every TRIGGER line in a VALARM block (or several).
+pub fn parse_triggers(ical: &str) -> Vec<Trigger> {
+    ical.lines()
+        .map(str::trim)
+        .filter_map(|l| {
+            let rest = l.strip_prefix("TRIGGER")?;
+            let (params, value) = rest.split_once(':')?;
+            let params = params.to_ascii_uppercase();
+            if params.contains("VALUE=DATE-TIME") {
+                let v = value.trim();
+                let naive =
+                    NaiveDateTime::parse_from_str(v.trim_end_matches('Z'), "%Y%m%dT%H%M%S").ok()?;
+                return Some(Trigger::Absolute(Utc.from_utc_datetime(&naive)));
+            }
+            Some(Trigger::Relative {
+                seconds: parse_duration(value.trim())?,
+                from_end: params.contains("RELATED=END"),
+            })
+        })
+        .collect()
+}
+
+/// An iCalendar duration ("-PT15M", "PT1H30M", "-P1DT9H", "P1W") in seconds.
+pub fn parse_duration(s: &str) -> Option<i64> {
+    let (sign, rest) = match s.strip_prefix('-') {
+        Some(r) => (-1, r),
+        None => (1, s.strip_prefix('+').unwrap_or(s)),
+    };
+    let rest = rest.strip_prefix('P')?;
+    let mut total: i64 = 0;
+    let mut number = String::new();
+    let mut in_time = false;
+    for c in rest.chars() {
+        match c {
+            'T' => in_time = true,
+            d if d.is_ascii_digit() => number.push(d),
+            unit => {
+                let n: i64 = number.parse().ok()?;
+                number.clear();
+                total += n * match (unit, in_time) {
+                    ('W', _) => 7 * 86_400,
+                    ('D', _) => 86_400,
+                    ('H', true) => 3_600,
+                    ('M', true) => 60,
+                    ('S', true) => 1,
+                    _ => return None,
+                };
+            }
+        }
+    }
+    if !number.is_empty() {
+        return None;
+    }
+    Some(sign * total)
 }
 
 /// A Thunderbird task (a VTODO).
@@ -96,6 +193,8 @@ pub fn calendars(profile: &Path) -> std::io::Result<Vec<Calendar>> {
             kind: s(&format!("calendar.registry.{id}.type")).unwrap_or_default(),
             enabled: !b(&format!("calendar.registry.{id}.disabled")).unwrap_or(false),
             cached: b(&format!("calendar.registry.{id}.cache.enabled")).unwrap_or(false),
+            alarms_suppressed: b(&format!("calendar.registry.{id}.suppressAlarms"))
+                .unwrap_or(false),
             id,
         })
         .collect())
@@ -171,6 +270,7 @@ pub fn read_database(
         })?
         .collect::<rusqlite::Result<_>>()?;
     let locations = properties(conn, "LOCATION")?;
+    let alarms = alarms(conn)?;
     {
         let mut ids = conn.prepare(
             "SELECT DISTINCT cal_id FROM cal_events UNION SELECT DISTINCT cal_id FROM cal_todos",
@@ -207,6 +307,10 @@ pub fn read_database(
         let zone = zone_of(&r.start_tz);
         let all_day = r.flags & FLAG_ALL_DAY != 0;
         let (start, end) = span(r.start, r.end, &zone, all_day);
+        let triggers = alarms
+            .get(&(r.cal_id.clone(), r.id.clone()))
+            .cloned()
+            .unwrap_or_default();
         let base = Event {
             calendar_id: r.cal_id.clone(),
             uid: r.id.clone(),
@@ -216,6 +320,7 @@ pub fn read_database(
             all_day,
             location,
             recurrence_id: None,
+            alarm: earliest_alarm(&triggers, start, end),
         };
         if r.flags & FLAG_RECURRENCE == 0 {
             if start < to && end > from {
@@ -247,6 +352,7 @@ pub fn read_database(
                             start: s,
                             end: e,
                             all_day: o_all_day,
+                            alarm: earliest_alarm(&triggers, s, e),
                             ..occurrence
                         });
                     }
@@ -276,6 +382,51 @@ pub fn read_database(
         out.tasks.push(t?);
     }
     Ok(())
+}
+
+/// The earliest moment any of an event's alarms fires.
+fn earliest_alarm(
+    triggers: &[Trigger],
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) -> Option<DateTime<Utc>> {
+    triggers.iter().map(|t| t.at(start, end)).min()
+}
+
+/// Every event's alarm triggers (master alarms only; alarms set on a
+/// single occurrence are rare and ignored).
+fn alarms(
+    conn: &rusqlite::Connection,
+) -> rusqlite::Result<HashMap<(String, String), Vec<Trigger>>> {
+    let mut out: HashMap<(String, String), Vec<Trigger>> = HashMap::new();
+    let has_table: bool = conn
+        .query_row(
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'cal_alarms'",
+            [],
+            |r| r.get::<_, i64>(0),
+        )
+        .map(|n| n > 0)
+        .unwrap_or(false);
+    if !has_table {
+        return Ok(out);
+    }
+    let mut stmt = conn.prepare(
+        "SELECT cal_id, item_id, icalString FROM cal_alarms WHERE recurrence_id IS NULL",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        Ok((
+            r.get::<_, Option<String>>(0)?.unwrap_or_default(),
+            r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+            r.get::<_, Option<String>>(2)?.unwrap_or_default(),
+        ))
+    })?;
+    for row in rows {
+        let (cal, item, ical) = row?;
+        out.entry((cal, item))
+            .or_default()
+            .extend(parse_triggers(&ical));
+    }
+    Ok(out)
 }
 
 fn properties(
@@ -493,11 +644,15 @@ pub fn expand(
         .into_iter()
         .map(|d| d.with_timezone(&Utc))
         .filter(|s| *s < to && *s + duration > from)
-        .map(|s| Event {
-            start: s,
-            end: s + duration,
-            recurrence_id: Some(s.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)),
-            ..master.clone()
+        .map(|s| {
+            let shift = s - master.start;
+            Event {
+                start: s,
+                end: s + duration,
+                recurrence_id: Some(s.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)),
+                alarm: master.alarm.map(|a| a + shift),
+                ..master.clone()
+            }
         })
         .collect()
 }
@@ -554,6 +709,7 @@ pub mod fixtures {
                 event_end_tz TEXT, recurrence_id INTEGER, recurrence_id_tz TEXT, alarm_last_ack INTEGER,
                 offline_journal INTEGER);
              CREATE TABLE cal_recurrence (item_id TEXT, cal_id TEXT, icalString TEXT);
+             CREATE TABLE cal_alarms (cal_id TEXT, item_id TEXT, recurrence_id INTEGER, recurrence_id_tz TEXT, icalString TEXT);
              CREATE TABLE cal_properties (item_id TEXT, key TEXT, value BLOB, recurrence_id INTEGER,
                 recurrence_id_tz TEXT, cal_id TEXT);
              CREATE TABLE cal_todos (cal_id TEXT, id TEXT, time_created INTEGER, last_modified INTEGER,
@@ -597,6 +753,18 @@ pub mod fixtures {
         conn.execute(
             "INSERT INTO cal_recurrence (item_id, cal_id, icalString) VALUES (?1, ?2, ?3)",
             rusqlite::params![id, cal, line],
+        )
+        .unwrap();
+    }
+
+    pub fn alarm(conn: &rusqlite::Connection, cal: &str, id: &str, trigger: &str) {
+        conn.execute(
+            "INSERT INTO cal_alarms (cal_id, item_id, icalString) VALUES (?1, ?2, ?3)",
+            rusqlite::params![
+                cal,
+                id,
+                format!("BEGIN:VALARM\nACTION:DISPLAY\nTRIGGER{trigger}\nDESCRIPTION:Reminder\nEND:VALARM")
+            ],
         )
         .unwrap();
     }
@@ -659,6 +827,35 @@ user_pref("calendar.registry.ccc.disabled", true);
     }
 
     #[test]
+    fn alarm_triggers_parse_relative_absolute_and_durations() {
+        assert_eq!(parse_duration("-PT15M"), Some(-900));
+        assert_eq!(parse_duration("PT1H30M"), Some(5400));
+        assert_eq!(parse_duration("-P1DT9H"), Some(-(86_400 + 9 * 3600)));
+        assert_eq!(parse_duration("P1W"), Some(7 * 86_400));
+        assert_eq!(parse_duration("PT"), Some(0));
+        assert_eq!(parse_duration("15M"), None);
+        let t = parse_triggers("BEGIN:VALARM\nTRIGGER;VALUE=DURATION:-PT15M\nEND:VALARM\nBEGIN:VALARM\nTRIGGER;RELATED=END:PT0S\nEND:VALARM\nBEGIN:VALARM\nTRIGGER;VALUE=DATE-TIME:20261020T150000Z\nEND:VALARM");
+        assert_eq!(
+            t,
+            [
+                Trigger::Relative {
+                    seconds: -900,
+                    from_end: false
+                },
+                Trigger::Relative {
+                    seconds: 0,
+                    from_end: true
+                },
+                Trigger::Absolute(utc("2026-10-20T15:00:00Z")),
+            ]
+        );
+        let (s, e) = (utc("2026-10-20T21:00:00Z"), utc("2026-10-20T22:00:00Z"));
+        assert_eq!(t[0].at(s, e), utc("2026-10-20T20:45:00Z"));
+        assert_eq!(t[1].at(s, e), e);
+        assert_eq!(earliest_alarm(&t, s, e), Some(utc("2026-10-20T15:00:00Z")));
+    }
+
+    #[test]
     fn calendars_come_from_prefs() {
         let dir = tempfile::tempdir().unwrap();
         prefs(dir.path());
@@ -675,6 +872,7 @@ user_pref("calendar.registry.ccc.disabled", true);
         );
         assert!(cals[1].cached);
         assert!(!cals[2].enabled);
+        assert!(!cals[0].alarms_suppressed);
     }
 
     #[test]
@@ -697,6 +895,7 @@ user_pref("calendar.registry.ccc.disabled", true);
         rule(&conn, "aaa", "practice", "RRULE:FREQ=WEEKLY;BYDAY=TU");
         // October 27 is skipped; November 10 moved to 5:00 PM and renamed.
         rule(&conn, "aaa", "practice", "EXDATE:20261027T160000");
+        alarm(&conn, "aaa", "practice", ";VALUE=DURATION:-PT30M");
         event(
             &conn,
             "aaa",
@@ -747,6 +946,15 @@ user_pref("calendar.registry.ccc.disabled", true);
             ]
         );
         assert!(out.events.iter().all(|e| e.location == "Rink B"));
+        // The 30-minute alarm follows each occurrence, the moved one included.
+        for e in &out.events {
+            assert_eq!(
+                e.alarm,
+                Some(e.start - Duration::minutes(30)),
+                "{}",
+                e.title
+            );
+        }
         assert!(out.events.iter().all(|e| e.recurrence_id.is_some()));
         assert_eq!(
             out.events[0].end - out.events[0].start,

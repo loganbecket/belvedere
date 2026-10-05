@@ -149,6 +149,89 @@ pub fn cpu_time(pid: u32) -> Duration {
     Duration::from_millis(ticks * 1000 / hz.max(1))
 }
 
+/// What a notification showed.
+#[derive(Debug, Clone)]
+pub struct Shown {
+    pub summary: String,
+    pub body: String,
+    pub at: std::time::Instant,
+}
+
+/// A stand-in for the desktop's notification daemon that records what
+/// it is asked to show.
+pub struct FakeDaemon {
+    pub shown: std::sync::Arc<std::sync::Mutex<Vec<Shown>>>,
+    next_id: std::sync::Mutex<u32>,
+}
+
+#[zbus::interface(name = "org.freedesktop.Notifications")]
+impl FakeDaemon {
+    #[allow(clippy::too_many_arguments)]
+    fn notify(
+        &self,
+        _app_name: &str,
+        _replaces_id: u32,
+        _app_icon: &str,
+        summary: &str,
+        body: &str,
+        _actions: Vec<&str>,
+        _hints: std::collections::HashMap<&str, zbus::zvariant::Value<'_>>,
+        _expire_timeout: i32,
+    ) -> u32 {
+        let mut next = self.next_id.lock().unwrap();
+        *next += 1;
+        self.shown.lock().unwrap().push(Shown {
+            summary: summary.to_string(),
+            body: body.to_string(),
+            at: std::time::Instant::now(),
+        });
+        *next
+    }
+
+    fn close_notification(&self, _id: u32) {}
+
+    #[zbus(signal)]
+    async fn action_invoked(
+        emitter: &zbus::object_server::SignalEmitter<'_>,
+        id: u32,
+        action_key: &str,
+    ) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    async fn notification_closed(
+        emitter: &zbus::object_server::SignalEmitter<'_>,
+        id: u32,
+        reason: u32,
+    ) -> zbus::Result<()>;
+}
+
+/// Serves a fake notification daemon on the bus; returns the record of
+/// what it showed (keep the connection alive).
+pub async fn fake_notifications(
+    bus: &Bus,
+) -> (
+    zbus::Connection,
+    std::sync::Arc<std::sync::Mutex<Vec<Shown>>>,
+) {
+    let shown = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let conn = zbus::connection::Builder::address(bus.address.as_str())
+        .unwrap()
+        .name("org.freedesktop.Notifications")
+        .unwrap()
+        .serve_at(
+            "/org/freedesktop/Notifications",
+            FakeDaemon {
+                shown: shown.clone(),
+                next_id: std::sync::Mutex::new(0),
+            },
+        )
+        .unwrap()
+        .build()
+        .await
+        .unwrap();
+    (conn, shown)
+}
+
 /// Waits until the service answers Ping.
 pub async fn wait_ready(conn: &zbus::Connection) -> ServiceProxy<'_> {
     let proxy = ServiceProxy::new(conn).await.unwrap();
