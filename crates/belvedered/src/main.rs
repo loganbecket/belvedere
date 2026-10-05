@@ -232,7 +232,12 @@ async fn run(db: Db) {
         }
     };
     if let Some(n) = &notifier {
-        tokio::spawn(scheduler::run(db.clone(), bus.clone(), n.clone()));
+        tokio::spawn(scheduler::run(
+            db.clone(),
+            bus.clone(),
+            n.clone(),
+            calendar_state.clone(),
+        ));
     }
     // Calendar: read at startup, on change, and checked every minute.
     tokio::spawn(calendar::run(calendar_state, bus.clone(), db.clone()));

@@ -560,6 +560,17 @@ impl Service {
     #[zbus(signal)]
     pub async fn calendar_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 
+    fn briefing(&self) -> fdo::Result<(String, String)> {
+        Ok(crate::scheduler::compose_briefing(
+            &self.db(),
+            &self.calendar,
+            chrono::Local::now(),
+        ))
+    }
+
+    #[zbus(signal)]
+    pub async fn show_conversation(emitter: &SignalEmitter<'_>, id: i64) -> zbus::Result<()>;
+
     fn list_conversations(&self) -> fdo::Result<Vec<ConversationDto>> {
         let list = self.db().list_conversations().map_err(to_fdo)?;
         Ok(list.into_iter().map(ConversationDto::from).collect())

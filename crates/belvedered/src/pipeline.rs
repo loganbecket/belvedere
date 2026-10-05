@@ -520,6 +520,7 @@ async fn process_pending(
                 let subject = Subject {
                     task_id: 0,
                     reminder_id: 0,
+                    conversation_id: 0,
                 };
                 let shown = n.lock().await.heads_up(subject, &who, &body).await;
                 if let Err(err) = shown {
@@ -548,6 +549,7 @@ async fn process_pending(
                             let subject = Subject {
                                 task_id: task.id,
                                 reminder_id: 0,
+                                conversation_id: 0,
                             };
                             let shown = n
                                 .lock()
@@ -608,6 +610,7 @@ async fn process_pending(
                             let subject = Subject {
                                 task_id: task.id,
                                 reminder_id: 0,
+                                conversation_id: 0,
                             };
                             let shown = n.lock().await.remind(subject, &task.title, &body).await;
                             if let Err(err) = shown {
@@ -665,6 +668,7 @@ async fn process_pending(
                             let subject = Subject {
                                 task_id: task.id,
                                 reminder_id: 0,
+                                conversation_id: 0,
                             };
                             let shown = n.lock().await.remind(subject, &task.title, &body).await;
                             if let Err(err) = shown {

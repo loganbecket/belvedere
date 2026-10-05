@@ -32,6 +32,8 @@ pub enum Event {
     Tasks(Lists),
     /// The service wants one task shown (a notification was clicked).
     ShowTask(i64),
+    /// The service wants a conversation shown (a briefing was clicked).
+    ShowConversation(i64),
     /// Progress on a chat reply: "loading model", "thinking", ...
     ChatStatus {
         request: u64,
@@ -138,6 +140,13 @@ async fn run_until_disconnected(
             return Ok(());
         }
     };
+    let mut show_conversation = match proxy.receive_show_conversation().await {
+        Ok(stream) => stream,
+        Err(_) => {
+            out.send(Event::Disconnected).await.map_err(|_| ())?;
+            return Ok(());
+        }
+    };
     let mut show = match proxy.receive_show_task().await {
         Ok(stream) => stream,
         Err(_) => {
@@ -202,6 +211,11 @@ async fn run_until_disconnected(
                     if let Ok(args) = signal.args() {
                         out.send(Event::ShowTask(args.id)).await.map_err(|_| ())?;
                     }
+                }
+            }
+            Some(signal) = show_conversation.next() => {
+                if let Ok(args) = signal.args() {
+                    out.send(Event::ShowConversation(args.id)).await.map_err(|_| ())?;
                 }
             }
             change = changes.next() => {

@@ -34,7 +34,103 @@ fn now_rfc3339() -> String {
 }
 
 /// Runs forever: fires due reminders on every tick and handles clicks.
-pub async fn run(db: SharedDb, bus: zbus::Connection, notifier: SharedNotifier) {
+/// When the briefing is shown, as "HH:MM" local. Setting `briefing_time`;
+/// changing it from the window comes in 8.1.
+pub const DEFAULT_BRIEFING_TIME: &str = "08:00";
+
+fn briefing_due(db: &Db, now: chrono::DateTime<Local>) -> bool {
+    // Tests that are not about the briefing turn it off.
+    if std::env::var_os("BELVEDERE_NO_BRIEFING").is_some() {
+        return false;
+    }
+    let time = db
+        .get_setting("briefing_time")
+        .ok()
+        .flatten()
+        .and_then(|v| chrono::NaiveTime::parse_from_str(&v, "%H:%M").ok())
+        .unwrap_or_else(|| {
+            chrono::NaiveTime::parse_from_str(DEFAULT_BRIEFING_TIME, "%H:%M").unwrap()
+        });
+    if now.time() < time {
+        return false;
+    }
+    let today = now.date_naive().to_string();
+    db.get_setting("briefing_last_day")
+        .ok()
+        .flatten()
+        .is_none_or(|d| d != today)
+}
+
+/// Shows the briefing if it is time and it has not been shown today.
+/// The day is recorded before anything is shown, so a crash in between
+/// can at worst skip a briefing, never repeat one.
+async fn maybe_brief(
+    db: &SharedDb,
+    calendar: &crate::calendar::SharedCalendar,
+    notifier: &mut crate::notify::Notifier,
+) {
+    let now = Local::now();
+    let (summary, text) = {
+        let db = lock(db);
+        if !briefing_due(&db, now) {
+            return;
+        }
+        if let Err(err) = db.set_setting("briefing_last_day", &now.date_naive().to_string()) {
+            error!("could not record the briefing day: {err}");
+            return;
+        }
+        let (summary, text) = compose_briefing(&db, calendar, now);
+        (summary, text)
+    };
+    let conversation = {
+        let db = lock(db);
+        db.create_conversation(&format!("Morning briefing, {}", now.format("%A, %B %-d")))
+            .and_then(|c| {
+                db.add_message(c.id, belvedere_core::db::Role::Assistant, &text)
+                    .map(|_| c.id)
+            })
+    };
+    let conversation_id = match conversation {
+        Ok(id) => id,
+        Err(err) => {
+            error!("could not store the briefing: {err}");
+            0
+        }
+    };
+    let subject = Subject {
+        task_id: 0,
+        reminder_id: 0,
+        conversation_id,
+    };
+    match notifier.briefing(subject, &summary).await {
+        Ok(_) => info!(conversation = conversation_id, "briefing shown: {summary}"),
+        Err(err) => error!("could not show the briefing: {err}"),
+    }
+}
+
+/// The briefing right now: summary line and full text.
+pub fn compose_briefing(
+    db: &Db,
+    calendar: &crate::calendar::SharedCalendar,
+    now: chrono::DateTime<Local>,
+) -> (String, String) {
+    let tasks = db.list_tasks().unwrap_or_default();
+    let events = calendar
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .reading
+        .events
+        .clone();
+    let b = belvedere_core::briefing::compose(now, &tasks, &events);
+    (b.summary(), b.text())
+}
+
+pub async fn run(
+    db: SharedDb,
+    bus: zbus::Connection,
+    notifier: SharedNotifier,
+    calendar: crate::calendar::SharedCalendar,
+) {
     let mut clicks = match notifier.lock().await.clicks().await {
         Ok(c) => c,
         Err(err) => {
@@ -50,6 +146,7 @@ pub async fn run(db: SharedDb, bus: zbus::Connection, notifier: SharedNotifier) 
                 let mut n = notifier.lock().await;
                 fire_due(&db, &mut n).await;
                 fire_due_events(&db, &mut n).await;
+                maybe_brief(&db, &calendar, &mut n).await;
             }
             signal = clicks.next() => match signal {
                 Signal::Action { id, key } => {
@@ -93,6 +190,7 @@ async fn fire_due(db: &SharedDb, notifier: &mut crate::notify::Notifier) {
         let subject = Subject {
             task_id: task.id,
             reminder_id: reminder.id,
+            conversation_id: 0,
         };
         if let Err(err) = notifier.remind(subject, &title, &body).await {
             error!(task = task.id, "could not show reminder: {err}");
@@ -187,6 +285,7 @@ async fn handle_click(db: &SharedDb, bus: &zbus::Connection, clicked: Clicked) {
     let Subject {
         task_id,
         reminder_id,
+        conversation_id,
     } = clicked.subject;
     let result = match clicked.action {
         Action::Done => {
@@ -206,6 +305,10 @@ async fn handle_click(db: &SharedDb, bus: &zbus::Connection, clicked: Clicked) {
                 .map(|_| ())
         }
         Action::Undo => undo_close(&lock(db), task_id).map(|_| ()),
+        Action::Open if conversation_id > 0 => {
+            open_conversation(bus, conversation_id).await;
+            Ok(())
+        }
         Action::Open => {
             open_window(bus, task_id).await;
             Ok(())
@@ -245,6 +348,31 @@ async fn open_window(bus: &zbus::Connection, task_id: i64) {
                 .await
             {
                 let _ = Service::show_task(iface.signal_emitter(), task_id).await;
+            }
+        }
+    });
+}
+
+/// Opens the window on a conversation (the briefing that was clicked).
+async fn open_conversation(bus: &zbus::Connection, conversation_id: i64) {
+    let launched = std::env::var_os("BELVEDERE_NO_WINDOW_LAUNCH").is_some()
+        || std::process::Command::new("belvedere").spawn().is_ok()
+        || std::env::var_os("HOME")
+            .map(|h| std::path::PathBuf::from(h).join(".local/bin/belvedere"))
+            .is_some_and(|p| std::process::Command::new(p).spawn().is_ok());
+    if !launched {
+        warn!("could not launch the Belvedere window");
+    }
+    let bus = bus.clone();
+    tokio::spawn(async move {
+        for _ in 0..10 {
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            if let Ok(iface) = bus
+                .object_server()
+                .interface::<_, Service>(OBJECT_PATH)
+                .await
+            {
+                let _ = Service::show_conversation(iface.signal_emitter(), conversation_id).await;
             }
         }
     });

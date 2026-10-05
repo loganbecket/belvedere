@@ -88,6 +88,8 @@ trait Notifications {
 pub struct Subject {
     pub task_id: i64,
     pub reminder_id: i64,
+    /// For a briefing: the conversation holding the full text.
+    pub conversation_id: i64,
 }
 
 /// What a click on a notification means for us.
@@ -165,6 +167,29 @@ impl Notifier {
             task = subject.task_id,
             "closed task announced"
         );
+        Ok(id)
+    }
+
+    /// The morning briefing: a short line, click to read it all.
+    pub async fn briefing(&mut self, subject: Subject, summary: &str) -> zbus::Result<u32> {
+        let mut hints: HashMap<&str, Value<'_>> = HashMap::new();
+        hints.insert("desktop-entry", Value::from("org.belvedere.Belvedere"));
+        hints.insert("urgency", Value::from(1u8));
+        let id = self
+            .proxy
+            .notify(
+                "Belvedere",
+                0,
+                "org.belvedere.Belvedere",
+                "Good morning",
+                summary,
+                vec!["default", "Read the briefing"],
+                hints,
+                0,
+            )
+            .await?;
+        self.open.insert(id, subject);
+        info!(notification = id, "briefing shown");
         Ok(id)
     }
 

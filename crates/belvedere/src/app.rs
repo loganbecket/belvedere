@@ -325,6 +325,10 @@ impl Application for Belvedere {
                             self.editor = Some(Editor::for_task(task));
                         }
                     }
+                    service::Event::ShowConversation(id) => {
+                        self.current = Some(id);
+                        return self.reload_chat();
+                    }
                     service::Event::Disconnected => {
                         self.connected = false;
                         self.service = None;
