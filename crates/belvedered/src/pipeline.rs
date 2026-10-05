@@ -24,7 +24,7 @@ use tracing::{info, warn};
 
 use crate::chat::pick_chat_model;
 use crate::dbus::{Service, SharedDb};
-use crate::notify::{Notifier, Subject};
+use crate::notify::{SharedNotifier, Subject};
 
 /// Confidence at or above which an extraction becomes a task outright;
 /// below it, a suggestion. Setting `extract_confidence_threshold`.
@@ -150,6 +150,8 @@ pub fn candidates(db: &Db) -> Vec<Candidate> {
             title: t.title.clone(),
             due_date: t.due_at.as_deref().and_then(day_of),
             reference: t.reference.clone(),
+            amount: amount_in_notes(&t.notes),
+            closed: t.status != TaskStatus::Open,
             ..Default::default()
         };
         for s in db.task_sources(t.id).unwrap_or_default() {
@@ -187,7 +189,51 @@ pub fn incoming(m: &MailMessage, e: &Extraction) -> Incoming {
         subject: m.subject.clone(),
         replies_to: m.replies_to_ids().into_iter().map(str::to_string).collect(),
         mail_date: day_of(&m.date),
+        amount: e.amount,
     }
+}
+
+/// The latest amount a task's notes record ("Amount: $84.12", then
+/// "Amount now: $94.12" after an update).
+pub fn amount_in_notes(notes: &str) -> Option<f64> {
+    notes
+        .lines()
+        .filter_map(|l| {
+            l.strip_prefix("Amount: $")
+                .or_else(|| l.strip_prefix("Amount now: $"))
+        })
+        .filter_map(|v| v.trim().parse::<f64>().ok())
+        .next_back()
+}
+
+/// Proof arrived (a payment confirmation, say) for an open task: mark it
+/// done, cancel its reminders, link the email, and note it in the history.
+/// The caller announces it with an Undo button.
+pub fn close_on_proof(db: &Db, task: &Task, m: &MailMessage) -> Result<Task, String> {
+    db.add_task_source(task.id, SourceKind::Email, &m.message_id, &m.subject)
+        .map_err(|e| e.to_string())?;
+    let when = day_of(&m.date)
+        .map(|d| d.format("%b %-d").to_string())
+        .unwrap_or_else(|| "later".into());
+    let line = format!("Closed {when}: {}", m.subject.trim());
+    let notes = if task.notes.trim().is_empty() {
+        line
+    } else {
+        format!("{}\n{line}", task.notes.trim_end())
+    };
+    db.update_task(
+        task.id,
+        &NewTask {
+            title: task.title.clone(),
+            notes,
+            due_at: task.due_at.clone(),
+        },
+    )
+    .map_err(|e| e.to_string())?;
+    let done = db.complete_task(task.id).map_err(|e| e.to_string())?;
+    db.cancel_task_reminders(task.id)
+        .map_err(|e| e.to_string())?;
+    Ok(done)
 }
 
 /// What a follow-up changed about its task.
@@ -335,16 +381,10 @@ pub async fn run(
     engine: Engine,
     bus: zbus::Connection,
     mut new_mail: mpsc::UnboundedReceiver<usize>,
+    notifier: Option<SharedNotifier>,
 ) {
-    let mut notifier = match Notifier::new(&bus).await {
-        Ok(n) => Some(n),
-        Err(err) => {
-            warn!("notifications unavailable for new tasks: {err}");
-            None
-        }
-    };
     loop {
-        process_pending(&db, &engine, &bus, notifier.as_mut()).await;
+        process_pending(&db, &engine, &bus, notifier.as_ref()).await;
         // Wait for the watcher or the sweep; re-check hourly regardless.
         tokio::select! {
             _ = new_mail.recv() => {}
@@ -373,7 +413,7 @@ async fn process_pending(
     db: &SharedDb,
     engine: &Engine,
     bus: &zbus::Connection,
-    mut notifier: Option<&mut Notifier>,
+    notifier: Option<&SharedNotifier>,
 ) {
     let pending = match lock(db).unprocessed_mail(50) {
         Ok(p) => p,
@@ -448,6 +488,51 @@ async fn process_pending(
                 "extraction failed: {err}; treating as nothing to do"
             );
         }
+        // Proof that something got done closes the task it settles.
+        if done.result.confirms_done {
+            let settled = {
+                let db = lock(db);
+                let found = matter::find_completed(&incoming(&m, &done.result), &candidates(&db));
+                found.and_then(|(id, reason)| db.get_task(id).ok().map(|t| (t, reason)))
+            };
+            if let Some((task, reason)) = settled {
+                let closed = close_on_proof(&lock(db), &task, &m);
+                match closed {
+                    Ok(task) => {
+                        info!(task = task.id, mail = m.id, reason = ?reason, "task closed on proof from mail");
+                        announce_tasks(bus).await;
+                        if let Some(n) = notifier {
+                            let body = format!("Marked done from your mail: {}", m.subject.trim());
+                            let subject = Subject {
+                                task_id: task.id,
+                                reminder_id: 0,
+                            };
+                            let shown = n
+                                .lock()
+                                .await
+                                .announce_closed(subject, &task.title, &body)
+                                .await;
+                            if let Err(err) = shown {
+                                warn!("could not announce the closed task: {err}");
+                            }
+                        }
+                    }
+                    Err(err) => warn!(
+                        task = task.id,
+                        mail = m.id,
+                        "could not close on proof: {err}"
+                    ),
+                }
+            } else {
+                info!(
+                    mail = m.id,
+                    "confirmation matched no open task; nothing closed"
+                );
+            }
+            let _ = lock(db).mark_mail_processed(m.id);
+            continue;
+        }
+
         // An email about something already on the list updates that task
         // instead of making another, however sure the model was.
         let matched = if done.result.action_needed {
@@ -470,7 +555,7 @@ async fn process_pending(
                     );
                     announce_tasks(bus).await;
                     if followed.due_changed || followed.amount_changed {
-                        if let Some(n) = notifier.as_deref_mut() {
+                        if let Some(n) = notifier {
                             let body = match task.due_at.as_deref() {
                                 Some(due) if followed.due_changed => format!(
                                     "Updated from your mail. Now due {}.",
@@ -482,7 +567,8 @@ async fn process_pending(
                                 task_id: task.id,
                                 reminder_id: 0,
                             };
-                            if let Err(err) = n.remind(subject, &task.title, &body).await {
+                            let shown = n.lock().await.remind(subject, &task.title, &body).await;
+                            if let Err(err) = shown {
                                 warn!("could not announce the update: {err}");
                             }
                         }
@@ -511,7 +597,7 @@ async fn process_pending(
                             "task created from mail"
                         );
                         announce_tasks(bus).await;
-                        if let Some(n) = notifier.as_deref_mut() {
+                        if let Some(n) = notifier {
                             let body = match task.due_at.as_deref() {
                                 Some(due) => format!(
                                     "New task from your mail. Due {}.",
@@ -523,7 +609,8 @@ async fn process_pending(
                                 task_id: task.id,
                                 reminder_id: 0,
                             };
-                            if let Err(err) = n.remind(subject, &task.title, &body).await {
+                            let shown = n.lock().await.remind(subject, &task.title, &body).await;
+                            if let Err(err) = shown {
                                 warn!("could not announce the new task: {err}");
                             }
                         }
@@ -625,6 +712,7 @@ mod tests {
             amount: Some(84.12),
             from_whom: "City Power".into(),
             reference: Some("4471-02".into()),
+            confirms_done: false,
             confidence: conf,
         }
     }
@@ -766,6 +854,54 @@ mod tests {
     }
 
     #[test]
+    fn proof_closes_the_task_links_the_email_and_notes_it() {
+        let db = Db::open_in_memory().unwrap();
+        let from_power = |id: &str| NewMailMessage {
+            from_addr: "billing@citypower.invalid".into(),
+            from_name: "City Power".into(),
+            subject: "Your October statement is ready".into(),
+            ..new_mail(id)
+        };
+        let (first, _) = db
+            .record_mail(&from_power("<stmt@citypower.invalid>"))
+            .unwrap();
+        let task = create_task_from_mail(&db, &first, &bill(0.9)).unwrap();
+        let (receipt, _) = db
+            .record_mail(&NewMailMessage {
+                subject: "Thank you for your payment".into(),
+                date: "2026-10-28T09:00:00-05:00".into(),
+                ..from_power("<rcpt@citypower.invalid>")
+            })
+            .unwrap();
+        let proof = Extraction {
+            action_needed: false,
+            kind: extract::Kind::None,
+            title: String::new(),
+            due_date: None,
+            confirms_done: true,
+            ..bill(0.9)
+        };
+        let found = matter::find_completed(&incoming(&receipt, &proof), &candidates(&db));
+        assert_eq!(found.map(|(id, _)| id), Some(task.id));
+        let done = close_on_proof(&db, &task, &receipt).unwrap();
+        assert_eq!(done.status, TaskStatus::Done);
+        assert!(done
+            .notes
+            .contains("Closed Oct 28: Thank you for your payment"));
+        assert_eq!(db.task_sources(task.id).unwrap().len(), 2);
+        assert!(db
+            .task_reminders(task.id)
+            .unwrap()
+            .iter()
+            .all(|r| r.fired_at.is_some()));
+        // Closed, so a second receipt finds nothing to close.
+        assert_eq!(
+            matter::find_completed(&incoming(&receipt, &proof), &candidates(&db)),
+            None
+        );
+    }
+
+    #[test]
     fn a_follow_up_to_a_dismissed_task_lands_quietly_without_reopening() {
         let db = Db::open_in_memory().unwrap();
         let from_power = |id: &str| NewMailMessage {
@@ -898,14 +1034,21 @@ mod tests {
         );
         assert!(!src.contains("delete_task"), "pipeline must never delete");
         assert!(!src.contains("dismiss_task"), "pipeline must never dismiss");
-        // Completing a task happens in exactly one place: a sent reply
-        // closing a "reply needed" task.
-        let closer = src
-            .find("pub fn close_replied")
-            .expect("close_replied exists");
-        let closer_end = closer + src[closer..].find("\n}\n").unwrap();
+        // Completing a task happens in exactly two places: a sent reply
+        // closing a "reply needed" task, and proof from the mail closing
+        // the task it settles.
+        let span = |name: &str| {
+            let start = src.find(name).unwrap_or_else(|| panic!("{name} exists"));
+            (start, start + src[start..].find("\n}\n").unwrap())
+        };
+        let allowed = [span("pub fn close_replied"), span("pub fn close_on_proof")];
         let uses: Vec<usize> = src.match_indices("complete_task").map(|(i, _)| i).collect();
-        assert_eq!(uses.len(), 1, "complete_task used outside close_replied");
-        assert!(uses[0] > closer && uses[0] < closer_end);
+        assert_eq!(uses.len(), 2, "complete_task used somewhere new");
+        for u in uses {
+            assert!(
+                allowed.iter().any(|(a, b)| u > *a && u < *b),
+                "complete_task outside the two closers"
+            );
+        }
     }
 }

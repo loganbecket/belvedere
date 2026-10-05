@@ -167,12 +167,29 @@ async fn run(db: Db) {
     };
     let name_lost = dbus::name_lost(&bus);
     tokio::pin!(name_lost);
-    tokio::spawn(scheduler::run(db.clone(), bus.clone()));
+    // One notifier for everything that shows notifications, so the click
+    // loop in the scheduler can act on all of them.
+    let notifier = match notify::Notifier::new(&bus).await {
+        Ok(n) => Some(std::sync::Arc::new(tokio::sync::Mutex::new(n))),
+        Err(err) => {
+            error!("notifications unavailable: {err}; reminders will not be shown");
+            None
+        }
+    };
+    if let Some(n) = &notifier {
+        tokio::spawn(scheduler::run(db.clone(), bus.clone(), n.clone()));
+    }
     // Mail: scan Thunderbird's folders at startup and whenever they change.
     let (mail_tx, mail_rx) = tokio::sync::mpsc::unbounded_channel::<usize>();
     tokio::spawn(mail::run(db.clone(), mail_tx));
     // New mail is read by the model and becomes tasks or suggestions.
-    tokio::spawn(pipeline::run(db, engine_for_pipeline, bus.clone(), mail_rx));
+    tokio::spawn(pipeline::run(
+        db,
+        engine_for_pipeline,
+        bus.clone(),
+        mail_rx,
+        notifier,
+    ));
 
     let mut sigterm = signal(SignalKind::terminate()).expect("SIGTERM handler");
     let mut sigint = signal(SignalKind::interrupt()).expect("SIGINT handler");

@@ -10,7 +10,8 @@ use chrono::{Local, Utc};
 use tracing::{error, info, warn};
 
 use crate::dbus::{Service, SharedDb};
-use crate::notify::{Action, Clicked, Notifier, Signal, Subject};
+use crate::notify::{Action, Clicked, SharedNotifier, Signal, Subject};
+use crate::pipeline::LEAD_DAYS;
 
 /// How often to look for due reminders. The plan allows 10 seconds.
 pub fn tick_interval() -> Duration {
@@ -33,15 +34,8 @@ fn now_rfc3339() -> String {
 }
 
 /// Runs forever: fires due reminders on every tick and handles clicks.
-pub async fn run(db: SharedDb, bus: zbus::Connection) {
-    let mut notifier = match Notifier::new(&bus).await {
-        Ok(n) => n,
-        Err(err) => {
-            error!("notifications unavailable: {err}; reminders will not be shown");
-            return;
-        }
-    };
-    let mut clicks = match notifier.clicks().await {
+pub async fn run(db: SharedDb, bus: zbus::Connection, notifier: SharedNotifier) {
+    let mut clicks = match notifier.lock().await.clicks().await {
         Ok(c) => c,
         Err(err) => {
             error!("cannot listen for notification clicks: {err}");
@@ -52,14 +46,15 @@ pub async fn run(db: SharedDb, bus: zbus::Connection) {
 
     loop {
         tokio::select! {
-            _ = tick.tick() => fire_due(&db, &mut notifier).await,
+            _ = tick.tick() => fire_due(&db, &mut *notifier.lock().await).await,
             signal = clicks.next() => match signal {
                 Signal::Action { id, key } => {
-                    if let Some(clicked) = notifier.resolve(id, &key) {
+                    let clicked = notifier.lock().await.resolve(id, &key);
+                    if let Some(clicked) = clicked {
                         handle_click(&db, &bus, clicked).await;
                     }
                 }
-                Signal::Closed { id } => notifier.forget(id),
+                Signal::Closed { id } => notifier.lock().await.forget(id),
                 Signal::Ignore => {}
                 Signal::Gone => {
                     warn!("notification daemon went away; reminders paused until restart");
@@ -74,7 +69,7 @@ fn lock(db: &SharedDb) -> std::sync::MutexGuard<'_, Db> {
     db.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-async fn fire_due(db: &SharedDb, notifier: &mut Notifier) {
+async fn fire_due(db: &SharedDb, notifier: &mut crate::notify::Notifier) {
     let fired = match lock(db).fire_due(&now_rfc3339(), LATE_AFTER) {
         Ok(fired) => fired,
         Err(err) => {
@@ -112,6 +107,19 @@ fn words_for(task_title: &str, reminder: &Reminder, late: bool) -> (String, Stri
     (task_title.to_string(), body)
 }
 
+/// Reopens a task Belvedere closed on its own and plans its reminders
+/// again from its due date (the due-day one and the lead one; anything
+/// already in the past is not re-created).
+pub fn undo_close(db: &Db, task_id: i64) -> belvedere_core::db::Result<belvedere_core::db::Task> {
+    let task = db.reopen_task(task_id)?;
+    if let Some(due) = &task.due_at {
+        let plan = schedule::plan_reminders_with_lead(due, Local::now(), LEAD_DAYS);
+        db.replace_task_reminders(task_id, &plan)?;
+    }
+    info!(task = task_id, "close undone; task reopened");
+    Ok(task)
+}
+
 async fn handle_click(db: &SharedDb, bus: &zbus::Connection, clicked: Clicked) {
     let Subject {
         task_id,
@@ -134,6 +142,7 @@ async fn handle_click(db: &SharedDb, bus: &zbus::Connection, clicked: Clicked) {
                 .and_then(|_| db.cancel_task_reminders(task_id))
                 .map(|_| ())
         }
+        Action::Undo => undo_close(&lock(db), task_id).map(|_| ()),
         Action::Open => {
             open_window(bus, task_id).await;
             Ok(())

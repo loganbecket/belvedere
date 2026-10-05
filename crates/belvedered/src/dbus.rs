@@ -401,6 +401,7 @@ impl Service {
                 amount: s.amount,
                 from_whom: String::new(),
                 reference: None,
+                confirms_done: false,
                 confidence: s.confidence as f32,
             };
             let task = crate::pipeline::create_task_from_mail(&db, &mail, &extraction)

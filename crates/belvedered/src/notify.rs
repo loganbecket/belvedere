@@ -19,14 +19,21 @@ pub enum Action {
     Done,
     SnoozeHour,
     NotNeeded,
+    /// Reopen a task Belvedere closed on its own.
+    Undo,
 }
 
+/// A notifier shared by the parts of the service that show notifications
+/// and the one loop that hears the clicks.
+pub type SharedNotifier = std::sync::Arc<tokio::sync::Mutex<Notifier>>;
+
 impl Action {
-    const KEYS: [(&'static str, Action); 4] = [
+    const KEYS: [(&'static str, Action); 5] = [
         ("default", Action::Open),
         ("done", Action::Done),
         ("snooze", Action::SnoozeHour),
         ("dismiss", Action::NotNeeded),
+        ("undo", Action::Undo),
     ];
 
     fn from_key(key: &str) -> Option<Action> {
@@ -125,6 +132,39 @@ impl Notifier {
             .await?;
         self.open.insert(id, subject);
         info!(notification = id, task = subject.task_id, "reminder shown");
+        Ok(id)
+    }
+
+    /// Announces a task Belvedere closed on its own (proof arrived in the
+    /// mail), with an Undo button. Low urgency: nothing is being asked.
+    pub async fn announce_closed(
+        &mut self,
+        subject: Subject,
+        title: &str,
+        body: &str,
+    ) -> zbus::Result<u32> {
+        let mut hints: HashMap<&str, Value<'_>> = HashMap::new();
+        hints.insert("desktop-entry", Value::from("org.belvedere.Belvedere"));
+        hints.insert("urgency", Value::from(0u8));
+        let id = self
+            .proxy
+            .notify(
+                "Belvedere",
+                0,
+                "org.belvedere.Belvedere",
+                title,
+                body,
+                vec!["default", "Open", "undo", "Undo"],
+                hints,
+                15_000,
+            )
+            .await?;
+        self.open.insert(id, subject);
+        info!(
+            notification = id,
+            task = subject.task_id,
+            "closed task announced"
+        );
         Ok(id)
     }
 

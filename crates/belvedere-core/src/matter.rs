@@ -34,6 +34,10 @@ pub struct Candidate {
     pub subjects: Vec<String>,
     /// Date of the most recent email it came from.
     pub last_mail_date: Option<NaiveDate>,
+    /// The amount the task is about, if any.
+    pub amount: Option<f64>,
+    /// Done or dismissed already.
+    pub closed: bool,
 }
 
 /// The new email, as decided by extraction.
@@ -48,11 +52,19 @@ pub struct Incoming {
     /// Message-IDs this email replies to.
     pub replies_to: Vec<String>,
     pub mail_date: Option<NaiveDate>,
+    /// The amount the email names, if any.
+    pub amount: Option<f64>,
 }
 
 /// Why an email was matched to a task, for the log and the eval report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reason {
+    /// A confirmation naming the task's account number.
+    PaidReference,
+    /// A confirmation for exactly the task's amount.
+    PaidAmount,
+    /// A confirmation from a sender with exactly one open task.
+    PaidOnlyOne,
     /// It replies to an email the task came from.
     Thread,
     /// Same sender, kind, and account number.
@@ -130,6 +142,69 @@ pub fn find_matter(incoming: &Incoming, candidates: &[Candidate]) -> Option<(i64
                 }
             }
         }
+    }
+    None
+}
+
+/// Proof that something got done (a payment confirmation, say): the open
+/// task it settles, if the evidence points at exactly one. Strict on
+/// purpose: closing the wrong task is worse than leaving one open.
+pub fn find_completed(incoming: &Incoming, candidates: &[Candidate]) -> Option<(i64, Reason)> {
+    let open: Vec<&Candidate> = candidates.iter().filter(|c| !c.closed).collect();
+    // A reply in the thread of the task's own email.
+    for c in &open {
+        if incoming
+            .replies_to
+            .iter()
+            .any(|id| c.message_ids.contains(id))
+        {
+            return Some((c.task_id, Reason::Thread));
+        }
+    }
+    let same: Vec<&Candidate> = open
+        .iter()
+        .copied()
+        .filter(|c| same_sender(&incoming.sender, &c.senders))
+        .collect();
+    if same.is_empty() {
+        return None;
+    }
+    if let Some(r) = &incoming.reference {
+        let by_ref: Vec<&Candidate> = same
+            .iter()
+            .copied()
+            .filter(|c| {
+                !c.reference.is_empty()
+                    && normalize_reference(&c.reference) == normalize_reference(r)
+            })
+            .collect();
+        if by_ref.len() == 1 {
+            return Some((by_ref[0].task_id, Reason::PaidReference));
+        }
+        if by_ref.len() > 1 {
+            return None;
+        }
+    }
+    if let Some(a) = incoming.amount {
+        let by_amount: Vec<&Candidate> = same
+            .iter()
+            .copied()
+            .filter(|c| c.amount.is_some_and(|b| (a - b).abs() < 0.005))
+            .collect();
+        if by_amount.len() == 1 {
+            return Some((by_amount[0].task_id, Reason::PaidAmount));
+        }
+        if by_amount.len() > 1 {
+            return None;
+        }
+        // An amount that matches none of the sender's tasks is not proof
+        // for any of them.
+        if same.iter().any(|c| c.amount.is_some()) {
+            return None;
+        }
+    }
+    if same.len() == 1 {
+        return Some((same[0].task_id, Reason::PaidOnlyOne));
     }
     None
 }
@@ -272,6 +347,8 @@ mod tests {
             message_ids: vec!["<stmt-oct@citypower.invalid>".into()],
             subjects: vec!["Your October statement is ready".into()],
             last_mail_date: d("2026-10-15"),
+            amount: Some(84.12),
+            closed: false,
         }
     }
 
@@ -285,7 +362,97 @@ mod tests {
             subject: "Reminder: payment due October 31".into(),
             replies_to: vec![],
             mail_date: d("2026-10-25"),
+            amount: Some(84.12),
         }
+    }
+
+    fn receipt() -> Incoming {
+        Incoming {
+            kind: "none".into(),
+            title: String::new(),
+            due_date: None,
+            reference: Some("4471-02".into()),
+            sender: "billing@citypower.invalid".into(),
+            subject: "Thank you for your payment".into(),
+            replies_to: vec![],
+            mail_date: d("2026-10-28"),
+            amount: Some(84.12),
+        }
+    }
+
+    fn water(task_id: i64) -> Candidate {
+        Candidate {
+            task_id,
+            title: "Pay the Metro Water bill".into(),
+            reference: "88-1092".into(),
+            senders: vec!["bills@metrowater.invalid".into()],
+            message_ids: vec!["<w1@metrowater.invalid>".into()],
+            subjects: vec!["Water bill due".into()],
+            amount: Some(41.50),
+            ..electric(task_id)
+        }
+    }
+
+    #[test]
+    fn a_payment_confirmation_closes_the_matching_task_only() {
+        let tasks = [electric(1), water(2)];
+        assert_eq!(
+            find_completed(&receipt(), &tasks),
+            Some((1, Reason::PaidReference))
+        );
+        // No account number: the amount decides.
+        let by_amount = Incoming {
+            reference: None,
+            ..receipt()
+        };
+        assert_eq!(
+            find_completed(&by_amount, &tasks),
+            Some((1, Reason::PaidAmount))
+        );
+        // Same sender, one open task, nothing else to go on.
+        let bare = Incoming {
+            reference: None,
+            amount: None,
+            ..receipt()
+        };
+        assert_eq!(
+            find_completed(&bare, &tasks),
+            Some((1, Reason::PaidOnlyOne))
+        );
+        // A stranger's receipt closes nothing.
+        let stranger = Incoming {
+            sender: "pay@somewhere.invalid".into(),
+            ..receipt()
+        };
+        assert_eq!(find_completed(&stranger, &tasks), None);
+        // An amount that fits none of the sender's bills is not proof.
+        let other_amount = Incoming {
+            reference: None,
+            amount: Some(12.0),
+            ..receipt()
+        };
+        assert_eq!(find_completed(&other_amount, &tasks), None);
+        // Two open bills from one sender, no number or amount: ask nobody, close nothing.
+        let two = [
+            electric(1),
+            Candidate {
+                task_id: 3,
+                reference: "9920-17".into(),
+                amount: Some(37.60),
+                ..electric(3)
+            },
+        ];
+        assert_eq!(find_completed(&bare, &two), None);
+        assert_eq!(
+            find_completed(&receipt(), &two),
+            Some((1, Reason::PaidReference))
+        );
+        // Already closed tasks are not candidates.
+        let closed = [Candidate {
+            closed: true,
+            ..electric(1)
+        }];
+        assert_eq!(find_completed(&receipt(), &closed), None);
     }
 
     #[test]
