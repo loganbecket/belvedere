@@ -369,3 +369,79 @@ async fn rules_round_trip_with_signal() {
     }
     stop(service).await;
 }
+
+/// Model roles over the bus: pick the chat and background models, and
+/// removing a model deletes its file only when Belvedere downloaded it.
+#[tokio::test]
+async fn model_roles_switch_and_removal_spares_other_apps_files() {
+    use belvedere_core::db::{Db, ModelSource, NewModel};
+    let bus = Bus::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("belvedere.db");
+    // Two model files: one Belvedere downloaded, one imported from elsewhere.
+    let own_dir = dir.path().join("belvedere").join("models");
+    std::fs::create_dir_all(&own_dir).unwrap();
+    let ours = own_dir.join("ours.gguf");
+    let theirs = dir.path().join("elsewhere.gguf");
+    std::fs::write(&ours, b"gguf").unwrap();
+    std::fs::write(&theirs, b"gguf").unwrap();
+    let (a, b) = {
+        let db = Db::open(&db_path).unwrap();
+        let a = db
+            .upsert_model(&NewModel {
+                name: "Ours",
+                path: &ours.to_string_lossy(),
+                source: ModelSource::Belvedere,
+                size_bytes: 4,
+                quantization: "Q4",
+                supports_tools: Some(true),
+            })
+            .unwrap();
+        let b = db
+            .upsert_model(&NewModel {
+                name: "Theirs",
+                path: &theirs.to_string_lossy(),
+                source: ModelSource::Import,
+                size_bytes: 4,
+                quantization: "Q4",
+                supports_tools: Some(false),
+            })
+            .unwrap();
+        (a.id, b.id)
+    };
+    let mut cmd = bus.service_command(&db_path);
+    cmd.env("XDG_DATA_HOME", dir.path()).env("HOME", dir.path());
+    let service = cmd.spawn().unwrap();
+    let conn = bus.connect().await;
+    let proxy = wait_ready(&conn).await;
+    let mut changes = proxy.receive_models_changed().await.unwrap();
+
+    // The machine may have system-wide Ollama models too; count only ours.
+    let ours_listed = |models: Vec<belvedere_core::ipc::ModelDto>| {
+        models
+            .into_iter()
+            .filter(|m| m.id == a || m.id == b)
+            .count()
+    };
+    assert_eq!(ours_listed(proxy.list_models().await.unwrap()), 2);
+    proxy.set_model_role("chat", b).await.unwrap();
+    assert!(timeout(Duration::from_secs(2), changes.next())
+        .await
+        .is_ok());
+    proxy.set_model_role("background", a).await.unwrap();
+    assert_eq!(proxy.model_roles().await.unwrap(), (b, a));
+    assert!(proxy.set_model_role("sidekick", a).await.is_err());
+
+    // Removing the imported one leaves its file; removing ours deletes it.
+    assert!(!proxy.forget_model(b).await.unwrap());
+    assert!(theirs.is_file(), "another app's file stays on disk");
+    assert!(proxy.forget_model(a).await.unwrap());
+    assert!(!ours.is_file(), "Belvedere's own download is deleted");
+    assert_eq!(ours_listed(proxy.list_models().await.unwrap()), 0);
+    let roles = proxy.model_roles().await.unwrap();
+    assert!(
+        roles.0 != a && roles.0 != b && roles.1 != a && roles.1 != b,
+        "roles no longer point at removed models: {roles:?}"
+    );
+    stop(service).await;
+}

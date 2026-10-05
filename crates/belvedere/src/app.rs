@@ -52,6 +52,10 @@ pub struct Belvedere {
     /// Address, user, password for the Thunderbird calendar, once fetched.
     caldav: Option<(String, String, String)>,
     show_sync_help: bool,
+    /// A model assignment waiting for a yes (the model has no tool support).
+    confirm_role: Option<(String, i64)>,
+    /// A model removal waiting for a yes.
+    confirm_forget: Option<i64>,
 }
 
 /// A reply in progress.
@@ -133,6 +137,13 @@ pub enum Message {
     SetDone(i64, bool),
     /// Close a task as not needed.
     Dismiss(i64),
+    // Models
+    PickModel(String, i64),
+    ConfirmPickModel,
+    CancelPickModel,
+    AskForgetModel(i64),
+    ConfirmForgetModel,
+    CancelForgetModel,
     // Thunderbird sync
     OpenThunderbirdCalendar,
     CaldavInfo(Option<(String, String, String)>),
@@ -207,6 +218,8 @@ impl Application for Belvedere {
             confirm_delete_rule: None,
             caldav: None,
             show_sync_help: false,
+            confirm_role: None,
+            confirm_forget: None,
         };
         let title = match app.core.main_window_id() {
             Some(id) => app.set_window_title("Belvedere".to_string(), id),
@@ -370,6 +383,34 @@ impl Application for Belvedere {
                         p.reopen_task(id).await.map(|_| ())
                     }
                 });
+            }
+            Message::PickModel(role, id) => {
+                let lacks_tools = self
+                    .lists
+                    .models
+                    .iter()
+                    .find(|m| m.id == id)
+                    .is_some_and(|m| m.supports_tools != "yes");
+                if lacks_tools {
+                    self.confirm_role = Some((role, id));
+                    return Task::none();
+                }
+                return self.call(move |p| async move { p.set_model_role(&role, id).await });
+            }
+            Message::ConfirmPickModel => {
+                let Some((role, id)) = self.confirm_role.take() else {
+                    return Task::none();
+                };
+                return self.call(move |p| async move { p.set_model_role(&role, id).await });
+            }
+            Message::CancelPickModel => self.confirm_role = None,
+            Message::AskForgetModel(id) => self.confirm_forget = Some(id),
+            Message::CancelForgetModel => self.confirm_forget = None,
+            Message::ConfirmForgetModel => {
+                let Some(id) = self.confirm_forget.take() else {
+                    return Task::none();
+                };
+                return self.call(move |p| async move { p.forget_model(id).await.map(|_| ()) });
             }
             Message::OpenThunderbirdCalendar => {
                 return self.call(|p| async move { p.open_thunderbird_calendar().await });
@@ -733,9 +774,134 @@ impl Belvedere {
             )
             .push(body)
             .push(self.rules_view())
+            .push(self.models_view())
             .push(self.sync_view())
             .width(Length::FillPortion(2))
             .into()
+    }
+
+    /// The models on this machine: which answers chat, which reads mail,
+    /// and a way to remove one from Belvedere.
+    fn models_view(&self) -> Element<'_, Message> {
+        let spacing = cosmic::theme::spacing();
+        let (chat_id, background_id) = self.lists.model_roles;
+        let mut col = widget::column::with_capacity(self.lists.models.len() + 3)
+            .spacing(spacing.space_xxs)
+            .push(text::title4("Models"));
+        if let Some((role, id)) = &self.confirm_role {
+            let name = self
+                .lists
+                .models
+                .iter()
+                .find(|m| m.id == *id)
+                .map(|m| m.name.as_str())
+                .unwrap_or("this model");
+            col = col.push(
+                container(
+                    widget::row::with_capacity(4)
+                        .align_y(Alignment::Center)
+                        .spacing(spacing.space_s)
+                        .push(text::body(format!(
+                            "{name} is not known to support tool calls, so it may not be able to add or change tasks. Use it for {role} anyway?"
+                        )).width(Length::Fill))
+                        .push(button::suggested("Use it").on_press(Message::ConfirmPickModel))
+                        .push(button::standard("Keep current").on_press(Message::CancelPickModel)),
+                )
+                .padding(spacing.space_xs)
+                .width(Length::Fill)
+                .class(cosmic::theme::Container::Card),
+            );
+        }
+        if let Some(id) = self.confirm_forget {
+            if let Some(m) = self.lists.models.iter().find(|m| m.id == id) {
+                let words = if m.source == "belvedere" {
+                    format!(
+                        "Remove {} from Belvedere and delete its file? Belvedere downloaded it.",
+                        m.name
+                    )
+                } else {
+                    format!(
+                        "Remove {} from Belvedere? Its file stays where it is ({}).",
+                        m.name,
+                        source_label(&m.source)
+                    )
+                };
+                col = col.push(
+                    container(
+                        widget::row::with_capacity(4)
+                            .align_y(Alignment::Center)
+                            .spacing(spacing.space_s)
+                            .push(text::body(words).width(Length::Fill))
+                            .push(
+                                button::destructive("Remove").on_press(Message::ConfirmForgetModel),
+                            )
+                            .push(button::standard("Keep").on_press(Message::CancelForgetModel)),
+                    )
+                    .padding(spacing.space_xs)
+                    .width(Length::Fill)
+                    .class(cosmic::theme::Container::Card),
+                );
+            }
+        }
+        if self.lists.models.is_empty() {
+            col = col.push(text::caption("No model files found. Download one in the Models page (coming) or point LM Studio or Ollama at one."));
+        }
+        for m in &self.lists.models {
+            let id = m.id;
+            let size = format!("{:.1} GB", m.size_bytes as f64 / 1e9);
+            let tools = match m.supports_tools.as_str() {
+                "yes" => "tools",
+                "no" => "no tools",
+                _ => "tools unknown",
+            };
+            let details = format!(
+                "{} · {size} · {} · {tools}",
+                source_label(&m.source),
+                if m.quantization.is_empty() {
+                    "?"
+                } else {
+                    m.quantization.as_str()
+                }
+            );
+            let mut words = widget::column::with_capacity(2)
+                .push(text::body(&m.name))
+                .push(text::caption(details));
+            let mut roles = Vec::new();
+            if id == chat_id {
+                roles.push("answers chat");
+            }
+            if id == background_id {
+                roles.push("reads mail");
+            }
+            if !roles.is_empty() {
+                words = words.push(text::caption(roles.join(", ")));
+            }
+            let chat_button = if id == chat_id {
+                button::suggested("Chat")
+            } else {
+                button::standard("Chat").on_press(Message::PickModel("chat".into(), id))
+            };
+            let bg_button = if id == background_id {
+                button::suggested("Background")
+            } else {
+                button::standard("Background").on_press(Message::PickModel("background".into(), id))
+            };
+            col = col.push(
+                container(
+                    widget::row::with_capacity(4)
+                        .align_y(Alignment::Center)
+                        .spacing(spacing.space_xs)
+                        .push(words.width(Length::Fill))
+                        .push(chat_button)
+                        .push(bg_button)
+                        .push(button::text("Remove").on_press(Message::AskForgetModel(id))),
+                )
+                .padding(spacing.space_xxs)
+                .width(Length::Fill)
+                .class(cosmic::theme::Container::Card),
+            );
+        }
+        col.into()
     }
 
     /// The one-time Thunderbird setup: address and password, with copy
@@ -1181,6 +1347,17 @@ fn task_row<'a>(
         .width(Length::Fill)
         .class(cosmic::theme::Container::Card)
         .into()
+}
+
+/// Where a model came from, in plain words.
+fn source_label(source: &str) -> &'static str {
+    match source {
+        "lmstudio" => "LM Studio",
+        "ollama" => "Ollama",
+        "belvedere" => "downloaded by Belvedere",
+        "import" => "imported",
+        _ => "unknown source",
+    }
 }
 
 #[cfg(test)]

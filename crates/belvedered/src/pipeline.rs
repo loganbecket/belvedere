@@ -22,7 +22,7 @@ use chrono::{Local, NaiveDate};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
-use crate::chat::pick_chat_model;
+use crate::chat::{needs_load, pick_background_model};
 use crate::dbus::{Service, SharedDb};
 use crate::notify::{SharedNotifier, Subject};
 
@@ -464,12 +464,12 @@ async fn process_pending(
         while matches!(engine.state(), State::Generating { .. }) {
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
-        if !matches!(engine.state(), State::Ready { .. }) {
-            let picked = pick_chat_model(&lock(db));
-            let Some(model) = picked else {
-                warn!("no model available; leaving mail unprocessed for now");
-                return;
-            };
+        let picked = pick_background_model(&lock(db));
+        let Some(model) = picked else {
+            warn!("no model available; leaving mail unprocessed for now");
+            return;
+        };
+        if needs_load(&engine.state(), &model) {
             if let Err(err) = engine
                 .load(
                     model.path.clone().into(),
