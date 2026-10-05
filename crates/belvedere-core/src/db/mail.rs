@@ -180,6 +180,14 @@ impl Db {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
+    pub fn unprocessed_mail_count(&self) -> Result<i64> {
+        Ok(self.conn.query_row(
+            "SELECT count(*) FROM mail_messages WHERE processed_at IS NULL",
+            [],
+            |r| r.get(0),
+        )?)
+    }
+
     pub fn mark_mail_processed(&self, id: i64) -> Result<()> {
         self.conn.execute(
             "UPDATE mail_messages SET processed_at = ?2 WHERE id = ?1",
@@ -309,7 +317,9 @@ mod tests {
         assert_eq!(db.recent_mail(1).unwrap().len(), 1);
 
         assert_eq!(db.unprocessed_mail(10).unwrap().len(), 2);
+        assert_eq!(db.unprocessed_mail_count().unwrap(), 2);
         db.mark_mail_processed(a.id).unwrap();
+        assert_eq!(db.unprocessed_mail_count().unwrap(), 1);
         let left = db.unprocessed_mail(10).unwrap();
         assert_eq!(left.len(), 1);
         assert_eq!(left[0].id, b.id);

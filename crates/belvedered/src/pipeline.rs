@@ -402,7 +402,17 @@ pub async fn run(
     notifier: Option<SharedNotifier>,
 ) {
     loop {
-        process_pending(&db, &engine, &bus, notifier.as_ref()).await;
+        // Work through the whole backlog, a batch at a time, as long as
+        // each batch gets somewhere (a missing model stops it until the
+        // next signal instead of spinning).
+        loop {
+            let before = backlog(&db);
+            process_pending(&db, &engine, &bus, notifier.as_ref()).await;
+            let after = backlog(&db);
+            if after == 0 || after >= before {
+                break;
+            }
+        }
         // Wait for the watcher or the sweep; re-check hourly regardless.
         tokio::select! {
             _ = new_mail.recv() => {}
@@ -425,6 +435,11 @@ fn folder_roles() -> HashMap<(String, String), FolderRole> {
         }
     }
     roles
+}
+
+/// How much mail is still waiting to be read.
+fn backlog(db: &SharedDb) -> i64 {
+    lock(db).unprocessed_mail_count().unwrap_or(0)
 }
 
 async fn process_pending(
