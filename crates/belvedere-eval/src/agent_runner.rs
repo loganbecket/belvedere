@@ -435,6 +435,13 @@ impl Runner for AgentRunner {
                         modified: f.modified.clone(),
                     })
                     .collect(),
+            )
+            .with_contents(
+                case.files
+                    .iter()
+                    .filter(|f| !f.text.is_empty())
+                    .map(|f| (f.path.clone(), f.text.clone()))
+                    .collect(),
             );
         let turn = tokio::time::timeout(
             std::time::Duration::from_secs(600),

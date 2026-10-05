@@ -48,6 +48,9 @@ pub struct FileFixture {
     pub size: u64,
     /// RFC 3339 with offset.
     pub modified: String,
+    /// The file's text, when a case is about its contents.
+    #[serde(default)]
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -13,6 +13,7 @@ pub mod mail;
 pub mod matter;
 pub mod model_ipc;
 pub mod models;
+pub mod readfile;
 pub mod schedule;
 pub mod think;
 pub mod thunderbird;
