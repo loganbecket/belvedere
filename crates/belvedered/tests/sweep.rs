@@ -212,3 +212,54 @@ async fn the_sweep_alone_turns_new_mail_into_a_task_and_is_cheap_when_idle() {
     assert_eq!(task.source_kind, "email");
     stop(service).await;
 }
+
+/// More than one batch of mail in skipped folders: all of it is handled at
+/// startup without waiting for new mail (no model needed for these).
+#[tokio::test]
+async fn a_backlog_bigger_than_one_batch_is_worked_through_without_waiting() {
+    let dir = tempfile::tempdir().unwrap();
+    let (profile, files) = fake_profile(dir.path(), &["Trash"]);
+    let now = chrono::Utc::now().to_rfc2822();
+    let mut text = String::new();
+    for i in 0..130 {
+        text.push_str(&mbox_message(
+            &format!("old-{i}"),
+            "someone@example.invalid",
+            &format!("Deleted note {i}"),
+            "Nothing to do.",
+            &now,
+            None,
+        ));
+    }
+    append(&files[0], &text);
+    let db_path = dir.path().join("belvedere.db");
+    let bus = Bus::start().await;
+    let mut cmd = bus.service_command(&db_path);
+    cmd.env("BELVEDERE_TB_PROFILE", &profile)
+        .env("XDG_DATA_HOME", dir.path())
+        .env("HOME", dir.path())
+        .env("BELVEDERE_NO_MAIL_WATCH", "1");
+    let service = cmd.spawn().unwrap();
+    let conn = bus.connect().await;
+    let _proxy = wait_ready(&conn).await;
+    let started = Instant::now();
+    loop {
+        let (seen, waiting) = {
+            let db = Db::open(&db_path).unwrap();
+            (
+                db.mail_count().unwrap(),
+                db.unprocessed_mail_count().unwrap(),
+            )
+        };
+        if seen == 130 && waiting == 0 {
+            eprintln!("130 messages handled after {:?}", started.elapsed());
+            break;
+        }
+        assert!(
+            started.elapsed() < Duration::from_secs(30),
+            "backlog stalled: {seen} seen, {waiting} still waiting"
+        );
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    stop(service).await;
+}
