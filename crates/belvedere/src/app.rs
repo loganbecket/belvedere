@@ -134,6 +134,7 @@ pub enum Message {
     /// Close a task as not needed.
     Dismiss(i64),
     // Thunderbird sync
+    OpenThunderbirdCalendar,
     CaldavInfo(Option<(String, String, String)>),
     Copy(String),
     ToggleSyncHelp,
@@ -369,6 +370,9 @@ impl Application for Belvedere {
                         p.reopen_task(id).await.map(|_| ())
                     }
                 });
+            }
+            Message::OpenThunderbirdCalendar => {
+                return self.call(|p| async move { p.open_thunderbird_calendar().await });
             }
             Message::CaldavInfo(info) => self.caldav = info,
             Message::Copy(text) => return cosmic::iced::clipboard::write(text),
@@ -776,6 +780,27 @@ impl Belvedere {
                     .push(line("Password", password, true));
             }
             None => col = col.push(text::caption("Waiting for the background service.")),
+        }
+        if !self.lists.calendar_tasks.is_empty() {
+            col = col.push(text::caption_heading(
+                "Tasks in Thunderbird's other calendars (edit them there)",
+            ));
+            for t in &self.lists.calendar_tasks {
+                let due = chrono::DateTime::parse_from_rfc3339(&t.due)
+                    .map(|d| format!(" (due {})", d.with_timezone(&Local).format("%b %-d")))
+                    .unwrap_or_default();
+                let mark = if t.completed { "✓ " } else { "" };
+                col = col.push(
+                    widget::row::with_capacity(2)
+                        .align_y(Alignment::Center)
+                        .spacing(spacing.space_xs)
+                        .push(text::body(format!("{mark}{}{due}", t.title)).width(Length::Fill))
+                        .push(
+                            button::text("Open in Thunderbird")
+                                .on_press(Message::OpenThunderbirdCalendar),
+                        ),
+                );
+            }
         }
         if self.show_sync_help {
             for step in [

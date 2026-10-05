@@ -729,21 +729,32 @@ pub async fn announce_suggestions(bus: &zbus::Connection) {
 /// `mid:` links on its command line; the Flatpak needs `flatpak run`.
 pub fn open_in_thunderbird(message_id: &str) -> Result<(), String> {
     let mid = format!("mid:{}", message_id.trim().trim_matches(['<', '>']));
+    open_thunderbird_with(&[&mid])
+}
+
+/// Starts (or raises) Thunderbird with the given arguments, however it is
+/// installed: Flatpak ESR, Flatpak, or native.
+pub fn open_thunderbird_with(args: &[&str]) -> Result<(), String> {
     let profile = crate::mail::profile().ok_or("no Thunderbird profile")?;
+    let extra: Vec<String> = args.iter().map(|a| a.to_string()).collect();
     let attempts: Vec<(&str, Vec<String>)> = match profile.source.as_str() {
         s if s.contains("ESR") => vec![(
             "flatpak",
-            vec![
-                "run".into(),
-                "org.mozilla.thunderbird_esr".into(),
-                mid.clone(),
-            ],
+            [
+                vec!["run".to_string(), "org.mozilla.thunderbird_esr".to_string()],
+                extra.clone(),
+            ]
+            .concat(),
         )],
         "Flatpak" => vec![(
             "flatpak",
-            vec!["run".into(), "org.mozilla.Thunderbird".into(), mid.clone()],
+            [
+                vec!["run".to_string(), "org.mozilla.Thunderbird".to_string()],
+                extra.clone(),
+            ]
+            .concat(),
         )],
-        _ => vec![("thunderbird", vec![mid.clone()])],
+        _ => vec![("thunderbird", extra.clone())],
     };
     for (program, args) in attempts {
         if std::process::Command::new(program)

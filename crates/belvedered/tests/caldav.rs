@@ -196,7 +196,7 @@ async fn a_caldav_client_discovers_lists_fetches_and_sees_changes() {
     assert!(ics.contains("STATUS:COMPLETED"));
     proxy.delete_task(task.id).await.unwrap();
     assert_eq!(http(port, "GET", &href, auth, None, "").await.0, 404);
-    // Writes from the client are refused for now.
+    // Writes are accepted now (two-way sync); a body that is not a task is not.
     assert_eq!(
         http(
             port,
@@ -208,7 +208,7 @@ async fn a_caldav_client_discovers_lists_fetches_and_sees_changes() {
         )
         .await
         .0,
-        403
+        415
     );
 
     stop(service).await;

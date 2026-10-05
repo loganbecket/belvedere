@@ -234,6 +234,7 @@ mod tests {
             deleted_at: None,
             kind: String::new(),
             reference: String::new(),
+            caldav_name: String::new(),
         }
     }
 

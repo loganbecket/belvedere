@@ -168,6 +168,11 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     );
     CREATE INDEX event_reminders_pending ON event_reminders (fire_at) WHERE fired_at IS NULL;
     "#,
+    // 6 -> 7: the name Thunderbird gave a task it created on the Belvedere
+    // calendar, so its later requests find the same task.
+    r#"
+    ALTER TABLE tasks ADD COLUMN caldav_name TEXT NOT NULL DEFAULT '';
+    "#,
 ];
 
 /// The schema version this build expects.

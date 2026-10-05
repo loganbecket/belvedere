@@ -538,15 +538,30 @@ impl Service {
             .collect())
     }
 
+    /// Thunderbird's own tasks: those in its other calendars, not its
+    /// subscription to Belvedere's (those are Belvedere's tasks already).
     fn list_calendar_tasks(&self) -> fdo::Result<Vec<CalendarTaskDto>> {
         let st = self.calendar.lock().unwrap_or_else(|e| e.into_inner());
+        let ours: Vec<&str> = st
+            .reading
+            .calendars
+            .iter()
+            .filter(|c| c.is_belvedere())
+            .map(|c| c.id.as_str())
+            .collect();
         Ok(st
             .reading
             .tasks
             .iter()
+            .filter(|t| !ours.contains(&t.calendar_id.as_str()))
             .cloned()
             .map(CalendarTaskDto::from)
             .collect())
+    }
+
+    /// Opens Thunderbird on its calendar and tasks view.
+    fn open_thunderbird_calendar(&self) -> fdo::Result<()> {
+        crate::pipeline::open_thunderbird_with(&["-calendar"]).map_err(fdo::Error::Failed)
     }
 
     fn calendar_read_at(&self) -> fdo::Result<String> {
