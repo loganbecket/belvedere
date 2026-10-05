@@ -425,6 +425,16 @@ impl Runner for AgentRunner {
                     .filter(|t| !t.source_message_id.is_empty())
                     .map(|t| (t.id, t.source_message_id.clone()))
                     .collect(),
+            )
+            .with_files(
+                case.files
+                    .iter()
+                    .map(|f| belvedere_core::tools::ToolFile {
+                        path: f.path.clone(),
+                        size: f.size,
+                        modified: f.modified.clone(),
+                    })
+                    .collect(),
             );
         let turn = tokio::time::timeout(
             std::time::Duration::from_secs(600),

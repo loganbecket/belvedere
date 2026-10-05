@@ -297,6 +297,7 @@ mod tests {
             rules: vec![],
             events: vec![],
             mail: vec![],
+            files: vec![],
             expect: Expect {
                 created: vec![CreatedExpect {
                     title_contains: vec!["dentist".into()],
@@ -385,6 +386,7 @@ mod tests {
             rules: vec![],
             events: vec![],
             mail: vec![],
+            files: vec![],
             expect: Expect {
                 thread: Some(ThreadExpect { attach }),
                 ..Default::default()

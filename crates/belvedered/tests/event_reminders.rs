@@ -108,7 +108,13 @@ async fn reminds_on_time_defers_to_thunderbird_and_survives_a_restart() {
     );
     assert!((0..=10).contains(&off), "fired {off} s off its time");
     assert_eq!(fired_at.summary, "Practice");
-    assert!(fired_at.body.starts_with("Starts at"), "{}", fired_at.body);
+    // "Starts at 8:35 PM (in 14 min)", or the day's name when the event
+    // falls after midnight.
+    assert!(
+        fired_at.body.starts_with("Starts at") || fired_at.body.contains(" at "),
+        "{}",
+        fired_at.body
+    );
 
     // Only Practice: Dentist has a Thunderbird alarm.
     tokio::time::sleep(Duration::from_secs(6)).await;

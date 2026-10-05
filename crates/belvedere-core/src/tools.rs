@@ -58,9 +58,24 @@ pub struct ToolMail {
     pub snippet: String,
 }
 
+/// A file as the tools see it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolFile {
+    pub path: String,
+    pub size: u64,
+    /// RFC 3339.
+    pub modified: String,
+}
+
 /// Where tasks live. The service backs this with the database; evals use
 /// an in-memory store.
 pub trait TaskStore {
+    /// The user's files matching a query, newest first.
+    fn find_files(
+        &mut self,
+        query: &crate::files::Query,
+        limit: usize,
+    ) -> Result<Vec<ToolFile>, String>;
     /// Events whose span touches the local days `from..=to`.
     fn events(&mut self, from: NaiveDate, to: NaiveDate) -> Result<Vec<ToolEvent>, String>;
     /// Mail matching some words, newest first.
@@ -103,7 +118,7 @@ pub struct ToolCall {
 }
 
 /// The names the model may call.
-pub const TOOL_NAMES: [&str; 10] = [
+pub const TOOL_NAMES: [&str; 11] = [
     "list_tasks",
     "create_task",
     "update_task",
@@ -114,6 +129,7 @@ pub const TOOL_NAMES: [&str; 10] = [
     "list_events",
     "search_mail",
     "task_source",
+    "find_files",
 ];
 
 pub const OPEN_TAG: &str = "<tool_call>";
@@ -147,7 +163,7 @@ pub fn parse_reply(reply: &str) -> (String, Vec<Result<ToolCall, String>>) {
 pub const TOOL_CALL_GRAMMAR: &str = r#"
 root   ::= call (ws call)* ws
 call   ::= "<tool_call>" ws "{" ws "\"name\"" ws ":" ws name ws "," ws "\"arguments\"" ws ":" ws object ws "}" ws "</tool_call>"
-name   ::= "\"list_tasks\"" | "\"create_task\"" | "\"update_task\"" | "\"reopen_task\"" | "\"delete_task\"" | "\"add_rule\"" | "\"delete_rule\"" | "\"list_events\"" | "\"search_mail\"" | "\"task_source\""
+name   ::= "\"list_tasks\"" | "\"create_task\"" | "\"update_task\"" | "\"reopen_task\"" | "\"delete_task\"" | "\"add_rule\"" | "\"delete_rule\"" | "\"list_events\"" | "\"search_mail\"" | "\"task_source\"" | "\"find_files\""
 object ::= "{" ws ( pair ( ws "," ws pair )* )? ws "}"
 pair   ::= string ws ":" ws value
 value  ::= string | number | "true" | "false" | "null" | object | array
@@ -241,6 +257,9 @@ Use it for any question about the schedule: what is on a day, when something is,
 - search_mail: {\"query\": string, \"limit\"?: number} — the user's email matching the words (sender, subject, or body), newest first. \
 Use it for any question about mail: whether someone wrote, what an email said, when it arrived.\n\
 - task_source: {\"id\": number} — the email a task was made from.\n\
+- find_files: {\"name\"?: string (words in the file name), \"kind\"?: \"pdf\"|\"image\"|\"document\"|\"spreadsheet\"|\"presentation\"|\"text\"|\"archive\"|\"audio\"|\"video\"|\"code\" or an extension, \
+\"modified_after\"?: \"YYYY-MM-DD\", \"modified_before\"?: \"YYYY-MM-DD\", \"min_size\"?: bytes, \"max_size\"?: bytes, \"limit\"?: number} — the user's own files in their home folder, newest first. \
+Give at least a name or a kind. \"Yesterday\" means modified_after and modified_before both set to that date. Files are found by name and date only; their contents are not read.\n\
 After your tool calls, stop. You will receive the results and can then reply to the user. When you reply, say plainly what you did.\n\n");
 
     p.push_str("RULES\n\
@@ -256,6 +275,7 @@ Mark done or Not needed button on that task. Never claim to have closed a task.\
 - Set due_date only when the user mentions a day or time. Otherwise leave it out; never invent one.\n\
 - If more than one task could be the one meant, do not act on any of them; ask which.\n\
 - If a tool result says error, fix the call and try again. Never tell the user something was done unless the result says so.\n\
+- Files exist only if find_files lists them; name only paths it returned, and say so when nothing was found.\n\
 - Events and emails exist only if a tool result lists them. Answer schedule and mail questions from tool results alone, \
 naming only what they returned; if a result is empty, say nothing was found. Never invent an event, an email, a sender, \
 or a time.\n\n");
@@ -519,6 +539,40 @@ pub fn execute(
                 Ok(serde_json::to_string(&found).unwrap_or_default())
             }
         }
+        "find_files" => {
+            let num = |k: &str| {
+                args.get(k).and_then(|v| {
+                    v.as_u64()
+                        .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                })
+            };
+            let query = crate::files::Query {
+                name: str_arg("name").unwrap_or("").to_string(),
+                kind: str_arg("kind").unwrap_or("").to_string(),
+                modified_after: str_arg("modified_after").map(str::to_string),
+                modified_before: str_arg("modified_before").map(str::to_string),
+                min_size: num("min_size"),
+                max_size: num("max_size"),
+                hidden: false,
+            };
+            if query.name.trim().is_empty() && query.kind.trim().is_empty() {
+                return Err("give a name or a kind to look for".into());
+            }
+            for d in [&query.modified_after, &query.modified_before]
+                .into_iter()
+                .flatten()
+            {
+                NaiveDate::parse_from_str(d, "%Y-%m-%d")
+                    .map_err(|_| format!("dates must be YYYY-MM-DD, got {d:?}"))?;
+            }
+            let limit = num("limit").map(|n| n.clamp(1, 50) as usize).unwrap_or(10);
+            let found = store.find_files(&query, limit)?;
+            if found.is_empty() {
+                Ok("no files match".to_string())
+            } else {
+                Ok(serde_json::to_string(&found).unwrap_or_default())
+            }
+        }
         "task_source" => {
             let id = id_arg()?;
             exists(store, id)?;
@@ -610,6 +664,7 @@ pub struct MemoryStore {
     pub deleted_rules: Vec<ToolRule>,
     pub events: Vec<ToolEvent>,
     pub mail: Vec<ToolMail>,
+    pub files: Vec<ToolFile>,
     /// Task id -> message id of the email it came from.
     pub sources: std::collections::HashMap<i64, String>,
     next_id: i64,
@@ -625,9 +680,15 @@ impl MemoryStore {
             deleted_rules: Vec::new(),
             events: Vec::new(),
             mail: Vec::new(),
+            files: Vec::new(),
             sources: std::collections::HashMap::new(),
             next_id,
         }
+    }
+
+    pub fn with_files(mut self, files: Vec<ToolFile>) -> Self {
+        self.files = files;
+        self
     }
 
     pub fn with_events(mut self, events: Vec<ToolEvent>) -> Self {
@@ -665,6 +726,22 @@ impl MemoryStore {
 }
 
 impl TaskStore for MemoryStore {
+    fn find_files(
+        &mut self,
+        query: &crate::files::Query,
+        limit: usize,
+    ) -> Result<Vec<ToolFile>, String> {
+        let mut hits: Vec<ToolFile> = self
+            .files
+            .iter()
+            .filter(|f| crate::files::matches(query, &f.path, f.size, &f.modified))
+            .cloned()
+            .collect();
+        hits.sort_by(|a, b| b.modified.cmp(&a.modified));
+        hits.truncate(limit);
+        Ok(hits)
+    }
+
     fn events(&mut self, from: NaiveDate, to: NaiveDate) -> Result<Vec<ToolEvent>, String> {
         let day = |s: &str| {
             DateTime::parse_from_rfc3339(s)
@@ -1221,5 +1298,38 @@ mod tests {
         let source = run(&mut store, "task_source", serde_json::json!({"id": 1})).unwrap();
         assert!(source.contains("billing@citypower.invalid"));
         assert!(run(&mut store, "task_source", serde_json::json!({"id": 9})).is_err());
+    }
+
+    #[test]
+    fn find_files_needs_a_name_or_kind_and_answers_from_the_store() {
+        let mut store = MemoryStore::with(vec![]).with_files(vec![
+            ToolFile {
+                path: "/home/me/Documents/Oakridge lease 2026.pdf".into(),
+                size: 50_000,
+                modified: "2026-10-01T10:00:00-05:00".into(),
+            },
+            ToolFile {
+                path: "/home/me/Downloads/statement.pdf".into(),
+                size: 20_000,
+                modified: "2026-10-19T10:00:00-05:00".into(),
+            },
+        ]);
+        let run = |store: &mut MemoryStore, args: serde_json::Value| {
+            execute(&call("find_files", args), store, now(), false)
+        };
+        assert!(run(&mut store, serde_json::json!({})).is_err());
+        let lease = run(&mut store, serde_json::json!({"name": "lease"})).unwrap();
+        assert!(lease.contains("Oakridge") && !lease.contains("statement"));
+        let yesterday = run(&mut store, serde_json::json!({"kind": "pdf", "modified_after": "2026-10-19", "modified_before": "2026-10-19"})).unwrap();
+        assert!(yesterday.contains("statement") && !yesterday.contains("Oakridge"));
+        assert_eq!(
+            run(&mut store, serde_json::json!({"name": "taxes"})).unwrap(),
+            "no files match"
+        );
+        assert!(run(
+            &mut store,
+            serde_json::json!({"kind": "pdf", "modified_after": "yesterday"})
+        )
+        .is_err());
     }
 }

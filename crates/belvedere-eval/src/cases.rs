@@ -35,7 +35,19 @@ pub struct Case {
     /// Emails that exist (for search and task sources).
     #[serde(default)]
     pub mail: Vec<MailFixture>,
+    /// Files that exist in the made-up home folder.
+    #[serde(default)]
+    pub files: Vec<FileFixture>,
     pub expect: Expect,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileFixture {
+    pub path: String,
+    #[serde(default)]
+    pub size: u64,
+    /// RFC 3339 with offset.
+    pub modified: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -332,6 +344,7 @@ mod tests {
             rules: vec![],
             events: vec![],
             mail: vec![],
+            files: vec![],
             expect: Expect::default(),
         }
     }
