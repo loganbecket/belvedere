@@ -82,9 +82,9 @@ pub fn rules_in_force(db: &Db) -> Vec<String> {
 /// The notes a mail-born task carries: who it is from and what it was about.
 pub fn task_notes(m: &MailMessage, e: &Extraction) -> String {
     let mut notes = String::new();
-    let who = if !e.from_whom.is_empty() {
-        e.from_whom.clone()
-    } else if !m.from_name.is_empty() {
+    // The sender as the email itself says, never the model's guess.
+    let _ = &e.from_whom;
+    let who = if !m.from_name.is_empty() {
         m.from_name.clone()
     } else {
         m.from_addr.clone()
@@ -873,7 +873,7 @@ mod tests {
         let n = task_notes(&mail(), &bill(0.9));
         assert_eq!(
             n,
-            "From City Power <billing@citypower.invalid>: Your October statement\nAmount: $84.12"
+            "From City Power Billing <billing@citypower.invalid>: Your October statement\nAmount: $84.12"
         );
     }
 
