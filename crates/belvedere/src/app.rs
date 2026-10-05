@@ -49,6 +49,9 @@ pub struct Belvedere {
     rule_edit: Option<(i64, String)>,
     /// A rule delete waiting for a yes.
     confirm_delete_rule: Option<RuleDto>,
+    /// Address, user, password for the Thunderbird calendar, once fetched.
+    caldav: Option<(String, String, String)>,
+    show_sync_help: bool,
 }
 
 /// A reply in progress.
@@ -130,6 +133,10 @@ pub enum Message {
     SetDone(i64, bool),
     /// Close a task as not needed.
     Dismiss(i64),
+    // Thunderbird sync
+    CaldavInfo(Option<(String, String, String)>),
+    Copy(String),
+    ToggleSyncHelp,
     // Rules
     NewRule(String),
     AddRule,
@@ -197,6 +204,8 @@ impl Application for Belvedere {
             new_rule: String::new(),
             rule_edit: None,
             confirm_delete_rule: None,
+            caldav: None,
+            show_sync_help: false,
         };
         let title = match app.core.main_window_id() {
             Some(id) => app.set_window_title("Belvedere".to_string(), id),
@@ -268,9 +277,13 @@ impl Application for Belvedere {
                 match event {
                     service::Event::Connected(proxy, lists) => {
                         self.connected = true;
-                        self.service = Some(proxy);
+                        self.service = Some(proxy.clone());
                         self.lists = lists;
-                        return self.reload_chat();
+                        let info =
+                            Task::perform(async move { proxy.caldav_info().await.ok() }, |info| {
+                                cosmic::Action::App(Message::CaldavInfo(info))
+                            });
+                        return Task::batch([self.reload_chat(), info]);
                     }
                     service::Event::ChatStatus {
                         request,
@@ -357,6 +370,9 @@ impl Application for Belvedere {
                     }
                 });
             }
+            Message::CaldavInfo(info) => self.caldav = info,
+            Message::Copy(text) => return cosmic::iced::clipboard::write(text),
+            Message::ToggleSyncHelp => self.show_sync_help = !self.show_sync_help,
             Message::NewRule(v) => self.new_rule = v,
             Message::AddRule => {
                 let text = self.new_rule.trim().to_string();
@@ -713,7 +729,69 @@ impl Belvedere {
             )
             .push(body)
             .push(self.rules_view())
+            .push(self.sync_view())
             .width(Length::FillPortion(2))
+            .into()
+    }
+
+    /// The one-time Thunderbird setup: address and password, with copy
+    /// buttons and the steps.
+    fn sync_view(&self) -> Element<'_, Message> {
+        let spacing = cosmic::theme::spacing();
+        let mut col = widget::column::with_capacity(6)
+            .spacing(spacing.space_xxs)
+            .push(
+                widget::row::with_capacity(3)
+                    .align_y(Alignment::Center)
+                    .push(text::title4("Thunderbird"))
+                    .push(cosmic::iced::widget::space().width(Length::Fill))
+                    .push(
+                        button::text(if self.show_sync_help {
+                            "Hide steps"
+                        } else {
+                            "How to set up"
+                        })
+                        .on_press(Message::ToggleSyncHelp),
+                    ),
+            );
+        match &self.caldav {
+            Some((url, user, password)) => {
+                let line = |label: &'static str, value: &str, secret: bool| {
+                    let shown = if secret {
+                        "•".repeat(12)
+                    } else {
+                        value.to_string()
+                    };
+                    let value = value.to_string();
+                    widget::row::with_capacity(3)
+                        .align_y(Alignment::Center)
+                        .spacing(spacing.space_xs)
+                        .push(text::caption(label).width(Length::Fixed(80.0)))
+                        .push(text::body(shown).width(Length::Fill))
+                        .push(button::text("Copy").on_press(Message::Copy(value)))
+                };
+                col = col
+                    .push(line("Address", url, false))
+                    .push(line("User name", user, false))
+                    .push(line("Password", password, true));
+            }
+            None => col = col.push(text::caption("Waiting for the background service.")),
+        }
+        if self.show_sync_help {
+            for step in [
+                "1. In Thunderbird, open the Calendar tab, right-click the calendar list, and choose New Calendar.",
+                "2. Pick \"On the Network\", then CalDAV. Paste the address above as the location and the user name as the user.",
+                "3. Thunderbird asks for the password: paste it and let Thunderbird remember it.",
+                "4. Name it Belvedere. In its properties, set Refresh to every minute so changes show up quickly.",
+                "Belvedere's tasks then appear in Thunderbird's Tasks view. Belvedere never changes Thunderbird's files for this.",
+            ] {
+                col = col.push(text::caption(step));
+            }
+        }
+        container(col)
+            .padding(spacing.space_xs)
+            .width(Length::Fill)
+            .class(cosmic::theme::Container::Card)
             .into()
     }
 

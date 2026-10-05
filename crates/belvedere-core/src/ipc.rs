@@ -433,6 +433,10 @@ pub trait Service {
     #[zbus(signal)]
     fn show_conversation(&self, id: i64) -> zbus::Result<()>;
 
+    /// Address, user name, and password for subscribing Thunderbird to
+    /// the Belvedere calendar.
+    fn caldav_info(&self) -> zbus::Result<(String, String, String)>;
+
     /// Conversations, most recently active first.
     fn list_conversations(&self) -> zbus::Result<Vec<ConversationDto>>;
 

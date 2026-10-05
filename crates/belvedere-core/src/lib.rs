@@ -2,6 +2,7 @@
 
 pub mod agent;
 pub mod briefing;
+pub mod caldav;
 pub mod calendar;
 pub mod db;
 pub mod engine;
