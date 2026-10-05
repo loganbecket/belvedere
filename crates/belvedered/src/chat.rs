@@ -43,6 +43,31 @@ pub fn pick_chat_model(db: &Db) -> Option<Model> {
         .cloned()
 }
 
+/// The model for background work (mail reading): the `background_model_id`
+/// setting, else the chat model.
+pub fn pick_background_model(db: &Db) -> Option<Model> {
+    if let Some(id) = db
+        .get_setting("background_model_id")
+        .ok()
+        .flatten()
+        .and_then(|v| v.parse::<i64>().ok())
+    {
+        if let Ok(m) = db.get_model(id) {
+            return Some(m);
+        }
+    }
+    pick_chat_model(db)
+}
+
+/// Whether `picked` must be loaded: nothing is loaded, or something else
+/// is. A switch in the Models page takes effect on the next use this way.
+pub fn needs_load(state: &State, picked: &Model) -> bool {
+    match state {
+        State::Ready { .. } | State::Generating { .. } => state.model_name() != picked.name,
+        _ => true,
+    }
+}
+
 /// A reply in progress, so Stop can find it.
 #[derive(Default)]
 pub struct Replies {
@@ -443,19 +468,15 @@ pub async fn reply(
         }
     };
 
-    // Make sure a model is loaded.
-    if !matches!(
-        engine.state(),
-        State::Ready { .. } | State::Generating { .. }
-    ) {
-        // Hold the database lock only for the lookup, never across an await.
-        let picked = pick_chat_model(&lock(&db));
-        let Some(model) = picked else {
-            fail("No model is available. Belvedere found no model files on this machine.".into())
-                .await;
-            replies.finish(request);
-            return;
-        };
+    // Make sure the chosen model is the one loaded.
+    // Hold the database lock only for the lookup, never across an await.
+    let picked = pick_chat_model(&lock(&db));
+    let Some(model) = picked else {
+        fail("No model is available. Belvedere found no model files on this machine.".into()).await;
+        replies.finish(request);
+        return;
+    };
+    if needs_load(&engine.state(), &model) {
         let _ = Service::chat_status(&emitter, request, conversation_id, "loading model").await;
         if let Err(err) = engine
             .load(
@@ -591,6 +612,47 @@ mod tests {
 
         db.set_setting("chat_model_id", "999").unwrap();
         assert_eq!(pick_chat_model(&db).unwrap().id, qwen.id);
+    }
+
+    #[test]
+    fn a_switched_model_is_loaded_on_next_use() {
+        let db = Db::open_in_memory().unwrap();
+        let a = db
+            .upsert_model(&NewModel {
+                name: "Qwen3.5-4B",
+                path: "/m/a.gguf",
+                source: belvedere_core::db::ModelSource::LmStudio,
+                size_bytes: 1,
+                quantization: "Q4",
+                supports_tools: Some(true),
+            })
+            .unwrap();
+        let b = db
+            .upsert_model(&NewModel {
+                name: "Other-3B",
+                path: "/m/b.gguf",
+                source: belvedere_core::db::ModelSource::LmStudio,
+                size_bytes: 1,
+                quantization: "Q4",
+                supports_tools: Some(false),
+            })
+            .unwrap();
+        let ready = State::Ready {
+            name: a.name.clone(),
+        };
+        assert!(!needs_load(&ready, &a), "same model: keep it");
+        assert!(
+            needs_load(&ready, &b),
+            "a different model is picked: load it"
+        );
+        assert!(needs_load(&State::Unloaded, &a));
+        // The background role falls back to the chat model until set.
+        db.set_setting("chat_model_id", &a.id.to_string()).unwrap();
+        assert_eq!(pick_background_model(&db).unwrap().id, a.id);
+        db.set_setting("background_model_id", &b.id.to_string())
+            .unwrap();
+        assert_eq!(pick_background_model(&db).unwrap().id, b.id);
+        assert_eq!(pick_chat_model(&db).unwrap().id, a.id);
     }
 
     #[test]

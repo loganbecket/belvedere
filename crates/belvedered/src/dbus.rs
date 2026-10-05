@@ -247,6 +247,61 @@ impl Service {
         self.engine.unload().await;
     }
 
+    /// The models chosen for chat and for background work (ids; 0 when
+    /// none is available).
+    fn model_roles(&self) -> (i64, i64) {
+        let db = self.db();
+        (
+            crate::chat::pick_chat_model(&db).map(|m| m.id).unwrap_or(0),
+            crate::chat::pick_background_model(&db)
+                .map(|m| m.id)
+                .unwrap_or(0),
+        )
+    }
+
+    /// Chooses the model for a role: `chat` or `background`. Takes effect
+    /// on the next use, no restart.
+    async fn set_model_role(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        role: &str,
+        id: i64,
+    ) -> fdo::Result<()> {
+        let key = match role {
+            "chat" => "chat_model_id",
+            "background" => "background_model_id",
+            other => return Err(fdo::Error::InvalidArgs(format!("unknown role {other:?}"))),
+        };
+        {
+            let db = self.db();
+            db.get_model(id).map_err(to_fdo)?;
+            db.set_setting(key, &id.to_string()).map_err(to_fdo)?;
+        }
+        info!(role, model = id, "model role set");
+        Self::models_changed(&emitter).await?;
+        Ok(())
+    }
+
+    /// Removes a model from Belvedere; deletes its file only if Belvedere
+    /// downloaded it. Returns whether a file was deleted.
+    async fn forget_model(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        id: i64,
+    ) -> fdo::Result<bool> {
+        let own = belvedere_core::models::Locations::standard()
+            .belvedere
+            .first()
+            .cloned()
+            .unwrap_or_default();
+        let deleted = crate::models::forget(&self.db(), id, &own).map_err(fdo::Error::Failed)?;
+        Self::models_changed(&emitter).await?;
+        Ok(deleted)
+    }
+
+    #[zbus(signal)]
+    pub async fn models_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+
     fn model_status(&self) -> (String, String) {
         let state = self.engine.state();
         (state.label().to_string(), state.model_name().to_string())

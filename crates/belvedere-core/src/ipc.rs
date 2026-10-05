@@ -362,6 +362,19 @@ pub trait Service {
     /// Unloads whatever model is loaded, freeing its memory.
     fn unload_model(&self) -> zbus::Result<()>;
 
+    /// Ids of the models used for chat and for background work (0 = none).
+    fn model_roles(&self) -> zbus::Result<(i64, i64)>;
+
+    /// Chooses the model for `chat` or `background`; effective on next use.
+    fn set_model_role(&self, role: &str, id: i64) -> zbus::Result<()>;
+
+    /// Removes a model from Belvedere; true if its file was deleted (only
+    /// Belvedere's own downloads are).
+    fn forget_model(&self, id: i64) -> zbus::Result<bool>;
+
+    #[zbus(signal)]
+    fn models_changed(&self) -> zbus::Result<()>;
+
     /// (state, model name). State is `unloaded`, `loading`, `ready`, or
     /// `generating`.
     fn model_status(&self) -> zbus::Result<(String, String)>;
