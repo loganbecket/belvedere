@@ -7,13 +7,66 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 use belvedere_core::calendar::{self, Reading, WINDOW_DAYS};
+use belvedere_core::db::{Db, EventReminderPlan};
 use belvedere_core::ipc::OBJECT_PATH;
+use belvedere_core::schedule::{self, EventReminderSettings};
 use chrono::{DateTime, Utc};
 use notify::{RecursiveMode, Watcher};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
-use crate::dbus::Service;
+use crate::dbus::{Service, SharedDb};
+
+fn lock(db: &SharedDb) -> std::sync::MutexGuard<'_, Db> {
+    db.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// The event reminder settings as stored (defaults when unset).
+pub fn reminder_settings(db: &Db) -> EventReminderSettings {
+    let defaults = EventReminderSettings::default();
+    let get = |k: &str| db.get_setting(k).ok().flatten();
+    EventReminderSettings {
+        lead_minutes: get("event_reminder_minutes")
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(defaults.lead_minutes),
+        all_day_time: get("all_day_reminder_time")
+            .and_then(|v| chrono::NaiveTime::parse_from_str(&v, "%H:%M").ok())
+            .unwrap_or(defaults.all_day_time),
+        despite_thunderbird: get("event_reminders_despite_thunderbird")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(defaults.despite_thunderbird),
+    }
+}
+
+/// Belvedere's reminders for the events in a reading.
+pub fn plan_reminders(
+    reading: &Reading,
+    settings: &EventReminderSettings,
+    now: DateTime<Utc>,
+) -> Vec<EventReminderPlan> {
+    reading
+        .events
+        .iter()
+        .filter_map(|e| {
+            let suppressed = reading
+                .calendars
+                .iter()
+                .find(|c| c.id == e.calendar_id)
+                .is_some_and(|c| c.alarms_suppressed);
+            let at = schedule::event_reminder_at(
+                e.start, e.all_day, e.alarm, suppressed, now, settings,
+            )?;
+            Some(EventReminderPlan {
+                event_key: e.key(),
+                calendar_id: e.calendar_id.clone(),
+                title: e.title.clone(),
+                start_at: e.start.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                all_day: e.all_day,
+                fire_at: at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            })
+        })
+        .collect()
+}
 
 /// The latest reading and when it was taken.
 #[derive(Debug, Default)]
@@ -55,9 +108,10 @@ fn window(now: DateTime<Utc>) -> (DateTime<Utc>, DateTime<Utc>) {
     )
 }
 
-/// Reads the calendars once and stores the result. Returns whether
-/// anything in the reading changed.
-pub fn refresh(profile: &Path, state: &SharedCalendar) -> bool {
+/// Reads the calendars once, stores the result, and plans Belvedere's
+/// reminders for the events. Returns whether anything in the reading
+/// changed.
+pub fn refresh(profile: &Path, state: &SharedCalendar, db: &SharedDb) -> bool {
     let started = std::time::Instant::now();
     let now = Utc::now();
     let (from, to) = window(now);
@@ -80,6 +134,22 @@ pub fn refresh(profile: &Path, state: &SharedCalendar) -> bool {
         changed,
         "calendar read"
     );
+    {
+        let db = lock(db);
+        let plans = plan_reminders(&reading, &reminder_settings(&db), now);
+        match db.replan_event_reminders(&plans) {
+            Ok(r) if r.added + r.updated + r.removed > 0 => {
+                info!(
+                    added = r.added,
+                    updated = r.updated,
+                    removed = r.removed,
+                    "event reminders planned"
+                )
+            }
+            Ok(_) => {}
+            Err(err) => warn!("could not plan event reminders: {err}"),
+        }
+    }
     st.reading = reading;
     st.read_at = Some(now);
     st.stamps = new_stamps;
@@ -106,7 +176,7 @@ async fn announce(bus: &zbus::Connection) {
 
 /// Runs forever: the first reading, then re-reads on file changes and on
 /// a minute check.
-pub async fn run(state: SharedCalendar, bus: zbus::Connection) {
+pub async fn run(state: SharedCalendar, bus: zbus::Connection, db: SharedDb) {
     let Some(profile) = crate::mail::profile() else {
         warn!("no Thunderbird profile found; calendar reading is off");
         return;
@@ -115,7 +185,8 @@ pub async fn run(state: SharedCalendar, bus: zbus::Connection) {
     {
         let p = profile.dir.clone();
         let s = state.clone();
-        let _ = tokio::task::spawn_blocking(move || refresh(&p, &s)).await;
+        let d = db.clone();
+        let _ = tokio::task::spawn_blocking(move || refresh(&p, &s, &d)).await;
     }
     announce(&bus).await;
 
@@ -169,7 +240,8 @@ pub async fn run(state: SharedCalendar, bus: zbus::Connection) {
         }
         let p = profile.dir.clone();
         let s = state.clone();
-        let changed = tokio::task::spawn_blocking(move || refresh(&p, &s))
+        let d = db.clone();
+        let changed = tokio::task::spawn_blocking(move || refresh(&p, &s, &d))
             .await
             .unwrap_or(false);
         if changed {

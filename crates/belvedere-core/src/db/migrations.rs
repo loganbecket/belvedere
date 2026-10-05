@@ -152,6 +152,22 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     r#"
     ALTER TABLE tasks ADD COLUMN reference TEXT NOT NULL DEFAULT '';
     "#,
+    // 5 -> 6: Belvedere's own reminders for calendar events.
+    r#"
+    CREATE TABLE event_reminders (
+        id          INTEGER PRIMARY KEY,
+        event_key   TEXT    NOT NULL UNIQUE,
+        calendar_id TEXT    NOT NULL DEFAULT '',
+        title       TEXT    NOT NULL DEFAULT '',
+        start_at    TEXT    NOT NULL,
+        all_day     INTEGER NOT NULL DEFAULT 0,
+        fire_at     TEXT    NOT NULL,
+        fired_at    TEXT,
+        created_at  TEXT    NOT NULL,
+        updated_at  TEXT    NOT NULL
+    );
+    CREATE INDEX event_reminders_pending ON event_reminders (fire_at) WHERE fired_at IS NULL;
+    "#,
 ];
 
 /// The schema version this build expects.
@@ -223,6 +239,7 @@ mod tests {
             table_names(&conn),
             [
                 "conversations",
+                "event_reminders",
                 "mail_folder_state",
                 "mail_messages",
                 "messages",
