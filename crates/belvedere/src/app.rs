@@ -44,6 +44,10 @@ pub struct Belvedere {
     confirm_delete: Option<TaskDto>,
     /// A recent delete that can still be undone.
     undo: Option<Undo>,
+    /// A conversation delete waiting for a yes.
+    confirm_delete_chat: Option<i64>,
+    /// "Delete all conversations?" waiting for a yes.
+    confirm_clear_chats: bool,
     /// Something went wrong talking to the service; shown briefly.
     error: Option<String>,
     /// The Rules form: a new rule being typed, and any rule being edited.
@@ -240,6 +244,12 @@ pub enum Message {
     CancelDelete,
     ConfirmDelete,
     UndoDelete,
+    AskDeleteConversation(i64),
+    ConfirmDeleteConversation,
+    CancelDeleteConversation,
+    AskClearConversations,
+    ConfirmClearConversations,
+    CancelClearConversations,
     Restore(i64),
     AcceptSuggestion(i64),
     RejectSuggestion(i64),
@@ -281,6 +291,8 @@ impl Application for Belvedere {
             editor: None,
             confirm_delete: None,
             undo: None,
+            confirm_delete_chat: None,
+            confirm_clear_chats: false,
             error: None,
             new_rule: String::new(),
             rule_edit: None,
@@ -705,6 +717,42 @@ impl Application for Belvedere {
                 self.undo = Some(Undo::new(task, Instant::now()));
                 return self.call(move |p| async move { p.delete_task(id).await.map(|_| ()) });
             }
+            Message::AskDeleteConversation(id) => {
+                self.confirm_clear_chats = false;
+                self.confirm_delete_chat = Some(id);
+            }
+            Message::CancelDeleteConversation => self.confirm_delete_chat = None,
+            Message::ConfirmDeleteConversation => {
+                let Some(id) = self.confirm_delete_chat.take() else {
+                    return Task::none();
+                };
+                if self.reply.is_some() {
+                    return Task::none();
+                }
+                if self.current == Some(id) {
+                    self.current = None;
+                    self.messages.clear();
+                }
+                self.conversations.retain(|c| c.id != id);
+                return self.chat_change(move |p| async move { p.delete_conversation(id).await });
+            }
+            Message::AskClearConversations => {
+                self.confirm_delete_chat = None;
+                self.confirm_clear_chats = true;
+            }
+            Message::CancelClearConversations => self.confirm_clear_chats = false,
+            Message::ConfirmClearConversations => {
+                self.confirm_clear_chats = false;
+                if self.reply.is_some() {
+                    return Task::none();
+                }
+                self.current = None;
+                self.messages.clear();
+                self.conversations.clear();
+                return self.chat_change(|p| async move {
+                    p.delete_all_conversations().await.map(|_| ())
+                });
+            }
             Message::UndoDelete => {
                 if let Some(undo) = self.undo.take() {
                     let id = undo.task.id;
@@ -852,6 +900,34 @@ impl Belvedere {
         }
     }
 
+    /// Runs a change to the conversations, then reloads the chat lists.
+    fn chat_change<F, Fut>(&self, f: F) -> Task<Message>
+    where
+        F: FnOnce(ServiceProxy<'static>) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = zbus::Result<()>> + Send + 'static,
+    {
+        let Some(proxy) = self.service.clone() else {
+            return Task::none();
+        };
+        let current = self.current;
+        Task::perform(
+            async move {
+                f(proxy.clone()).await?;
+                let conversations = proxy.list_conversations().await?;
+                let current = current.filter(|id| conversations.iter().any(|c| c.id == *id));
+                let messages = match current {
+                    Some(id) => proxy.get_messages(id).await?,
+                    None => Vec::new(),
+                };
+                Ok::<_, zbus::Error>((conversations, current, messages))
+            },
+            |result| match result {
+                Ok((c, cur, m)) => cosmic::Action::App(Message::ChatLoaded(c, cur, m)),
+                Err(e) => cosmic::Action::App(Message::Done(Err(e.to_string()))),
+            },
+        )
+    }
+
     /// Fetches conversations and the current conversation's messages.
     fn reload_chat(&self) -> Task<Message> {
         let Some(proxy) = self.service.clone() else {
@@ -880,11 +956,49 @@ impl Belvedere {
         let busy = self.reply.is_some();
 
         // Conversation list down the left of the pane.
-        let mut list = widget::column::with_capacity(self.conversations.len() + 1)
+        let mut list = widget::column::with_capacity(self.conversations.len() + 4)
             .spacing(spacing.space_xxs)
             .push(button::standard("New conversation").on_press_maybe(
                 (!busy && self.current.is_some()).then_some(Message::NewConversation),
             ));
+        if let Some(id) = self.confirm_delete_chat {
+            let title = self
+                .conversations
+                .iter()
+                .find(|c| c.id == id)
+                .map(|c| {
+                    if c.title.is_empty() {
+                        "Untitled"
+                    } else {
+                        c.title.as_str()
+                    }
+                })
+                .unwrap_or("this conversation");
+            list = list
+                .push(text::caption(format!("Delete \"{title}\" for good?")))
+                .push(
+                    widget::row::with_capacity(2)
+                        .spacing(spacing.space_xxs)
+                        .push(
+                            button::destructive("Delete")
+                                .on_press(Message::ConfirmDeleteConversation),
+                        )
+                        .push(button::standard("Keep").on_press(Message::CancelDeleteConversation)),
+                );
+        }
+        if self.confirm_clear_chats {
+            list = list
+                .push(text::caption("Delete every conversation for good?"))
+                .push(
+                    widget::row::with_capacity(2)
+                        .spacing(spacing.space_xxs)
+                        .push(
+                            button::destructive("Delete all")
+                                .on_press(Message::ConfirmClearConversations),
+                        )
+                        .push(button::standard("Keep").on_press(Message::CancelClearConversations)),
+                );
+        }
         for c in &self.conversations {
             let title = if c.title.is_empty() {
                 "Untitled"
@@ -895,7 +1009,21 @@ impl Belvedere {
             if !busy {
                 b = b.on_press(Message::OpenConversation(c.id));
             }
-            list = list.push(b);
+            let mut row = widget::row::with_capacity(2)
+                .align_y(Alignment::Center)
+                .push(b);
+            if !busy {
+                row = row.push(
+                    button::icon(widget::icon::from_name("edit-delete-symbolic"))
+                        .on_press(Message::AskDeleteConversation(c.id)),
+                );
+            }
+            list = list.push(row);
+        }
+        if !self.conversations.is_empty() && !self.confirm_clear_chats && !busy {
+            list = list.push(
+                button::text("Delete all conversations").on_press(Message::AskClearConversations),
+            );
         }
 
         // The transcript.
@@ -941,7 +1069,7 @@ impl Belvedere {
 
         widget::row::with_capacity(2)
             .spacing(spacing.space_s)
-            .push(widget::scrollable(list).width(Length::Fixed(200.0)))
+            .push(widget::scrollable(list).width(Length::Fixed(240.0)))
             .push(transcript)
             .width(Length::FillPortion(3))
             .into()

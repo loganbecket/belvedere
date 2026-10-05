@@ -148,6 +148,17 @@ impl Db {
         self.get_conversation(id)
     }
 
+    /// Removes a conversation and its messages for good.
+    pub fn erase_conversation(&self, id: i64) -> Result<()> {
+        let changed = self
+            .conn
+            .execute("DELETE FROM conversations WHERE id = ?1", [id])?;
+        if changed == 0 {
+            return Err(DbError::NotFound(id));
+        }
+        Ok(())
+    }
+
     /// Permanently removes a soft-deleted conversation and its messages.
     pub fn purge_conversation(&self, id: i64) -> Result<()> {
         let changed = self.conn.execute(
@@ -289,5 +300,18 @@ mod tests {
         db.delete_conversation(c.id).unwrap();
         db.purge_conversation(c.id).unwrap();
         assert!(matches!(db.get_message(m.id), Err(DbError::NotFound(_))));
+    }
+
+    #[test]
+    fn erasing_a_conversation_takes_its_messages_with_it() {
+        let db = Db::open_in_memory().unwrap();
+        let gone = db.create_conversation("gone").unwrap();
+        let kept = db.create_conversation("kept").unwrap();
+        db.add_message(gone.id, Role::User, "hi").unwrap();
+        db.erase_conversation(gone.id).unwrap();
+        assert!(db.get_conversation(gone.id).is_err());
+        assert!(db.conversation_messages(gone.id).unwrap().is_empty());
+        assert!(db.get_conversation(kept.id).is_ok());
+        assert!(db.erase_conversation(gone.id).is_err());
     }
 }
