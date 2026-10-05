@@ -425,6 +425,14 @@ pub trait Service {
     #[zbus(signal)]
     fn calendar_changed(&self) -> zbus::Result<()>;
 
+    /// The briefing as it stands right now: the one-line summary and the
+    /// full text.
+    fn briefing(&self) -> zbus::Result<(String, String)>;
+
+    /// Asks the window to open this conversation.
+    #[zbus(signal)]
+    fn show_conversation(&self, id: i64) -> zbus::Result<()>;
+
     /// Conversations, most recently active first.
     fn list_conversations(&self) -> zbus::Result<Vec<ConversationDto>>;
 

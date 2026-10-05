@@ -121,7 +121,8 @@ impl Application for Applet {
                 | Event::ChatStatus { .. }
                 | Event::ChatText { .. }
                 | Event::ChatDone { .. }
-                | Event::ChatFailed { .. } => {}
+                | Event::ChatFailed { .. }
+                | Event::ShowConversation(_) => {}
                 Event::Disconnected => {
                     self.connected = false;
                     self.service = None;

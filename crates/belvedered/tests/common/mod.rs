@@ -54,6 +54,8 @@ impl Bus {
             .env("BELVEDERE_DB", db_path)
             .env("RUST_LOG", "info")
             .env("BELVEDERE_NO_WINDOW_LAUNCH", "1")
+            // No morning briefing unless a test asks for it.
+            .env("BELVEDERE_NO_BRIEFING", "1")
             // Never read the real mailbox from a test. Tests that want
             // mail point this at a made-up profile.
             .env(
