@@ -67,7 +67,44 @@ pub struct Belvedere {
     import_path: String,
     /// Settings being edited: key -> text not yet saved.
     setting_edits: std::collections::HashMap<String, String>,
-    show_settings: bool,
+    /// Which page the window shows: tasks and chat, or setup.
+    page: Page,
+}
+
+/// What the window shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Page {
+    /// Chat and tasks.
+    Main,
+    /// Rules, models, Thunderbird, settings.
+    Setup(SetupTab),
+}
+
+/// The tabs of the setup page.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetupTab {
+    Rules,
+    Models,
+    Thunderbird,
+    Settings,
+}
+
+impl SetupTab {
+    pub const ALL: [SetupTab; 4] = [
+        SetupTab::Rules,
+        SetupTab::Models,
+        SetupTab::Thunderbird,
+        SetupTab::Settings,
+    ];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            SetupTab::Rules => "Rules",
+            SetupTab::Models => "Models",
+            SetupTab::Thunderbird => "Thunderbird",
+            SetupTab::Settings => "Settings",
+        }
+    }
 }
 
 /// A reply in progress.
@@ -150,7 +187,8 @@ pub enum Message {
     /// Close a task as not needed.
     Dismiss(i64),
     // Settings
-    ToggleSettings,
+    /// Switch between the main page and the setup page (and its tabs).
+    ShowPage(Page),
     EditSetting(String, String),
     SaveSetting(String),
     ResetSetting(String),
@@ -257,7 +295,7 @@ impl Application for Belvedere {
             hf_busy: false,
             import_path: String::new(),
             setting_edits: std::collections::HashMap::new(),
-            show_settings: false,
+            page: Page::Main,
         };
         let title = match app.core.main_window_id() {
             Some(id) => app.set_window_title("Belvedere".to_string(), id),
@@ -422,7 +460,7 @@ impl Application for Belvedere {
                     }
                 });
             }
-            Message::ToggleSettings => self.show_settings = !self.show_settings,
+            Message::ShowPage(page) => self.page = page,
             Message::EditSetting(key, text) => {
                 self.setting_edits.insert(key, text);
             }
@@ -724,14 +762,29 @@ impl Application for Belvedere {
         )
     }
 
+    /// The header bar's right side: the way into setup, and back.
+    fn header_end(&self) -> Vec<Element<'_, Message>> {
+        let b = match self.page {
+            Page::Main => {
+                button::text("Setup").on_press(Message::ShowPage(Page::Setup(SetupTab::Rules)))
+            }
+            Page::Setup(_) => button::text("Back to tasks").on_press(Message::ShowPage(Page::Main)),
+        };
+        vec![b.into()]
+    }
+
     fn view(&self) -> Element<'_, Message> {
         let spacing = cosmic::theme::spacing();
 
-        let panes = widget::row::with_capacity(2)
-            .spacing(spacing.space_s)
-            .push(self.chat_pane())
-            .push(self.task_pane())
-            .height(Length::Fill);
+        let panes: Element<'_, Message> = match self.page {
+            Page::Main => widget::row::with_capacity(2)
+                .spacing(spacing.space_s)
+                .push(self.chat_pane())
+                .push(self.task_pane())
+                .height(Length::Fill)
+                .into(),
+            Page::Setup(tab) => self.setup_page(tab),
+        };
 
         let mut page = widget::column::with_capacity(4).spacing(spacing.space_s);
         if !self.connected {
@@ -912,11 +965,37 @@ impl Belvedere {
                     .push(text::caption(format!("{}", self.lists.tasks.len()))),
             )
             .push(body)
-            .push(self.rules_view())
-            .push(self.models_view())
-            .push(self.sync_view())
-            .push(self.settings_view())
             .width(Length::FillPortion(2))
+            .into()
+    }
+
+    /// The setup page: rules, models, Thunderbird, and settings, one tab
+    /// at a time, out of the way of the tasks.
+    fn setup_page(&self, tab: SetupTab) -> Element<'_, Message> {
+        let spacing = cosmic::theme::spacing();
+        let mut tabs = widget::row::with_capacity(SetupTab::ALL.len()).spacing(spacing.space_xs);
+        for t in SetupTab::ALL {
+            let b = if t == tab {
+                button::suggested(t.label())
+            } else {
+                button::standard(t.label()).on_press(Message::ShowPage(Page::Setup(t)))
+            };
+            tabs = tabs.push(b);
+        }
+        let body: Element<'_, Message> = match tab {
+            SetupTab::Rules => self.rules_view(),
+            SetupTab::Models => self.models_view(),
+            SetupTab::Thunderbird => self.sync_view(),
+            SetupTab::Settings => self.settings_view(),
+        };
+        widget::column::with_capacity(2)
+            .spacing(spacing.space_s)
+            .push(tabs)
+            .push(
+                widget::scrollable(container(body).max_width(900).padding([0, spacing.space_s]))
+                    .height(Length::Fill),
+            )
+            .width(Length::Fill)
             .into()
     }
 
@@ -925,19 +1004,7 @@ impl Belvedere {
         let spacing = cosmic::theme::spacing();
         let mut col = widget::column::with_capacity(self.lists.settings.len() * 2 + 2)
             .spacing(spacing.space_xxs)
-            .push(
-                widget::row::with_capacity(3)
-                    .align_y(Alignment::Center)
-                    .push(text::title4("Settings"))
-                    .push(cosmic::iced::widget::space().width(Length::Fill))
-                    .push(
-                        button::text(if self.show_settings { "Hide" } else { "Show" })
-                            .on_press(Message::ToggleSettings),
-                    ),
-            );
-        if !self.show_settings {
-            return col.into();
-        }
+            .push(text::title4("Settings"));
         for s in &self.lists.settings {
             let key = s.key.clone();
             let changed = s.value != s.default;
