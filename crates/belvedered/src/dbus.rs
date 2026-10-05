@@ -187,6 +187,31 @@ impl Service {
         Ok(task_dto(&self.db(), task))
     }
 
+    /// Closes a task as not needed (or already handled), with the reason,
+    /// and cancels its reminders. The task stays, marked dismissed.
+    async fn dismiss_task(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        id: i64,
+        reason: &str,
+    ) -> fdo::Result<TaskDto> {
+        let reason = reason.trim();
+        let reason = if reason.is_empty() {
+            "not needed"
+        } else {
+            reason
+        };
+        let task = {
+            let db = self.db();
+            let task = db.dismiss_task(id, reason).map_err(to_fdo)?;
+            let _ = db.cancel_task_reminders(id);
+            task
+        };
+        info!(task = id, reason, "task dismissed");
+        Self::tasks_changed(&emitter).await?;
+        Ok(task_dto(&self.db(), task))
+    }
+
     async fn reopen_task(
         &self,
         #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,

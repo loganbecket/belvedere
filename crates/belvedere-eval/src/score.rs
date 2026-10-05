@@ -15,6 +15,8 @@ pub struct TaskAfter {
     pub due_at: String,
     pub status: String,
     pub deleted: bool,
+    #[serde(default)]
+    pub dismiss_reason: String,
 }
 
 /// What a runner reports after one case.
@@ -60,6 +62,7 @@ impl Outcome {
                     due_at: t.due_at.clone(),
                     status: t.status.clone(),
                     deleted: false,
+                    dismiss_reason: String::new(),
                 })
                 .collect(),
             reply: String::new(),
@@ -473,6 +476,7 @@ mod tests {
             due_at: due_at.into(),
             status: "open".into(),
             deleted: false,
+            dismiss_reason: String::new(),
         }
     }
 

@@ -35,6 +35,8 @@ enum Message {
     PopupClosed(Id),
     Service(Event),
     SetDone(i64, bool),
+    /// Close a task as not needed.
+    Dismiss(i64),
     AcceptSuggestion(i64),
     RejectSuggestion(i64),
     OpenWindow,
@@ -140,6 +142,15 @@ impl Application for Applet {
                     |r| cosmic::Action::App(Message::Done(r.map_err(|e| e.to_string()))),
                 );
             }
+            Message::Dismiss(id) => {
+                let Some(proxy) = self.service.clone() else {
+                    return Task::none();
+                };
+                return Task::perform(
+                    async move { proxy.dismiss_task(id, "not needed").await.map(|_| ()) },
+                    |r| cosmic::Action::App(Message::Done(r.map_err(|e| e.to_string()))),
+                );
+            }
             Message::AcceptSuggestion(id) | Message::RejectSuggestion(id) => {
                 let accept = matches!(message, Message::AcceptSuggestion(_));
                 let Some(proxy) = self.service.clone() else {
@@ -223,14 +234,15 @@ impl Application for Applet {
             }
             let id = task.id;
             list = list.push(
-                widget::row::with_capacity(2)
+                widget::row::with_capacity(3)
                     .align_y(Alignment::Center)
                     .spacing(spacing.space_xs)
                     .push(
                         widget::checkbox(false)
                             .on_toggle(move |checked| Message::SetDone(id, checked)),
                     )
-                    .push(words),
+                    .push(words)
+                    .push(button::text("Not needed").on_press(Message::Dismiss(id))),
             );
         }
 

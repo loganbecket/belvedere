@@ -48,6 +48,7 @@ fn fixtures_to_tasks(fixtures: &[TaskFixture]) -> Vec<ToolTask> {
             notes: f.notes.clone(),
             due_at: f.due_at.clone(),
             status: f.status.clone(),
+            dismiss_reason: String::new(),
         })
         .collect()
 }
@@ -65,6 +66,7 @@ fn store_to_outcome(store: &MemoryStore, fixtures: &[TaskFixture]) -> Vec<TaskAf
             due_at: t.due_at.clone(),
             status: t.status.clone(),
             deleted: false,
+            dismiss_reason: t.dismiss_reason.clone(),
         })
         .collect();
     for t in &store.deleted {
@@ -75,6 +77,7 @@ fn store_to_outcome(store: &MemoryStore, fixtures: &[TaskFixture]) -> Vec<TaskAf
             due_at: t.due_at.clone(),
             status: t.status.clone(),
             deleted: true,
+            dismiss_reason: t.dismiss_reason.clone(),
         });
     }
     // Keep fixture order first, then created tasks in creation order.

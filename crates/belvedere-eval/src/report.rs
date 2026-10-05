@@ -326,6 +326,7 @@ mod tests {
                     due_at: String::new(),
                     status: "open".into(),
                     deleted: false,
+                    dismiss_reason: String::new(),
                 }],
                 reply: "Done.".into(),
                 error: None,

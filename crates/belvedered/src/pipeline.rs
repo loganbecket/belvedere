@@ -135,7 +135,7 @@ fn day_of(rfc3339: &str) -> Option<NaiveDate> {
 /// The open mail-born tasks, with the facts about their emails that the
 /// matcher needs. Newest first.
 pub fn candidates(db: &Db) -> Vec<Candidate> {
-    let tasks = match db.open_mail_tasks(CANDIDATE_LIMIT) {
+    let tasks = match db.mail_tasks(CANDIDATE_LIMIT) {
         Ok(t) => t,
         Err(err) => {
             warn!("could not list tasks for matching: {err}");
@@ -199,7 +199,9 @@ pub struct Followed {
 
 /// Records a follow-up email on an existing task: the email becomes
 /// another source, the notes gain a history line, and a new due date
-/// moves the task (and its reminders). The title is kept.
+/// moves the task (and its reminders). The title is kept. A task already
+/// done or dismissed only gets the source and the history line: it is
+/// not reopened, its date does not move, and nothing is announced.
 pub fn attach_to_task(
     db: &Db,
     task: &Task,
@@ -243,7 +245,15 @@ Amount now: ${a:.2}"
         )
     };
 
-    let new_due = due_from_parts(e.due_date.as_deref(), e.due_time.as_deref(), now)?;
+    let closed = task.status != TaskStatus::Open;
+    let new_due = if closed {
+        None
+    } else {
+        due_from_parts(e.due_date.as_deref(), e.due_time.as_deref(), now)?
+    };
+    if closed {
+        followed.amount_changed = false;
+    }
     let due = match (&new_due, &task.due_at) {
         (Some(n), Some(old)) if day_of(n) != day_of(old) => {
             followed.due_changed = true;
@@ -753,6 +763,52 @@ mod tests {
             mbox_path: "/p/INBOX".into(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn a_follow_up_to_a_dismissed_task_lands_quietly_without_reopening() {
+        let db = Db::open_in_memory().unwrap();
+        let from_power = |id: &str| NewMailMessage {
+            from_addr: "billing@citypower.invalid".into(),
+            from_name: "City Power".into(),
+            subject: "Your October statement is ready".into(),
+            ..new_mail(id)
+        };
+        let (first, _) = db
+            .record_mail(&from_power("<stmt@citypower.invalid>"))
+            .unwrap();
+        let task = create_task_from_mail(&db, &first, &bill(0.9)).unwrap();
+        let task = db.dismiss_task(task.id, "already paid").unwrap();
+        db.cancel_task_reminders(task.id).unwrap();
+
+        let (reminder, _) = db
+            .record_mail(&NewMailMessage {
+                subject: "Reminder: payment due".into(),
+                date: "2026-10-26T09:00:00-05:00".into(),
+                ..from_power("<rem@citypower.invalid>")
+            })
+            .unwrap();
+        let followup = Extraction {
+            due_date: Some("2099-11-07".into()),
+            amount: Some(99.0),
+            ..bill(0.9)
+        };
+        // Still matched, so it does not become a new task...
+        let found = matter::find_matter(&incoming(&reminder, &followup), &candidates(&db));
+        assert_eq!(found.map(|(id, _)| id), Some(task.id));
+        let (after, followed) = attach_to_task(&db, &task, &reminder, &followup).unwrap();
+        // ...but nothing that would reopen it or make noise.
+        assert_eq!(followed, Followed::default());
+        assert_eq!(after.status, TaskStatus::Dismissed);
+        assert_eq!(after.dismiss_reason.as_deref(), Some("already paid"));
+        assert_eq!(after.due_at, task.due_at);
+        assert!(after.notes.contains("Update Oct 26: Reminder: payment due"));
+        assert!(db
+            .task_reminders(task.id)
+            .unwrap()
+            .iter()
+            .all(|r| r.fired_at.is_some()));
+        assert_eq!(db.list_tasks().unwrap().len(), 1);
     }
 
     #[test]

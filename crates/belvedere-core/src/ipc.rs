@@ -258,6 +258,9 @@ pub trait Service {
     /// Marks a task done.
     fn complete_task(&self, id: i64) -> zbus::Result<TaskDto>;
 
+    /// Closes a task as not needed or already handled, with a reason.
+    fn dismiss_task(&self, id: i64, reason: &str) -> zbus::Result<TaskDto>;
+
     /// Marks a done or dismissed task open again.
     fn reopen_task(&self, id: i64) -> zbus::Result<TaskDto>;
 
