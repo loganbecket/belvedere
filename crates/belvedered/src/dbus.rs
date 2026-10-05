@@ -8,8 +8,9 @@ use belvedere_core::engine::{self, Chunk, Engine};
 
 use belvedere_core::db::{Db, DbError, NewTask, Role, SourceKind};
 use belvedere_core::ipc::{
-    CalendarDto, CalendarTaskDto, ConversationDto, EventDto, MailAccountDto, MailFolderDto,
-    MailMessageDto, MessageDto, ModelDto, RuleDto, SuggestionDto, TaskDto, BUS_NAME, OBJECT_PATH,
+    CalendarDto, CalendarTaskDto, ConversationDto, DownloadDto, EventDto, MailAccountDto,
+    MailFolderDto, MailMessageDto, MessageDto, ModelDto, RepoDto, RepoFileDto, RuleDto,
+    SuggestionDto, TaskDto, BUS_NAME, OBJECT_PATH,
 };
 use belvedere_core::schedule;
 use chrono::Local;
@@ -25,6 +26,7 @@ pub struct Service {
     db: SharedDb,
     engine: Engine,
     calendar: crate::calendar::SharedCalendar,
+    downloads: crate::downloads::SharedManager,
     next_request: AtomicU64,
     replies: Arc<Replies>,
 }
@@ -35,6 +37,7 @@ impl Service {
             db,
             engine,
             calendar,
+            downloads: Default::default(),
             next_request: AtomicU64::new(1),
             replies: Arc::new(Replies::default()),
         }
@@ -301,6 +304,124 @@ impl Service {
 
     #[zbus(signal)]
     pub async fn models_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+
+    /// Searches Hugging Face for GGUF model repositories (user-started).
+    async fn search_models(&self, query: &str) -> fdo::Result<Vec<RepoDto>> {
+        let q = query.trim().to_string();
+        if q.is_empty() {
+            return Err(fdo::Error::InvalidArgs("say what to search for".into()));
+        }
+        let repos = tokio::task::spawn_blocking(move || crate::downloads::search(&q))
+            .await
+            .map_err(|e| fdo::Error::Failed(e.to_string()))?
+            .map_err(fdo::Error::Failed)?;
+        Ok(repos
+            .into_iter()
+            .map(|r| RepoDto {
+                id: r.id,
+                downloads: r.downloads,
+                likes: r.likes,
+            })
+            .collect())
+    }
+
+    /// The GGUF files in a repository with size, checksum, and whether
+    /// each fits this machine's memory.
+    async fn list_repo_files(&self, repo: &str) -> fdo::Result<Vec<RepoFileDto>> {
+        let r = repo.trim().to_string();
+        let files = tokio::task::spawn_blocking(move || crate::downloads::files(&r))
+            .await
+            .map_err(|e| fdo::Error::Failed(e.to_string()))?
+            .map_err(fdo::Error::Failed)?;
+        Ok(files
+            .into_iter()
+            .map(|f| RepoFileDto {
+                name: f.name,
+                size: f.size,
+                sha256: f.sha256,
+                fit: f.fit,
+                quantization: f.quantization,
+            })
+            .collect())
+    }
+
+    /// Starts downloading a file into Belvedere's models folder.
+    async fn start_download(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        #[zbus(connection)] conn: &zbus::Connection,
+        repo: &str,
+        file: RepoFileDto,
+    ) -> fdo::Result<i64> {
+        let f = belvedere_core::hf::RepoFile {
+            name: file.name,
+            size: file.size,
+            sha256: file.sha256,
+            fit: file.fit,
+            quantization: file.quantization,
+        };
+        let d = crate::downloads::start(&self.db, &self.downloads, conn.clone(), repo.trim(), &f)
+            .map_err(fdo::Error::Failed)?;
+        Self::downloads_changed(&emitter).await?;
+        Ok(d.id)
+    }
+
+    async fn pause_download(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        id: i64,
+    ) -> fdo::Result<()> {
+        crate::downloads::pause(&self.db, &self.downloads, id).map_err(fdo::Error::Failed)?;
+        Self::downloads_changed(&emitter).await?;
+        Ok(())
+    }
+
+    async fn resume_download(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        #[zbus(connection)] conn: &zbus::Connection,
+        id: i64,
+    ) -> fdo::Result<()> {
+        crate::downloads::resume(&self.db, &self.downloads, conn.clone(), id)
+            .map_err(fdo::Error::Failed)?;
+        Self::downloads_changed(&emitter).await?;
+        Ok(())
+    }
+
+    /// Stops a download and removes it with its partial file.
+    async fn cancel_download(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        id: i64,
+    ) -> fdo::Result<()> {
+        let db = self.db.clone();
+        let manager = self.downloads.clone();
+        tokio::task::spawn_blocking(move || crate::downloads::cancel(&db, &manager, id))
+            .await
+            .map_err(|e| fdo::Error::Failed(e.to_string()))?
+            .map_err(fdo::Error::Failed)?;
+        Self::downloads_changed(&emitter).await?;
+        Ok(())
+    }
+
+    fn list_downloads(&self) -> fdo::Result<Vec<DownloadDto>> {
+        let list = self.db().list_downloads().map_err(to_fdo)?;
+        Ok(list
+            .into_iter()
+            .map(|d| DownloadDto {
+                id: d.id,
+                repo: d.repo,
+                file: d.file,
+                size: d.size,
+                received: d.received,
+                status: d.status,
+                error: d.error,
+            })
+            .collect())
+    }
+
+    #[zbus(signal)]
+    pub async fn downloads_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 
     fn model_status(&self) -> (String, String) {
         let state = self.engine.state();

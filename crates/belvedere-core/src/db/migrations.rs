@@ -177,6 +177,24 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     r#"
     ALTER TABLE mail_messages ADD COLUMN attachment_text TEXT NOT NULL DEFAULT '';
     "#,
+    // 8 -> 9: model downloads from Hugging Face, resumable.
+    r#"
+    CREATE TABLE downloads (
+        id          INTEGER PRIMARY KEY,
+        repo        TEXT    NOT NULL,
+        file        TEXT    NOT NULL,
+        url         TEXT    NOT NULL,
+        path        TEXT    NOT NULL,
+        size        INTEGER NOT NULL DEFAULT 0,
+        sha256      TEXT    NOT NULL DEFAULT '',
+        received    INTEGER NOT NULL DEFAULT 0,
+        status      TEXT    NOT NULL DEFAULT 'queued'
+                    CHECK (status IN ('queued', 'downloading', 'paused', 'verifying', 'done', 'failed')),
+        error       TEXT    NOT NULL DEFAULT '',
+        created_at  TEXT    NOT NULL,
+        updated_at  TEXT    NOT NULL
+    );
+    "#,
 ];
 
 /// The schema version this build expects.
@@ -248,6 +266,7 @@ mod tests {
             table_names(&conn),
             [
                 "conversations",
+                "downloads",
                 "event_reminders",
                 "mail_folder_state",
                 "mail_messages",

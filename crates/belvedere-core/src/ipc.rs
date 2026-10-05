@@ -130,6 +130,38 @@ pub struct SuggestionDto {
     pub created_at: String,
 }
 
+/// A Hugging Face repository from a search.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct RepoDto {
+    pub id: String,
+    pub downloads: u64,
+    pub likes: u64,
+}
+
+/// A GGUF file in a repository.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct RepoFileDto {
+    pub name: String,
+    pub size: u64,
+    pub sha256: String,
+    /// `fits`, `tight`, `too big`, or `unknown`.
+    pub fit: String,
+    pub quantization: String,
+}
+
+/// A download, in progress or finished.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct DownloadDto {
+    pub id: i64,
+    pub repo: String,
+    pub file: String,
+    pub size: i64,
+    pub received: i64,
+    /// `queued`, `downloading`, `paused`, `verifying`, `done`, `failed`.
+    pub status: String,
+    pub error: String,
+}
+
 /// A standing rule as it crosses the bus.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct RuleDto {
@@ -374,6 +406,27 @@ pub trait Service {
 
     #[zbus(signal)]
     fn models_changed(&self) -> zbus::Result<()>;
+
+    /// Searches Hugging Face for GGUF repositories. User-started.
+    fn search_models(&self, query: &str) -> zbus::Result<Vec<RepoDto>>;
+
+    /// The GGUF files in a repository.
+    fn list_repo_files(&self, repo: &str) -> zbus::Result<Vec<RepoFileDto>>;
+
+    /// Starts a download; returns its id.
+    fn start_download(&self, repo: &str, file: RepoFileDto) -> zbus::Result<i64>;
+
+    fn pause_download(&self, id: i64) -> zbus::Result<()>;
+
+    fn resume_download(&self, id: i64) -> zbus::Result<()>;
+
+    /// Stops a download and removes it and its partial file.
+    fn cancel_download(&self, id: i64) -> zbus::Result<()>;
+
+    fn list_downloads(&self) -> zbus::Result<Vec<DownloadDto>>;
+
+    #[zbus(signal)]
+    fn downloads_changed(&self) -> zbus::Result<()>;
 
     /// (state, model name). State is `unloaded`, `loading`, `ready`, or
     /// `generating`.

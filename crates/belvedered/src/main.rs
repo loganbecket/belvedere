@@ -7,6 +7,7 @@ mod caldav;
 mod calendar;
 mod chat;
 mod dbus;
+mod downloads;
 mod mail;
 mod models;
 mod notify;
@@ -52,6 +53,7 @@ fn main() {
         }
     };
     models::rescan(&db);
+    downloads::reconcile(&db);
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()

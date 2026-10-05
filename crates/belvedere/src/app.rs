@@ -3,7 +3,9 @@
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
-use belvedere_core::ipc::{ConversationDto, MessageDto, RuleDto, ServiceProxy, TaskDto};
+use belvedere_core::ipc::{
+    ConversationDto, MessageDto, RepoDto, RepoFileDto, RuleDto, ServiceProxy, TaskDto,
+};
 use belvedere_core::schedule::{self, DueInput, Section};
 use chrono::Local;
 use cosmic::app::{Core, Task};
@@ -56,6 +58,11 @@ pub struct Belvedere {
     confirm_role: Option<(String, i64)>,
     /// A model removal waiting for a yes.
     confirm_forget: Option<i64>,
+    /// Hugging Face search: the query, results, and the open repository's files.
+    hf_query: String,
+    hf_results: Vec<RepoDto>,
+    hf_open: Option<(String, Vec<RepoFileDto>)>,
+    hf_busy: bool,
 }
 
 /// A reply in progress.
@@ -138,6 +145,16 @@ pub enum Message {
     /// Close a task as not needed.
     Dismiss(i64),
     // Models
+    HfQuery(String),
+    HfSearch,
+    HfResults(Result<Vec<RepoDto>, String>),
+    HfOpen(String),
+    HfFiles(String, Result<Vec<RepoFileDto>, String>),
+    HfClose,
+    HfDownload(String, RepoFileDto),
+    PauseDownload(i64),
+    ResumeDownload(i64),
+    CancelDownload(i64),
     PickModel(String, i64),
     ConfirmPickModel,
     CancelPickModel,
@@ -220,6 +237,10 @@ impl Application for Belvedere {
             show_sync_help: false,
             confirm_role: None,
             confirm_forget: None,
+            hf_query: String::new(),
+            hf_results: Vec::new(),
+            hf_open: None,
+            hf_busy: false,
         };
         let title = match app.core.main_window_id() {
             Some(id) => app.set_window_title("Belvedere".to_string(), id),
@@ -383,6 +404,61 @@ impl Application for Belvedere {
                         p.reopen_task(id).await.map(|_| ())
                     }
                 });
+            }
+            Message::HfQuery(q) => self.hf_query = q,
+            Message::HfSearch => {
+                let q = self.hf_query.trim().to_string();
+                let Some(proxy) = self.service.clone() else {
+                    return Task::none();
+                };
+                if q.is_empty() {
+                    return Task::none();
+                }
+                self.hf_busy = true;
+                self.hf_open = None;
+                return Task::perform(
+                    async move { proxy.search_models(&q).await.map_err(|e| e.to_string()) },
+                    |r| cosmic::Action::App(Message::HfResults(r)),
+                );
+            }
+            Message::HfResults(r) => {
+                self.hf_busy = false;
+                match r {
+                    Ok(list) => self.hf_results = list,
+                    Err(e) => self.error = Some(e),
+                }
+            }
+            Message::HfOpen(repo) => {
+                let Some(proxy) = self.service.clone() else {
+                    return Task::none();
+                };
+                self.hf_busy = true;
+                let r = repo.clone();
+                return Task::perform(
+                    async move { proxy.list_repo_files(&r).await.map_err(|e| e.to_string()) },
+                    move |res| cosmic::Action::App(Message::HfFiles(repo.clone(), res)),
+                );
+            }
+            Message::HfFiles(repo, r) => {
+                self.hf_busy = false;
+                match r {
+                    Ok(files) => self.hf_open = Some((repo, files)),
+                    Err(e) => self.error = Some(e),
+                }
+            }
+            Message::HfClose => self.hf_open = None,
+            Message::HfDownload(repo, file) => {
+                return self
+                    .call(move |p| async move { p.start_download(&repo, file).await.map(|_| ()) });
+            }
+            Message::PauseDownload(id) => {
+                return self.call(move |p| async move { p.pause_download(id).await });
+            }
+            Message::ResumeDownload(id) => {
+                return self.call(move |p| async move { p.resume_download(id).await });
+            }
+            Message::CancelDownload(id) => {
+                return self.call(move |p| async move { p.cancel_download(id).await });
             }
             Message::PickModel(role, id) => {
                 let lacks_tools = self
@@ -844,7 +920,9 @@ impl Belvedere {
             }
         }
         if self.lists.models.is_empty() {
-            col = col.push(text::caption("No model files found. Download one in the Models page (coming) or point LM Studio or Ollama at one."));
+            col = col.push(text::caption(
+                "No model files found. Search Hugging Face below, or point LM Studio or Ollama at one.",
+            ));
         }
         for m in &self.lists.models {
             let id = m.id;
@@ -900,6 +978,123 @@ impl Belvedere {
                 .width(Length::Fill)
                 .class(cosmic::theme::Container::Card),
             );
+        }
+        // Downloads in progress or finished.
+        for d in &self.lists.downloads {
+            let id = d.id;
+            let progress = if d.size > 0 {
+                format!(
+                    "{} of {}",
+                    human_size(d.received as u64),
+                    human_size(d.size as u64)
+                )
+            } else {
+                human_size(d.received as u64)
+            };
+            let label = match d.status.as_str() {
+                "downloading" => format!("Downloading {}: {progress}", d.file),
+                "paused" => format!("Paused {}: {progress}", d.file),
+                "verifying" => format!("Checking {}…", d.file),
+                "done" => format!("Downloaded {}", d.file),
+                "failed" => format!("Failed {}: {}", d.file, d.error),
+                _ => format!("Waiting {}", d.file),
+            };
+            let mut row = widget::row::with_capacity(4)
+                .align_y(Alignment::Center)
+                .spacing(spacing.space_xs)
+                .push(text::body(label).width(Length::Fill));
+            match d.status.as_str() {
+                "downloading" | "queued" => {
+                    row = row.push(button::text("Pause").on_press(Message::PauseDownload(id)));
+                }
+                "paused" | "failed" => {
+                    row = row.push(button::text("Resume").on_press(Message::ResumeDownload(id)));
+                }
+                _ => {}
+            }
+            if d.status != "done" {
+                row = row.push(button::text("Cancel").on_press(Message::CancelDownload(id)));
+            }
+            let mut block = widget::column::with_capacity(2)
+                .spacing(spacing.space_xxs)
+                .push(row);
+            if d.size > 0 && d.status != "done" {
+                block = block.push(cosmic::iced::widget::progress_bar(
+                    0.0..=1.0,
+                    (d.received as f32 / d.size as f32).clamp(0.0, 1.0),
+                ));
+            }
+            col = col.push(
+                container(block)
+                    .padding(spacing.space_xxs)
+                    .width(Length::Fill)
+                    .class(cosmic::theme::Container::Card),
+            );
+        }
+        // Hugging Face search.
+        col = col.push(text::caption_heading("Get a model from Hugging Face"));
+        col = col.push(
+            widget::text_input(
+                "Search Hugging Face for GGUF models, e.g. Qwen3.5 4B",
+                &self.hf_query,
+            )
+            .on_input(Message::HfQuery)
+            .on_submit(|_| Message::HfSearch),
+        );
+        if self.hf_busy {
+            col = col.push(text::caption("Asking Hugging Face…"));
+        }
+        if let Some((repo, files)) = &self.hf_open {
+            col = col.push(
+                widget::row::with_capacity(2)
+                    .align_y(Alignment::Center)
+                    .push(text::body(repo).width(Length::Fill))
+                    .push(button::text("Back").on_press(Message::HfClose)),
+            );
+            for f in files {
+                let note = match f.fit.as_str() {
+                    "fits" => "fits in memory",
+                    "tight" => "tight fit",
+                    "too big" => "too big for this machine",
+                    _ => "",
+                };
+                let quant = if f.quantization.is_empty() {
+                    String::new()
+                } else {
+                    format!(" · {}", f.quantization)
+                };
+                let mut row = widget::row::with_capacity(2)
+                    .align_y(Alignment::Center)
+                    .spacing(spacing.space_xs)
+                    .push(
+                        text::body(format!(
+                            "{} · {}{quant} · {note}",
+                            f.name,
+                            human_size(f.size)
+                        ))
+                        .width(Length::Fill),
+                    );
+                if f.fit != "too big" {
+                    row = row.push(
+                        button::standard("Download")
+                            .on_press(Message::HfDownload(repo.clone(), f.clone())),
+                    );
+                }
+                col = col.push(row);
+            }
+        } else {
+            for r in &self.hf_results {
+                col = col.push(
+                    widget::row::with_capacity(2)
+                        .align_y(Alignment::Center)
+                        .spacing(spacing.space_xs)
+                        .push(
+                            text::body(format!("{} · {} downloads", r.id, r.downloads))
+                                .width(Length::Fill),
+                        )
+                        .push(button::text("Files").on_press(Message::HfOpen(r.id.clone()))),
+                );
+            }
         }
         col.into()
     }
@@ -1347,6 +1542,11 @@ fn task_row<'a>(
         .width(Length::Fill)
         .class(cosmic::theme::Container::Card)
         .into()
+}
+
+/// `1.2 GB`, `640 MB`.
+fn human_size(bytes: u64) -> String {
+    belvedere_core::hf::human_size(bytes)
 }
 
 /// Where a model came from, in plain words.
