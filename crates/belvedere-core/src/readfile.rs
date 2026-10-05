@@ -98,7 +98,8 @@ pub fn read(home: &Path, path: &str, extra_excludes: &[String]) -> Result<Docume
     let shown = canonical.to_string_lossy().into_owned();
     match ext.as_str() {
         "pdf" => {
-            let pages = pdf_extract::extract_text_by_pages(&canonical)
+            let pages = crate::guard::no_panic(|| pdf_extract::extract_text_by_pages(&canonical))
+                .ok_or("the PDF reader could not make sense of this file")?
                 .map_err(|e| format!("could not read the PDF: {e}"))?;
             let count = pages.len();
             let text = tidy(&pages.join("\n\n"));

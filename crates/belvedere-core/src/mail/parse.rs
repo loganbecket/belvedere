@@ -121,7 +121,8 @@ pub fn normalize(raw: &[u8]) -> Option<Normalized> {
 /// The text layer of a PDF, tidied and capped; `None` for a scan or a
 /// file that is not really a PDF.
 pub fn pdf_text(bytes: &[u8]) -> Option<String> {
-    let raw = pdf_extract::extract_text_from_mem(bytes).ok()?;
+    let raw =
+        crate::guard::no_panic(|| pdf_extract::extract_text_from_mem(bytes).ok()).flatten()?;
     let text = tidy(&raw);
     if text.trim().is_empty() {
         return None;
@@ -430,6 +431,26 @@ pub mod fixtures {
 mod tests {
     use super::fixtures::ALL;
     use super::*;
+
+    #[test]
+    fn broken_pdfs_never_crash_the_reader() {
+        // Truncated and mangled versions of a real PDF: whatever the PDF
+        // library does with them, the reader returns instead of panicking.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("x.pdf");
+        crate::readfile::fixtures::pdf(&path, &["Amount due: $84.12"]);
+        let good = std::fs::read(&path).unwrap();
+        for cut in [9, 40, good.len() / 2, good.len() - 30] {
+            let _ = pdf_text(&good[..cut]);
+        }
+        let mut mangled = good.clone();
+        for b in mangled.iter_mut().skip(200).step_by(7) {
+            *b = b'0';
+        }
+        let _ = pdf_text(&mangled);
+        let _ = pdf_text(b"%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF");
+        assert!(pdf_text(b"").is_none());
+    }
 
     #[test]
     fn pdf_attachment_text_is_read_and_named() {
