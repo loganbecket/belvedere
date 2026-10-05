@@ -518,6 +518,8 @@ mod tests {
             input: Input::Chat { turns: vec![] },
             tasks,
             rules: vec![],
+            events: vec![],
+            mail: vec![],
             expect,
         }
     }
@@ -531,6 +533,7 @@ mod tests {
             status: "open".into(),
             kind: String::new(),
             reference: String::new(),
+            source_message_id: String::new(),
         }
     }
 

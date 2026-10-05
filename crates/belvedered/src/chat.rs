@@ -9,7 +9,7 @@ use belvedere_core::db::{Db, Model, NewTask, Role, TaskStatus};
 use belvedere_core::engine::{self, Engine, State};
 use belvedere_core::ipc::OBJECT_PATH;
 use belvedere_core::model_ipc::ChatMessage;
-use belvedere_core::tools::{TaskStore, ToolRule, ToolTask};
+use belvedere_core::tools::{TaskStore, ToolEvent, ToolMail, ToolRule, ToolTask};
 use chrono::Local;
 use tracing::{info, warn};
 use zbus::object_server::SignalEmitter;
@@ -77,7 +77,23 @@ fn lock(db: &SharedDb) -> std::sync::MutexGuard<'_, Db> {
 }
 
 /// The database as the tools see it. Each call takes the lock briefly.
-struct DbStore(SharedDb);
+struct DbStore(SharedDb, crate::calendar::SharedCalendar);
+
+fn mail_to_tool(m: belvedere_core::db::MailMessage) -> ToolMail {
+    let from = if m.from_name.is_empty() {
+        m.from_addr.clone()
+    } else {
+        format!("{} <{}>", m.from_name, m.from_addr)
+    };
+    let snippet: String = m.body_text.split_whitespace().collect::<Vec<_>>().join(" ");
+    ToolMail {
+        message_id: m.message_id,
+        from,
+        subject: m.subject,
+        date: m.date,
+        snippet: snippet.chars().take(240).collect(),
+    }
+}
 
 fn to_tool_task(t: belvedere_core::db::Task) -> ToolTask {
     ToolTask {
@@ -96,6 +112,90 @@ fn to_tool_task(t: belvedere_core::db::Task) -> ToolTask {
 }
 
 impl TaskStore for DbStore {
+    fn events(
+        &mut self,
+        from: chrono::NaiveDate,
+        to: chrono::NaiveDate,
+    ) -> Result<Vec<ToolEvent>, String> {
+        let st = self.1.lock().unwrap_or_else(|e| e.into_inner());
+        let f = |d: chrono::DateTime<chrono::Utc>| {
+            d.with_timezone(&Local)
+                .to_rfc3339_opts(chrono::SecondsFormat::Secs, false)
+        };
+        Ok(st
+            .reading
+            .events
+            .iter()
+            .filter(|e| {
+                let s = e.start.with_timezone(&Local).date_naive();
+                let last = if e.all_day {
+                    (e.end - chrono::Duration::seconds(1))
+                        .with_timezone(&Local)
+                        .date_naive()
+                } else {
+                    e.end.with_timezone(&Local).date_naive()
+                };
+                s <= to && last >= from
+            })
+            .map(|e| ToolEvent {
+                title: e.title.clone(),
+                start: f(e.start),
+                end: f(e.end),
+                all_day: e.all_day,
+                location: e.location.clone(),
+            })
+            .collect())
+    }
+
+    fn search_mail(&mut self, query: &str, limit: usize) -> Result<Vec<ToolMail>, String> {
+        let mut hits: Vec<ToolMail> = lock(&self.0)
+            .search_mail(query, limit)
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .map(mail_to_tool)
+            .collect();
+        // Thunderbird's own index reaches further back than Belvedere's
+        // own copy of recent mail.
+        if let Some(index) =
+            crate::mail::profile().and_then(|p| belvedere_core::mail::gloda::index_file(&p.dir))
+        {
+            match belvedere_core::mail::gloda::search(&index, query, limit) {
+                Ok(more) => {
+                    for h in more {
+                        if !hits.iter().any(|m| m.message_id == h.message_id) {
+                            hits.push(ToolMail {
+                                message_id: h.message_id,
+                                from: h.author,
+                                subject: h.subject,
+                                date: h.date,
+                                snippet: h.snippet,
+                            });
+                        }
+                    }
+                }
+                Err(err) => warn!("Thunderbird's search index could not be read: {err}"),
+            }
+        }
+        hits.sort_by(|a, b| b.date.cmp(&a.date));
+        hits.truncate(limit);
+        Ok(hits)
+    }
+
+    fn task_source(&mut self, task_id: i64) -> Result<Option<ToolMail>, String> {
+        let db = lock(&self.0);
+        let sources = db.task_sources(task_id).map_err(|e| e.to_string())?;
+        let Some(source) = sources
+            .iter()
+            .rfind(|s| s.kind == belvedere_core::db::SourceKind::Email)
+        else {
+            return Ok(None);
+        };
+        Ok(db
+            .mail_by_message_id(&source.reference)
+            .map_err(|e| e.to_string())?
+            .map(mail_to_tool))
+    }
+
     fn list_rules(&mut self) -> Result<Vec<ToolRule>, String> {
         lock(&self.0)
             .list_rules()
@@ -237,6 +337,7 @@ impl Progress for BusProgress {
 /// learns goes out as signals on `bus`.
 pub async fn reply(
     db: SharedDb,
+    calendar: crate::calendar::SharedCalendar,
     engine: Engine,
     replies: Arc<Replies>,
     bus: zbus::Connection,
@@ -314,7 +415,7 @@ pub async fn reply(
         })
         .collect();
 
-    let mut store = DbStore(db.clone());
+    let mut store = DbStore(db.clone(), calendar.clone());
     let mut progress = BusProgress {
         emitter: emitter.clone(),
         request,
@@ -415,7 +516,7 @@ mod tests {
     #[test]
     fn db_store_round_trips_tasks_and_reminders() {
         let db = Arc::new(Mutex::new(Db::open_in_memory().unwrap()));
-        let mut store = DbStore(db.clone());
+        let mut store = DbStore(db.clone(), Default::default());
         let due =
             belvedere_core::tools::due_from_parts(Some("2099-10-23"), Some("14:00"), Local::now())
                 .unwrap()

@@ -1,0 +1,3353 @@
+{
+  "name": "schedule-chat",
+  "cases": [
+    {
+      "id": "thursday",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What's on Thursday?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "Dentist",
+          "practice"
+        ],
+        "reply_lacks": [
+          "Game",
+          "Haircut",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "today",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What do I have today?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "practice"
+        ],
+        "reply_lacks": [
+          "Dentist",
+          "Game",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "tomorrow",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Anything tomorrow?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "Haircut"
+        ],
+        "reply_lacks": [
+          "Dentist",
+          "practice",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "when-dentist",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "When is the dentist?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "Thursday",
+          "2"
+        ],
+        "reply_lacks": [
+          "Game",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "where-dentist",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Where is my dentist appointment?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "Pinecrest"
+        ],
+        "reply_lacks": [
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "saturday-game",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Do we have a game this weekend?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "Lakeside",
+          "Saturday"
+        ],
+        "reply_lacks": [
+          "practice",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "this-week",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What's my week look like?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "Dentist",
+          "Game",
+          "Haircut"
+        ],
+        "reply_lacks": [
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "free-friday",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Am I free Friday afternoon?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "break"
+        ],
+        "reply_lacks": [
+          "Dentist",
+          "Game",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "parent-meeting",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "When's the parent meeting?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "26",
+          "6:30"
+        ],
+        "reply_lacks": [
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "nothing-sunday",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What's on Sunday?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "nothing"
+        ],
+        "reply_lacks": [
+          "Dentist",
+          "Game",
+          "practice",
+          "Haircut",
+          "meeting",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "next-practice",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "When's the next practice?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "4:00"
+        ],
+        "reply_lacks": [
+          "Game",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "event-time",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What time does the game start on Saturday?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "11"
+        ],
+        "reply_lacks": [
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "no-events-at-all",
+      "kind": "schedule",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What's on Thursday?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "nothing"
+        ],
+        "reply_lacks": [
+          "Dentist",
+          "practice",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "landlord-lease",
+      "kind": "mail",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Did the landlord email about the lease?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "Dana",
+          "lease"
+        ],
+        "reply_lacks": [
+          "Comcast",
+          "Verizon",
+          "Harbor Bank",
+          "insurance",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "lease-amount",
+      "kind": "mail",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "How much is the rent going to be under the new lease?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "1,900"
+        ],
+        "reply_lacks": [
+          "Comcast",
+          "Verizon",
+          "Harbor Bank",
+          "insurance",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "lease-deadline",
+      "kind": "mail",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "When does Dana need an answer about the lease?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "15"
+        ],
+        "reply_lacks": [
+          "Comcast",
+          "Verizon",
+          "Harbor Bank",
+          "insurance",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "pat-tournament",
+      "kind": "mail",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What did Pat want?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "tournament",
+          "Saturday"
+        ],
+        "reply_lacks": [
+          "Comcast",
+          "Verizon",
+          "Harbor Bank",
+          "insurance",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "city-power-amount",
+      "kind": "mail",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What does City Power say I owe?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "84.12"
+        ],
+        "reply_lacks": [
+          "Comcast",
+          "Verizon",
+          "Harbor Bank",
+          "insurance",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "search-nothing",
+      "kind": "mail",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Did Comcast email me?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "no"
+        ],
+        "reply_lacks": [
+          "Comcast wrote",
+          "Comcast said",
+          "Dana",
+          "City Power",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "dentist-mail",
+      "kind": "mail",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Did the dentist confirm?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "Thursday",
+          "2"
+        ],
+        "reply_lacks": [
+          "Comcast",
+          "Verizon",
+          "Harbor Bank",
+          "insurance",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "shoply",
+      "kind": "mail",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Anything from Shoply lately?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "30%"
+        ],
+        "reply_lacks": [
+          "Comcast",
+          "Verizon",
+          "Harbor Bank",
+          "insurance",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "mail-empty-box",
+      "kind": "mail",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Did anyone email about the lease?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "no"
+        ],
+        "reply_lacks": [
+          "Dana",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "who-emailed-sunday",
+      "kind": "mail",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Who emailed me on the 18th?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "Shoply"
+        ],
+        "reply_lacks": [
+          "Dana",
+          "Pat",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "source-bill",
+      "kind": "source",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Which email did the City Power task come from?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "October statement"
+        ],
+        "reply_lacks": [
+          "Comcast",
+          "Verizon",
+          "Harbor Bank",
+          "insurance",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "source-pat",
+      "kind": "source",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Show me the email behind the Pat task."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "tournament"
+        ],
+        "reply_lacks": [
+          "Comcast",
+          "Verizon",
+          "Harbor Bank",
+          "insurance",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "source-none",
+      "kind": "source",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "source_message_id": "<stmt@citypower.invalid>"
+        },
+        {
+          "id": 2,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "source_message_id": "<tourney@riverbendhockey.invalid>"
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "due_at": "2026-10-21T14:00:00.000Z"
+        }
+      ],
+      "events": [
+        {
+          "title": "Dentist",
+          "start": "2026-10-22T14:00:00-05:00",
+          "end": "2026-10-22T15:00:00-05:00",
+          "location": "Pinecrest Dental"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-22T16:00:00-05:00",
+          "end": "2026-10-22T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "JV practice",
+          "start": "2026-10-20T16:00:00-05:00",
+          "end": "2026-10-20T17:30:00-05:00",
+          "location": "Rink B"
+        },
+        {
+          "title": "Game vs. Lakeside",
+          "start": "2026-10-24T11:00:00-05:00",
+          "end": "2026-10-24T13:00:00-05:00",
+          "location": "Main Rink"
+        },
+        {
+          "title": "Parent meeting",
+          "start": "2026-10-26T18:30:00-05:00",
+          "end": "2026-10-26T19:30:00-05:00",
+          "location": "Field house"
+        },
+        {
+          "title": "Fall break",
+          "start": "2026-10-23T00:00:00-05:00",
+          "end": "2026-10-24T00:00:00-05:00",
+          "all_day": true
+        },
+        {
+          "title": "Haircut",
+          "start": "2026-10-21T09:30:00-05:00",
+          "end": "2026-10-21T10:00:00-05:00",
+          "location": ""
+        }
+      ],
+      "mail": [
+        {
+          "message_id": "<lease@oakridge.invalid>",
+          "from": "Dana Whitfield <dana@oakridgeprops.invalid>",
+          "subject": "Lease renewal",
+          "date": "2026-10-17T10:00:00-05:00",
+          "snippet": "The lease renews in January at $1,900. Let me know by the 15th whether you want to stay."
+        },
+        {
+          "message_id": "<stmt@citypower.invalid>",
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your October statement is ready",
+          "date": "2026-10-15T09:00:00-05:00",
+          "snippet": "Account 4471-02. Amount due: $84.12. Due date: October 31, 2026."
+        },
+        {
+          "message_id": "<tourney@riverbendhockey.invalid>",
+          "from": "Pat Rivera <pat@riverbendhockey.invalid>",
+          "subject": "Saturday tournament",
+          "date": "2026-10-19T12:00:00-05:00",
+          "snippet": "Can Grayson play in the Saturday tournament on October 24? Let me know by Thursday."
+        },
+        {
+          "message_id": "<sale@shoply.invalid>",
+          "from": "Shoply <news@shoply.invalid>",
+          "subject": "Weekend sale: 30% off",
+          "date": "2026-10-18T08:00:00-05:00",
+          "snippet": "Everything is 30% off through Sunday."
+        },
+        {
+          "message_id": "<dentist@pinecrest.invalid>",
+          "from": "Pinecrest Dental <office@pinecrestdental.invalid>",
+          "subject": "Appointment confirmed for Thursday",
+          "date": "2026-10-16T15:00:00-05:00",
+          "snippet": "Your cleaning is Thursday, October 22 at 2:00 PM."
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What email is the plumber task from?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "not"
+        ],
+        "reply_lacks": [
+          "Dana",
+          "City Power",
+          "Pat",
+          "Piano lesson",
+          "Board meeting",
+          "Vet",
+          "Soccer",
+          "Oil change"
+        ],
+        "tasks_unchanged": true
+      }
+    }
+  ]
+}

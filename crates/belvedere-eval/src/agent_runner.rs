@@ -393,7 +393,39 @@ impl Runner for AgentRunner {
             }],
             Input::Thread { .. } => unreachable!("handled above"),
         };
-        let mut store = MemoryStore::with(fixtures_to_tasks(&case.tasks)).with_rules(&case.rules);
+        let mut store = MemoryStore::with(fixtures_to_tasks(&case.tasks))
+            .with_rules(&case.rules)
+            .with_events(
+                case.events
+                    .iter()
+                    .map(|e| belvedere_core::tools::ToolEvent {
+                        title: e.title.clone(),
+                        start: e.start.clone(),
+                        end: e.end.clone(),
+                        all_day: e.all_day,
+                        location: e.location.clone(),
+                    })
+                    .collect(),
+            )
+            .with_mail(
+                case.mail
+                    .iter()
+                    .map(|m| belvedere_core::tools::ToolMail {
+                        message_id: m.message_id.clone(),
+                        from: m.from.clone(),
+                        subject: m.subject.clone(),
+                        date: m.date.clone(),
+                        snippet: m.snippet.clone(),
+                    })
+                    .collect(),
+            )
+            .with_sources(
+                case.tasks
+                    .iter()
+                    .filter(|t| !t.source_message_id.is_empty())
+                    .map(|t| (t.id, t.source_message_id.clone()))
+                    .collect(),
+            );
         let turn = tokio::time::timeout(
             std::time::Duration::from_secs(600),
             agent::run_turn(

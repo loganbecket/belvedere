@@ -615,6 +615,7 @@ impl Service {
         self.replies.start(request, conversation_id);
         tokio::spawn(chat::reply(
             self.db.clone(),
+            self.calendar.clone(),
             self.engine.clone(),
             self.replies.clone(),
             bus.clone(),

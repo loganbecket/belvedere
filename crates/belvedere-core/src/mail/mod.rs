@@ -2,6 +2,7 @@
 //! messages, turning each into a small normalized record, and scanning
 //! folders so only new bytes are read.
 
+pub mod gloda;
 pub mod mbox;
 pub mod parse;
 pub mod scan;
