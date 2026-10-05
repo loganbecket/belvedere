@@ -63,6 +63,8 @@ pub struct Belvedere {
     hf_results: Vec<RepoDto>,
     hf_open: Option<(String, Vec<RepoFileDto>)>,
     hf_busy: bool,
+    /// The path typed into the import box.
+    import_path: String,
 }
 
 /// A reply in progress.
@@ -145,6 +147,8 @@ pub enum Message {
     /// Close a task as not needed.
     Dismiss(i64),
     // Models
+    ImportPath(String),
+    Import(bool),
     HfQuery(String),
     HfSearch,
     HfResults(Result<Vec<RepoDto>, String>),
@@ -241,6 +245,7 @@ impl Application for Belvedere {
             hf_results: Vec::new(),
             hf_open: None,
             hf_busy: false,
+            import_path: String::new(),
         };
         let title = match app.core.main_window_id() {
             Some(id) => app.set_window_title("Belvedere".to_string(), id),
@@ -404,6 +409,16 @@ impl Application for Belvedere {
                         p.reopen_task(id).await.map(|_| ())
                     }
                 });
+            }
+            Message::ImportPath(p) => self.import_path = p,
+            Message::Import(copy) => {
+                let path = self.import_path.trim().to_string();
+                if path.is_empty() {
+                    return Task::none();
+                }
+                self.import_path.clear();
+                return self
+                    .call(move |p| async move { p.import_model(&path, copy).await.map(|_| ()) });
             }
             Message::HfQuery(q) => self.hf_query = q,
             Message::HfSearch => {
@@ -1031,6 +1046,24 @@ impl Belvedere {
                     .class(cosmic::theme::Container::Card),
             );
         }
+        // Import from disk.
+        col = col.push(text::caption_heading("Add a model file you already have"));
+        col = col.push(
+            widget::row::with_capacity(3)
+                .align_y(Alignment::Center)
+                .spacing(spacing.space_xs)
+                .push(
+                    widget::text_input(
+                        "Path to a .gguf file or a folder of them",
+                        &self.import_path,
+                    )
+                    .on_input(Message::ImportPath)
+                    .on_submit(|_| Message::Import(false))
+                    .width(Length::Fill),
+                )
+                .push(button::standard("Use in place").on_press(Message::Import(false)))
+                .push(button::standard("Copy here").on_press(Message::Import(true))),
+        );
         // Hugging Face search.
         col = col.push(text::caption_heading("Get a model from Hugging Face"));
         col = col.push(

@@ -106,9 +106,203 @@ pub fn forget(db: &Db, id: i64, own_models_dir: &std::path::Path) -> Result<bool
     Ok(deleted_file)
 }
 
+/// Imports a GGUF file, or every GGUF file in a folder. By reference the
+/// file stays where it is (source `import`); as a copy it goes into
+/// Belvedere's own folder (source `belvedere`, so removing it later
+/// deletes the copy, never the original). A file that is not a GGUF
+/// model is refused with a plain reason.
+pub fn import(
+    db: &Db,
+    path: &std::path::Path,
+    copy: bool,
+    own_models_dir: &std::path::Path,
+) -> Result<Vec<belvedere_core::db::Model>, String> {
+    let path = path
+        .canonicalize()
+        .map_err(|_| format!("there is nothing at {}", path.display()))?;
+    let files: Vec<std::path::PathBuf> = if path.is_dir() {
+        let mut found = Vec::new();
+        collect_gguf(&path, &mut found, 0);
+        if found.is_empty() {
+            return Err(format!("no GGUF model files in {}", path.display()));
+        }
+        found.sort();
+        found
+    } else {
+        vec![path.clone()]
+    };
+    let mut imported = Vec::new();
+    let mut problems = Vec::new();
+    for file in files {
+        match import_one(db, &file, copy, own_models_dir) {
+            Ok(m) => imported.push(m),
+            Err(e) => problems.push(e),
+        }
+    }
+    if imported.is_empty() {
+        return Err(problems.join("; "));
+    }
+    if !problems.is_empty() {
+        warn!("some files were not imported: {}", problems.join("; "));
+    }
+    Ok(imported)
+}
+
+fn collect_gguf(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>, depth: usize) {
+    if depth > 3 {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_dir() {
+            collect_gguf(&p, out, depth + 1);
+        } else if p
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("gguf"))
+        {
+            out.push(p);
+        }
+    }
+}
+
+fn import_one(
+    db: &Db,
+    file: &std::path::Path,
+    copy: bool,
+    own_models_dir: &std::path::Path,
+) -> Result<belvedere_core::db::Model, String> {
+    let shown = file.display();
+    if !file.is_file() {
+        return Err(format!("{shown} is not a file"));
+    }
+    if !file
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("gguf"))
+    {
+        return Err(format!(
+            "{shown} is not a GGUF model file (the name should end in .gguf)"
+        ));
+    }
+    let info = models::gguf::read_info(file)
+        .map_err(|e| format!("{shown} is not a readable GGUF model file: {e}"))?;
+    if info.is_helper() {
+        return Err(format!(
+            "{shown} is a helper file (a projector), not a chat model"
+        ));
+    }
+    // Named the way the scanner names models, so a copy keeps its name
+    // after a restart: the GGUF's own name, else the file name.
+    let name = if info.name.trim().is_empty() {
+        file.file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "model".into())
+    } else {
+        info.name.trim().to_string()
+    };
+    let (final_path, source) = if copy {
+        std::fs::create_dir_all(own_models_dir)
+            .map_err(|e| format!("could not create the models folder: {e}"))?;
+        let target = own_models_dir.join(file.file_name().unwrap_or_default());
+        if target.exists() && target.canonicalize().ok() != file.canonicalize().ok() {
+            return Err(format!(
+                "{} already exists in Belvedere's models folder",
+                target.display()
+            ));
+        }
+        if target.canonicalize().ok() != file.canonicalize().ok() {
+            std::fs::copy(file, &target).map_err(|e| format!("could not copy {shown}: {e}"))?;
+        }
+        (target, ModelSource::Belvedere)
+    } else {
+        (file.to_path_buf(), ModelSource::Import)
+    };
+    let size = std::fs::metadata(&final_path)
+        .map(|m| m.len() as i64)
+        .unwrap_or(0);
+    let path_str = final_path.to_string_lossy().into_owned();
+    // Re-importing something once removed brings it back.
+    let mut forgotten = forgotten_paths(db);
+    if forgotten.remove(&path_str) {
+        let joined: Vec<String> = forgotten.into_iter().collect();
+        let _ = db.set_setting("forgotten_model_paths", &joined.join("\n"));
+    }
+    let quantization = models::gguf::quantization_from_name(&path_str)
+        .unwrap_or_else(|| info.quantization.clone());
+    let model = db
+        .upsert_model(&NewModel {
+            name: &name,
+            path: &path_str,
+            source,
+            size_bytes: size,
+            quantization: &quantization,
+            supports_tools: Some(info.supports_tools()),
+        })
+        .map_err(|e| e.to_string())?;
+    info!(name = model.name, path = path_str, copy, "model imported");
+    Ok(model)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use belvedere_core::models::gguf::fixture::{gguf, V};
+
+    #[test]
+    fn imports_files_and_folders_by_reference_or_copy_and_refuses_non_models() {
+        let dir = tempfile::tempdir().unwrap();
+        let own = dir.path().join("belvedere/models");
+        let elsewhere = dir.path().join("elsewhere");
+        std::fs::create_dir_all(elsewhere.join("nested")).unwrap();
+        let good = gguf(&[
+            ("general.architecture", V::Str("qwen3")),
+            ("general.name", V::Str("Good")),
+        ]);
+        std::fs::write(elsewhere.join("good-Q4_K_M.gguf"), &good).unwrap();
+        std::fs::write(elsewhere.join("nested/second.gguf"), &good).unwrap();
+        std::fs::write(elsewhere.join("notes.txt"), b"hello").unwrap();
+        std::fs::write(elsewhere.join("fake.gguf"), b"not really a model").unwrap();
+        let db = Db::open_in_memory().unwrap();
+
+        // A text file and a fake are refused with a reason.
+        let err = import(&db, &elsewhere.join("notes.txt"), false, &own).unwrap_err();
+        assert!(err.contains("not a GGUF model file"), "{err}");
+        let err = import(&db, &elsewhere.join("fake.gguf"), false, &own).unwrap_err();
+        assert!(err.contains("not a readable GGUF"), "{err}");
+        assert!(import(&db, &dir.path().join("missing.gguf"), false, &own).is_err());
+
+        // By reference: the file stays put.
+        let one = import(&db, &elsewhere.join("good-Q4_K_M.gguf"), false, &own).unwrap();
+        assert_eq!(one.len(), 1);
+        assert_eq!(one[0].source, ModelSource::Import);
+        assert_eq!(one[0].quantization, "Q4_K_M");
+        assert!(one[0].path.starts_with(elsewhere.to_str().unwrap()));
+        assert!(!own.exists());
+
+        // A folder: every model in it (the fake is skipped), as copies.
+        let many = import(&db, &elsewhere, true, &own).unwrap();
+        assert_eq!(many.len(), 2, "{many:?}");
+        assert!(many.iter().all(|m| m.source == ModelSource::Belvedere));
+        assert!(own.join("good-Q4_K_M.gguf").is_file() && own.join("second.gguf").is_file());
+        assert!(
+            elsewhere.join("good-Q4_K_M.gguf").is_file(),
+            "originals untouched"
+        );
+        assert_eq!(db.list_models().unwrap().len(), 3);
+
+        // Removed, then imported again: it comes back.
+        let id = many[1].id;
+        forget(&db, id, &own).unwrap();
+        assert!(!own.join("second.gguf").is_file());
+        let again = import(&db, &elsewhere.join("nested/second.gguf"), true, &own).unwrap();
+        assert_eq!(
+            again[0].name, "Good",
+            "the GGUF's own name, like the scanner uses"
+        );
+        assert!(!forgotten_paths(&db).contains(&again[0].path));
+    }
 
     fn model(db: &Db, name: &str, path: &str, source: ModelSource) -> i64 {
         db.upsert_model(&NewModel {

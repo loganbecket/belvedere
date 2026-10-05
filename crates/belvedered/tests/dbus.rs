@@ -445,3 +445,73 @@ async fn model_roles_switch_and_removal_spares_other_apps_files() {
     );
     stop(service).await;
 }
+
+/// Imported models are usable and survive a restart; a non-model file is
+/// refused with a clear message.
+#[tokio::test]
+async fn imported_models_survive_a_restart_and_junk_is_refused() {
+    use belvedere_core::models::gguf::fixture::{gguf, V};
+    let bus = Bus::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("belvedere.db");
+    let elsewhere = dir.path().join("Downloads");
+    std::fs::create_dir_all(&elsewhere).unwrap();
+    let model = gguf(&[
+        ("general.architecture", V::Str("qwen3")),
+        ("general.name", V::Str("Tiny")),
+    ]);
+    std::fs::write(elsewhere.join("tiny-Q4_K_M.gguf"), &model).unwrap();
+    std::fs::write(elsewhere.join("photo.jpg"), [0xff, 0xd8]).unwrap();
+    let spawn = || {
+        let mut cmd = bus.service_command(&db_path);
+        cmd.env("XDG_DATA_HOME", dir.path()).env("HOME", dir.path());
+        cmd.spawn().unwrap()
+    };
+    let service = spawn();
+    let conn = bus.connect().await;
+    let proxy = wait_ready(&conn).await;
+
+    let refused = proxy
+        .import_model(&elsewhere.join("photo.jpg").to_string_lossy(), false)
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(refused.contains("not a GGUF model file"), "{refused}");
+
+    let imported = proxy
+        .import_model(&elsewhere.join("tiny-Q4_K_M.gguf").to_string_lossy(), false)
+        .await
+        .unwrap();
+    assert_eq!(imported.len(), 1);
+    assert_eq!(imported[0].source, "import");
+    assert_eq!(imported[0].quantization, "Q4_K_M");
+    proxy.set_model_role("chat", imported[0].id).await.unwrap();
+    let copied = proxy
+        .import_model(&elsewhere.to_string_lossy(), true)
+        .await
+        .unwrap();
+    assert_eq!(copied.len(), 1);
+    assert_eq!(copied[0].source, "belvedere");
+    assert!(dir
+        .path()
+        .join("belvedere/models/tiny-Q4_K_M.gguf")
+        .is_file());
+
+    stop(service).await;
+    let service = spawn();
+    let proxy = wait_ready(&conn).await;
+    let after: Vec<_> = proxy
+        .list_models()
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|m| m.path.ends_with("tiny-Q4_K_M.gguf"))
+        .collect();
+    assert_eq!(
+        after.len(),
+        2,
+        "both the reference and the copy survive: {after:?}"
+    );
+    assert_eq!(proxy.model_roles().await.unwrap().0, imported[0].id);
+    stop(service).await;
+}

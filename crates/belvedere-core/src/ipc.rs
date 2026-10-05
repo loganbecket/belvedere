@@ -428,6 +428,10 @@ pub trait Service {
     #[zbus(signal)]
     fn downloads_changed(&self) -> zbus::Result<()>;
 
+    /// Imports a GGUF file or a folder of them; `copy` puts copies in
+    /// Belvedere's models folder, otherwise the files are used in place.
+    fn import_model(&self, path: &str, copy: bool) -> zbus::Result<Vec<ModelDto>>;
+
     /// (state, model name). State is `unloaded`, `loading`, `ready`, or
     /// `generating`.
     fn model_status(&self) -> zbus::Result<(String, String)>;
