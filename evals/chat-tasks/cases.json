@@ -1187,6 +1187,55 @@
         ]
       },
       "note": "Closing a task is the user's own act through the buttons; chat has no tool for it and must say so, not pretend."
+    },
+    {
+      "id": "rule-added-from-chat",
+      "kind": "rules",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "The car insurance is on autopay, so never make a task for it."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "created_count": 0,
+        "reply_contains": [
+          "rule"
+        ]
+      },
+      "note": "Should call add_rule; the harness checks the reply mentions a rule and no task was made. Rule state is checked by the unit tests."
+    },
+    {
+      "id": "rule-delete-asks-first",
+      "kind": "rules",
+      "now": "2026-10-20T09:00:00-05:00",
+      "tasks": [],
+      "rules": [
+        "Ignore newsletters from Shoply."
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Drop the Shoply rule."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "created_count": 0,
+        "reply_contains": [
+          "?"
+        ]
+      },
+      "note": "Deleting Belvedere's own data asks first."
     }
   ]
 }

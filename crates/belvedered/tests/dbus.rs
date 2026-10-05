@@ -307,3 +307,65 @@ async fn dismiss_closes_with_a_reason_and_cancels_reminders() {
     assert!(reopened.dismiss_reason.is_empty());
     stop(service).await;
 }
+
+/// Rules over the bus: add, edit, switch off, delete; the signal fires;
+/// and what the mail reader would apply follows the list.
+#[tokio::test]
+async fn rules_round_trip_with_signal() {
+    let bus = Bus::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("belvedere.db");
+    let service = bus.spawn_service(&db_path);
+    let conn = bus.connect().await;
+    let proxy = wait_ready(&conn).await;
+    let mut changes = proxy.receive_rules_changed().await.unwrap();
+
+    assert!(proxy.list_rules().await.unwrap().is_empty());
+    let a = proxy
+        .create_rule("  The car insurance is on autopay.  ")
+        .await
+        .unwrap();
+    assert_eq!(a.text, "The car insurance is on autopay.");
+    assert!(a.enabled);
+    assert!(timeout(Duration::from_secs(2), changes.next())
+        .await
+        .is_ok());
+    assert!(
+        proxy.create_rule("   ").await.is_err(),
+        "empty rule refused"
+    );
+
+    let b = proxy.create_rule("Ignore mail from Shoply.").await.unwrap();
+    let b = proxy
+        .update_rule(b.id, "Ignore all mail from Shoply.", false)
+        .await
+        .unwrap();
+    assert!(!b.enabled);
+    let listed = proxy.list_rules().await.unwrap();
+    assert_eq!(listed.len(), 2, "disabled rules stay listed");
+    assert_eq!(listed[1].text, "Ignore all mail from Shoply.");
+
+    // What extraction would see: enabled, not deleted.
+    {
+        let db = belvedere_core::db::Db::open(&db_path).unwrap();
+        let in_force: Vec<String> = db
+            .list_rules()
+            .unwrap()
+            .into_iter()
+            .filter(|r| r.enabled)
+            .map(|r| r.text)
+            .collect();
+        assert_eq!(in_force, ["The car insurance is on autopay."]);
+    }
+    proxy.delete_rule(a.id).await.unwrap();
+    assert_eq!(proxy.list_rules().await.unwrap().len(), 1);
+    assert!(proxy.delete_rule(a.id).await.is_err(), "already deleted");
+    {
+        let db = belvedere_core::db::Db::open(&db_path).unwrap();
+        assert!(
+            db.list_rules().unwrap().iter().all(|r| !r.enabled),
+            "nothing in force now"
+        );
+    }
+    stop(service).await;
+}

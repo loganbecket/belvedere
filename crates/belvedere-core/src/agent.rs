@@ -73,9 +73,10 @@ pub async fn run_turn(
                 return result;
             }
         };
+        let rules = store.list_rules().unwrap_or_default();
         let mut messages = vec![ChatMessage {
             role: "system".into(),
-            content: tools::system_prompt(now, &tasks),
+            content: tools::system_prompt(now, &tasks, &rules),
         }];
         messages.extend(history.iter().cloned());
         messages.extend(transcript.iter().cloned());

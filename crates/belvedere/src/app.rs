@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
-use belvedere_core::ipc::{ConversationDto, MessageDto, ServiceProxy, TaskDto};
+use belvedere_core::ipc::{ConversationDto, MessageDto, RuleDto, ServiceProxy, TaskDto};
 use belvedere_core::schedule::{self, DueInput, Section};
 use chrono::Local;
 use cosmic::app::{Core, Task};
@@ -44,6 +44,11 @@ pub struct Belvedere {
     undo: Option<Undo>,
     /// Something went wrong talking to the service; shown briefly.
     error: Option<String>,
+    /// The Rules form: a new rule being typed, and any rule being edited.
+    new_rule: String,
+    rule_edit: Option<(i64, String)>,
+    /// A rule delete waiting for a yes.
+    confirm_delete_rule: Option<RuleDto>,
 }
 
 /// A reply in progress.
@@ -125,6 +130,16 @@ pub enum Message {
     SetDone(i64, bool),
     /// Close a task as not needed.
     Dismiss(i64),
+    // Rules
+    NewRule(String),
+    AddRule,
+    EditRule(i64, String),
+    SaveRule,
+    CancelRuleEdit,
+    ToggleRule(i64, bool),
+    AskDeleteRule(i64),
+    ConfirmDeleteRule,
+    CancelDeleteRule,
     ToggleSection(Section),
     Open(i64),
     EditTitle(String),
@@ -179,6 +194,9 @@ impl Application for Belvedere {
             confirm_delete: None,
             undo: None,
             error: None,
+            new_rule: String::new(),
+            rule_edit: None,
+            confirm_delete_rule: None,
         };
         let title = match app.core.main_window_id() {
             Some(id) => app.set_window_title("Belvedere".to_string(), id),
@@ -334,6 +352,53 @@ impl Application for Belvedere {
                         p.reopen_task(id).await.map(|_| ())
                     }
                 });
+            }
+            Message::NewRule(v) => self.new_rule = v,
+            Message::AddRule => {
+                let text = self.new_rule.trim().to_string();
+                if text.is_empty() {
+                    return Task::none();
+                }
+                self.new_rule.clear();
+                return self.call(move |p| async move { p.create_rule(&text).await.map(|_| ()) });
+            }
+            Message::EditRule(id, text) => self.rule_edit = Some((id, text)),
+            Message::CancelRuleEdit => self.rule_edit = None,
+            Message::SaveRule => {
+                let Some((id, text)) = self.rule_edit.take() else {
+                    return Task::none();
+                };
+                let enabled = self
+                    .lists
+                    .rules
+                    .iter()
+                    .find(|r| r.id == id)
+                    .is_none_or(|r| r.enabled);
+                let text = text.trim().to_string();
+                if text.is_empty() {
+                    return Task::none();
+                }
+                return self.call(move |p| async move {
+                    p.update_rule(id, &text, enabled).await.map(|_| ())
+                });
+            }
+            Message::ToggleRule(id, enabled) => {
+                let Some(rule) = self.lists.rules.iter().find(|r| r.id == id).cloned() else {
+                    return Task::none();
+                };
+                return self.call(move |p| async move {
+                    p.update_rule(id, &rule.text, enabled).await.map(|_| ())
+                });
+            }
+            Message::AskDeleteRule(id) => {
+                self.confirm_delete_rule = self.lists.rules.iter().find(|r| r.id == id).cloned();
+            }
+            Message::CancelDeleteRule => self.confirm_delete_rule = None,
+            Message::ConfirmDeleteRule => {
+                let Some(rule) = self.confirm_delete_rule.take() else {
+                    return Task::none();
+                };
+                return self.call(move |p| async move { p.delete_rule(rule.id).await.map(|_| ()) });
             }
             Message::Dismiss(id) => {
                 self.editor = None;
@@ -633,7 +698,7 @@ impl Belvedere {
             None => self.list_view(),
         };
 
-        widget::column::with_capacity(3)
+        widget::column::with_capacity(4)
             .spacing(spacing.space_s)
             .push(
                 widget::row::with_capacity(3)
@@ -643,8 +708,82 @@ impl Belvedere {
                     .push(text::caption(format!("{}", self.lists.tasks.len()))),
             )
             .push(body)
+            .push(self.rules_view())
             .width(Length::FillPortion(2))
             .into()
+    }
+
+    /// The standing rules: add one, edit its wording, switch it off, delete.
+    fn rules_view(&self) -> Element<'_, Message> {
+        let spacing = cosmic::theme::spacing();
+        let mut col = widget::column::with_capacity(self.lists.rules.len() + 3)
+            .spacing(spacing.space_xxs)
+            .push(text::title4("Rules"))
+            .push(
+                widget::text_input(
+                    "New rule, in your words: \"The car insurance is on autopay\"",
+                    &self.new_rule,
+                )
+                .on_input(Message::NewRule)
+                .on_submit(|_| Message::AddRule),
+            );
+        if let Some(rule) = &self.confirm_delete_rule {
+            col = col.push(
+                container(
+                    widget::row::with_capacity(4)
+                        .align_y(Alignment::Center)
+                        .spacing(spacing.space_s)
+                        .push(text::body(format!("Delete the rule \"{}\"?", rule.text)))
+                        .push(cosmic::iced::widget::space().width(Length::Fill))
+                        .push(button::destructive("Delete").on_press(Message::ConfirmDeleteRule))
+                        .push(button::standard("Keep").on_press(Message::CancelDeleteRule)),
+                )
+                .padding(spacing.space_xs)
+                .width(Length::Fill)
+                .class(cosmic::theme::Container::Card),
+            );
+        }
+        for r in &self.lists.rules {
+            let id = r.id;
+            let row: Element<'_, Message> = match &self.rule_edit {
+                Some((edit_id, text)) if *edit_id == id => widget::row::with_capacity(3)
+                    .align_y(Alignment::Center)
+                    .spacing(spacing.space_xs)
+                    .push(
+                        widget::text_input("Rule", text)
+                            .on_input(move |v| Message::EditRule(id, v))
+                            .on_submit(|_| Message::SaveRule),
+                    )
+                    .push(button::suggested("Save").on_press(Message::SaveRule))
+                    .push(button::standard("Cancel").on_press(Message::CancelRuleEdit)),
+                _ => widget::row::with_capacity(4)
+                    .align_y(Alignment::Center)
+                    .spacing(spacing.space_xs)
+                    .push(
+                        widget::checkbox(r.enabled)
+                            .on_toggle(move |on| Message::ToggleRule(id, on)),
+                    )
+                    .push(
+                        button::custom(text::body(&r.text))
+                            .on_press(Message::EditRule(id, r.text.clone()))
+                            .width(Length::Fill),
+                    )
+                    .push(button::text("Delete").on_press(Message::AskDeleteRule(id))),
+            }
+            .into();
+            col = col.push(
+                container(row)
+                    .padding(spacing.space_xxs)
+                    .width(Length::Fill)
+                    .class(cosmic::theme::Container::Card),
+            );
+        }
+        if self.lists.rules.is_empty() {
+            col = col.push(text::caption(
+                "No rules yet. A rule tells Belvedere how to treat certain mail from now on.",
+            ));
+        }
+        col.into()
     }
 
     fn list_view(&self) -> Element<'_, Message> {

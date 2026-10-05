@@ -8,7 +8,7 @@ use belvedere_core::engine::{self, Chunk, Engine};
 
 use belvedere_core::db::{Db, DbError, NewTask, Role, SourceKind};
 use belvedere_core::ipc::{
-    ConversationDto, MailAccountDto, MailFolderDto, MailMessageDto, MessageDto, ModelDto,
+    ConversationDto, MailAccountDto, MailFolderDto, MailMessageDto, MessageDto, ModelDto, RuleDto,
     SuggestionDto, TaskDto, BUS_NAME, OBJECT_PATH,
 };
 use belvedere_core::schedule;
@@ -402,6 +402,9 @@ impl Service {
                 from_whom: String::new(),
                 reference: None,
                 confirms_done: false,
+                rule_applied: None,
+                heads_up: false,
+                also: Vec::new(),
                 confidence: s.confidence as f32,
             };
             let task = crate::pipeline::create_task_from_mail(&db, &mail, &extraction)
@@ -441,6 +444,56 @@ impl Service {
 
     #[zbus(signal)]
     pub async fn suggestions_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+
+    fn list_rules(&self) -> fdo::Result<Vec<RuleDto>> {
+        let list = self.db().list_rules().map_err(to_fdo)?;
+        Ok(list.into_iter().map(RuleDto::from).collect())
+    }
+
+    async fn create_rule(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        text: &str,
+    ) -> fdo::Result<RuleDto> {
+        let text = text.trim();
+        if text.is_empty() {
+            return Err(fdo::Error::InvalidArgs("a rule needs some words".into()));
+        }
+        let rule = self.db().create_rule(text).map_err(to_fdo)?;
+        info!(rule = rule.id, "rule added");
+        Self::rules_changed(&emitter).await?;
+        Ok(RuleDto::from(rule))
+    }
+
+    async fn update_rule(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        id: i64,
+        text: &str,
+        enabled: bool,
+    ) -> fdo::Result<RuleDto> {
+        let text = text.trim();
+        if text.is_empty() {
+            return Err(fdo::Error::InvalidArgs("a rule needs some words".into()));
+        }
+        let rule = self.db().update_rule(id, text, enabled).map_err(to_fdo)?;
+        Self::rules_changed(&emitter).await?;
+        Ok(RuleDto::from(rule))
+    }
+
+    async fn delete_rule(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        id: i64,
+    ) -> fdo::Result<RuleDto> {
+        let rule = self.db().delete_rule(id).map_err(to_fdo)?;
+        info!(rule = id, "rule deleted");
+        Self::rules_changed(&emitter).await?;
+        Ok(RuleDto::from(rule))
+    }
+
+    #[zbus(signal)]
+    pub async fn rules_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 
     fn list_conversations(&self) -> fdo::Result<Vec<ConversationDto>> {
         let list = self.db().list_conversations().map_err(to_fdo)?;
