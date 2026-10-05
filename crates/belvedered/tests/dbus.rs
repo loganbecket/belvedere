@@ -595,3 +595,43 @@ async fn settings_are_checked_take_effect_and_survive_a_restart() {
     assert_eq!(reset.value, "5", "cleared means default");
     stop(service).await;
 }
+
+/// Conversations can be deleted one at a time or all at once, for good.
+#[tokio::test]
+async fn conversations_delete_one_or_all() {
+    let bus = Bus::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("belvedere.db");
+    let service = bus.spawn_service(&db_path);
+    let conn = bus.connect().await;
+    let proxy = wait_ready(&conn).await;
+    let a = proxy.new_conversation().await.unwrap();
+    let b = proxy.new_conversation().await.unwrap();
+    proxy.new_conversation().await.unwrap();
+    assert_eq!(proxy.list_conversations().await.unwrap().len(), 3);
+
+    proxy.delete_conversation(a.id).await.unwrap();
+    let left: Vec<i64> = proxy
+        .list_conversations()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|x| x.id)
+        .collect();
+    assert!(!left.contains(&a.id) && left.contains(&b.id));
+    assert!(
+        proxy.delete_conversation(a.id).await.is_err(),
+        "already gone"
+    );
+    {
+        let db = belvedere_core::db::Db::open(&db_path).unwrap();
+        assert!(
+            db.get_conversation(a.id).is_err(),
+            "removed for good, not hidden"
+        );
+    }
+
+    assert_eq!(proxy.delete_all_conversations().await.unwrap(), 2);
+    assert!(proxy.list_conversations().await.unwrap().is_empty());
+    stop(service).await;
+}

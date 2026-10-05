@@ -542,6 +542,13 @@ pub trait Service {
     /// Starts an empty conversation.
     fn new_conversation(&self) -> zbus::Result<ConversationDto>;
 
+    /// Deletes a conversation and its messages for good (the window asks
+    /// first).
+    fn delete_conversation(&self, id: i64) -> zbus::Result<()>;
+
+    /// Deletes every conversation for good; returns how many went.
+    fn delete_all_conversations(&self) -> zbus::Result<u32>;
+
     /// Messages of one conversation, oldest first.
     fn get_messages(&self, conversation_id: i64) -> zbus::Result<Vec<MessageDto>>;
 

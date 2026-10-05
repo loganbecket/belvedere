@@ -857,6 +857,27 @@ impl Service {
         Ok(list.into_iter().map(ConversationDto::from).collect())
     }
 
+    fn delete_conversation(&self, id: i64) -> fdo::Result<()> {
+        self.db().erase_conversation(id).map_err(to_fdo)?;
+        info!(conversation = id, "conversation deleted");
+        Ok(())
+    }
+
+    fn delete_all_conversations(&self) -> fdo::Result<u32> {
+        let db = self.db();
+        let ids: Vec<i64> = db
+            .list_conversations()
+            .map_err(to_fdo)?
+            .into_iter()
+            .map(|c| c.id)
+            .collect();
+        for id in &ids {
+            db.erase_conversation(*id).map_err(to_fdo)?;
+        }
+        info!(count = ids.len(), "all conversations deleted");
+        Ok(ids.len() as u32)
+    }
+
     fn new_conversation(&self) -> fdo::Result<ConversationDto> {
         self.db()
             .create_conversation("")
