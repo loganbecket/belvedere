@@ -423,6 +423,25 @@ impl Service {
     #[zbus(signal)]
     pub async fn downloads_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 
+    /// Imports a GGUF file or a folder of them, by reference or as a copy
+    /// into Belvedere's models folder.
+    async fn import_model(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        path: &str,
+        copy: bool,
+    ) -> fdo::Result<Vec<ModelDto>> {
+        let path = path.trim();
+        if path.is_empty() {
+            return Err(fdo::Error::InvalidArgs("give a file or folder".into()));
+        }
+        let own = crate::downloads::own_models_dir();
+        let imported = crate::models::import(&self.db(), std::path::Path::new(path), copy, &own)
+            .map_err(fdo::Error::Failed)?;
+        Self::models_changed(&emitter).await?;
+        Ok(imported.into_iter().map(ModelDto::from).collect())
+    }
+
     fn model_status(&self) -> (String, String) {
         let state = self.engine.state();
         (state.label().to_string(), state.model_name().to_string())
