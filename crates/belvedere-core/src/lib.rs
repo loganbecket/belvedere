@@ -16,6 +16,7 @@ pub mod model_ipc;
 pub mod models;
 pub mod readfile;
 pub mod schedule;
+pub mod settings;
 pub mod think;
 pub mod thunderbird;
 pub mod tools;

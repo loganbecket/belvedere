@@ -12,7 +12,8 @@ use futures_channel::mpsc::Sender;
 use futures_util::{SinkExt, StreamExt};
 
 use crate::ipc::{
-    CalendarTaskDto, DownloadDto, ModelDto, RuleDto, ServiceProxy, SuggestionDto, TaskDto,
+    CalendarTaskDto, DownloadDto, ModelDto, RuleDto, ServiceProxy, SettingDto, SuggestionDto,
+    TaskDto,
 };
 
 /// Live tasks and soft-deleted tasks, fetched together.
@@ -28,6 +29,7 @@ pub struct Lists {
     /// Ids of the chat and background models (0 = none).
     pub model_roles: (i64, i64),
     pub downloads: Vec<DownloadDto>,
+    pub settings: Vec<SettingDto>,
 }
 
 /// What the loop tells the client.
@@ -84,6 +86,7 @@ async fn fetch(proxy: &ServiceProxy<'static>) -> zbus::Result<Lists> {
         models: proxy.list_models().await.unwrap_or_default(),
         model_roles: proxy.model_roles().await.unwrap_or((0, 0)),
         downloads: proxy.list_downloads().await.unwrap_or_default(),
+        settings: proxy.list_settings().await.unwrap_or_default(),
     })
 }
 
@@ -139,6 +142,13 @@ async fn run_until_disconnected(
         }
     };
     let mut suggestions_changed = match proxy.receive_suggestions_changed().await {
+        Ok(stream) => stream,
+        Err(_) => {
+            out.send(Event::Disconnected).await.map_err(|_| ())?;
+            return Ok(());
+        }
+    };
+    let mut settings_changed = match proxy.receive_settings_changed().await {
         Ok(stream) => stream,
         Err(_) => {
             out.send(Event::Disconnected).await.map_err(|_| ())?;
@@ -219,6 +229,15 @@ async fn run_until_disconnected(
             Some(signal) = chat_failed.next() => {
                 if let Ok(a) = signal.args() {
                     out.send(Event::ChatFailed { request: a.request, conversation_id: a.conversation_id, message: a.message.to_string() }).await.map_err(|_| ())?;
+                }
+            }
+            Some(_) = settings_changed.next() => {
+                match fetch(&proxy).await {
+                    Ok(lists) => out.send(Event::Tasks(lists)).await.map_err(|_| ())?,
+                    Err(_) => {
+                        out.send(Event::Disconnected).await.map_err(|_| ())?;
+                        return Ok(());
+                    }
                 }
             }
             Some(_) = downloads_changed.next() => {

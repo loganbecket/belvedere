@@ -9,7 +9,7 @@ use belvedere_core::engine::{self, Chunk, Engine};
 use belvedere_core::db::{Db, DbError, NewTask, Role, SourceKind};
 use belvedere_core::ipc::{
     CalendarDto, CalendarTaskDto, ConversationDto, DownloadDto, EventDto, MailAccountDto,
-    MailFolderDto, MailMessageDto, MessageDto, ModelDto, RepoDto, RepoFileDto, RuleDto,
+    MailFolderDto, MailMessageDto, MessageDto, ModelDto, RepoDto, RepoFileDto, RuleDto, SettingDto,
     SuggestionDto, TaskDto, BUS_NAME, OBJECT_PATH,
 };
 use belvedere_core::schedule;
@@ -422,6 +422,71 @@ impl Service {
 
     #[zbus(signal)]
     pub async fn downloads_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+
+    fn list_settings(&self) -> fdo::Result<Vec<SettingDto>> {
+        let db = self.db();
+        Ok(belvedere_core::settings::SPECS
+            .iter()
+            .map(|s| SettingDto {
+                key: s.key.into(),
+                label: s.label.into(),
+                help: s.help.into(),
+                kind: format!("{:?}", s.kind).to_lowercase(),
+                value: db
+                    .get_setting(s.key)
+                    .ok()
+                    .flatten()
+                    .unwrap_or_else(|| s.default.to_string()),
+                default: s.default.into(),
+            })
+            .collect())
+    }
+
+    async fn set_setting(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+        key: &str,
+        value: &str,
+    ) -> fdo::Result<SettingDto> {
+        let spec = belvedere_core::settings::spec(key)
+            .ok_or_else(|| fdo::Error::InvalidArgs(format!("{key} is not a setting")))?;
+        let stored = if value.trim().is_empty() {
+            self.db().delete_setting(key).map_err(to_fdo)?;
+            spec.default.to_string()
+        } else {
+            let v =
+                belvedere_core::settings::validate(key, value).map_err(fdo::Error::InvalidArgs)?;
+            self.db().set_setting(key, &v).map_err(to_fdo)?;
+            v
+        };
+        info!(key, value = stored, "setting changed");
+        Self::settings_changed(&emitter).await?;
+        Ok(SettingDto {
+            key: spec.key.into(),
+            label: spec.label.into(),
+            help: spec.help.into(),
+            kind: format!("{:?}", spec.kind).to_lowercase(),
+            value: stored,
+            default: spec.default.into(),
+        })
+    }
+
+    async fn regenerate_caldav_password(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+    ) -> fdo::Result<String> {
+        let p = belvedere_core::caldav::generate_password()
+            .map_err(|e| fdo::Error::Failed(e.to_string()))?;
+        self.db()
+            .set_setting("caldav_password", &p)
+            .map_err(to_fdo)?;
+        info!("Thunderbird calendar password regenerated");
+        Self::settings_changed(&emitter).await?;
+        Ok(p)
+    }
+
+    #[zbus(signal)]
+    pub async fn settings_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 
     /// Imports a GGUF file or a folder of them, by reference or as a copy
     /// into Belvedere's models folder.

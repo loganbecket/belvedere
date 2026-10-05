@@ -65,6 +65,9 @@ pub struct Belvedere {
     hf_busy: bool,
     /// The path typed into the import box.
     import_path: String,
+    /// Settings being edited: key -> text not yet saved.
+    setting_edits: std::collections::HashMap<String, String>,
+    show_settings: bool,
 }
 
 /// A reply in progress.
@@ -146,6 +149,13 @@ pub enum Message {
     SetDone(i64, bool),
     /// Close a task as not needed.
     Dismiss(i64),
+    // Settings
+    ToggleSettings,
+    EditSetting(String, String),
+    SaveSetting(String),
+    ResetSetting(String),
+    ToggleSetting(String, bool),
+    RegeneratePassword,
     // Models
     ImportPath(String),
     Import(bool),
@@ -246,6 +256,8 @@ impl Application for Belvedere {
             hf_open: None,
             hf_busy: false,
             import_path: String::new(),
+            setting_edits: std::collections::HashMap::new(),
+            show_settings: false,
         };
         let title = match app.core.main_window_id() {
             Some(id) => app.set_window_title("Belvedere".to_string(), id),
@@ -409,6 +421,42 @@ impl Application for Belvedere {
                         p.reopen_task(id).await.map(|_| ())
                     }
                 });
+            }
+            Message::ToggleSettings => self.show_settings = !self.show_settings,
+            Message::EditSetting(key, text) => {
+                self.setting_edits.insert(key, text);
+            }
+            Message::SaveSetting(key) => {
+                let Some(value) = self.setting_edits.remove(&key) else {
+                    return Task::none();
+                };
+                return self
+                    .call(move |p| async move { p.set_setting(&key, &value).await.map(|_| ()) });
+            }
+            Message::ResetSetting(key) => {
+                self.setting_edits.remove(&key);
+                return self
+                    .call(move |p| async move { p.set_setting(&key, "").await.map(|_| ()) });
+            }
+            Message::ToggleSetting(key, on) => {
+                let value = if on { "true" } else { "false" }.to_string();
+                return self
+                    .call(move |p| async move { p.set_setting(&key, &value).await.map(|_| ()) });
+            }
+            Message::RegeneratePassword => {
+                let Some(proxy) = self.service.clone() else {
+                    return Task::none();
+                };
+                return Task::perform(
+                    async move {
+                        proxy.regenerate_caldav_password().await?;
+                        proxy.caldav_info().await
+                    },
+                    |r| match r {
+                        Ok(info) => cosmic::Action::App(Message::CaldavInfo(Some(info))),
+                        Err(e) => cosmic::Action::App(Message::Done(Err(e.to_string()))),
+                    },
+                );
             }
             Message::ImportPath(p) => self.import_path = p,
             Message::Import(copy) => {
@@ -867,7 +915,83 @@ impl Belvedere {
             .push(self.rules_view())
             .push(self.models_view())
             .push(self.sync_view())
+            .push(self.settings_view())
             .width(Length::FillPortion(2))
+            .into()
+    }
+
+    /// Every setting, each taking effect as soon as it is saved.
+    fn settings_view(&self) -> Element<'_, Message> {
+        let spacing = cosmic::theme::spacing();
+        let mut col = widget::column::with_capacity(self.lists.settings.len() * 2 + 2)
+            .spacing(spacing.space_xxs)
+            .push(
+                widget::row::with_capacity(3)
+                    .align_y(Alignment::Center)
+                    .push(text::title4("Settings"))
+                    .push(cosmic::iced::widget::space().width(Length::Fill))
+                    .push(
+                        button::text(if self.show_settings { "Hide" } else { "Show" })
+                            .on_press(Message::ToggleSettings),
+                    ),
+            );
+        if !self.show_settings {
+            return col.into();
+        }
+        for s in &self.lists.settings {
+            let key = s.key.clone();
+            let changed = s.value != s.default;
+            let row: Element<'_, Message> = if s.kind == "bool" {
+                let k = key.clone();
+                widget::row::with_capacity(3)
+                    .align_y(Alignment::Center)
+                    .spacing(spacing.space_xs)
+                    .push(
+                        widget::checkbox(s.value == "true")
+                            .on_toggle(move |on| Message::ToggleSetting(k.clone(), on)),
+                    )
+                    .push(text::body(&s.label).width(Length::Fill))
+                    .into()
+            } else {
+                let editing = self.setting_edits.get(&s.key);
+                let shown: &str = editing.map(String::as_str).unwrap_or(s.value.as_str());
+                let k1 = key.clone();
+                let k2 = key.clone();
+                let mut r = widget::row::with_capacity(4)
+                    .align_y(Alignment::Center)
+                    .spacing(spacing.space_xs)
+                    .push(text::body(&s.label).width(Length::FillPortion(3)))
+                    .push(
+                        widget::text_input(s.default.as_str(), shown)
+                            .on_input(move |v| Message::EditSetting(k1.clone(), v))
+                            .on_submit(move |_| Message::SaveSetting(k2.clone()))
+                            .width(Length::FillPortion(2)),
+                    );
+                if editing.is_some() {
+                    r = r.push(
+                        button::suggested("Save").on_press(Message::SaveSetting(key.clone())),
+                    );
+                } else if changed {
+                    r = r.push(button::text("Reset").on_press(Message::ResetSetting(key.clone())));
+                }
+                r.into()
+            };
+            col = col.push(row).push(text::caption(&s.help));
+        }
+        col = col.push(
+            widget::row::with_capacity(2)
+                .align_y(Alignment::Center)
+                .spacing(spacing.space_xs)
+                .push(text::body("Thunderbird calendar password").width(Length::Fill))
+                .push(button::standard("Make a new one").on_press(Message::RegeneratePassword)),
+        );
+        col = col.push(text::caption(
+            "A new password takes effect at once; Thunderbird will ask for it on its next refresh. The address is shown in the Thunderbird section.",
+        ));
+        container(col)
+            .padding(spacing.space_xs)
+            .width(Length::Fill)
+            .class(cosmic::theme::Container::Card)
             .into()
     }
 

@@ -367,6 +367,16 @@ pub fn due_from_parts(
     time: Option<&str>,
     now: DateTime<Local>,
 ) -> Result<Option<String>, String> {
+    due_from_parts_with(date, time, now, DEFAULT_DUE_TIME)
+}
+
+/// Like `due_from_parts`, with the time used when none is given.
+pub fn due_from_parts_with(
+    date: Option<&str>,
+    time: Option<&str>,
+    now: DateTime<Local>,
+    default_time: NaiveTime,
+) -> Result<Option<String>, String> {
     let time = time.map(str::trim).filter(|t| !t.is_empty());
     // A time with no date means today.
     let today = now.format("%Y-%m-%d").to_string();
@@ -381,7 +391,7 @@ pub fn due_from_parts(
         Some(t) => NaiveTime::parse_from_str(t, "%H:%M")
             .or_else(|_| NaiveTime::parse_from_str(t, "%H:%M:%S"))
             .map_err(|_| format!("due_time must be HH:MM, got {t:?}"))?,
-        None => DEFAULT_DUE_TIME,
+        None => default_time,
     };
     let local = now
         .timezone()

@@ -155,7 +155,7 @@ fn apply_status(
             db.reopen_task(id)?;
             let plan = due
                 .map(|d| {
-                    schedule::plan_reminders_with_lead(d, Local::now(), crate::pipeline::LEAD_DAYS)
+                    schedule::plan_reminders_with_lead(d, Local::now(), schedule::lead_days(db))
                 })
                 .unwrap_or_default();
             db.replace_task_reminders(id, &plan)?;
