@@ -48,6 +48,7 @@ fn fixtures_to_tasks(fixtures: &[TaskFixture]) -> Vec<ToolTask> {
             notes: f.notes.clone(),
             due_at: f.due_at.clone(),
             status: f.status.clone(),
+            dismiss_reason: String::new(),
         })
         .collect()
 }
@@ -65,6 +66,7 @@ fn store_to_outcome(store: &MemoryStore, fixtures: &[TaskFixture]) -> Vec<TaskAf
             due_at: t.due_at.clone(),
             status: t.status.clone(),
             deleted: false,
+            dismiss_reason: t.dismiss_reason.clone(),
         })
         .collect();
     for t in &store.deleted {
@@ -75,6 +77,7 @@ fn store_to_outcome(store: &MemoryStore, fixtures: &[TaskFixture]) -> Vec<TaskAf
             due_at: t.due_at.clone(),
             status: t.status.clone(),
             deleted: true,
+            dismiss_reason: t.dismiss_reason.clone(),
         });
     }
     // Keep fixture order first, then created tasks in creation order.
@@ -214,6 +217,7 @@ impl AgentRunner {
                 subject: e.subject.clone(),
                 replies_to,
                 mail_date: day(&e.date),
+                amount: x.amount,
             };
             // Newest task first, like the service.
             let newest_first: Vec<Candidate> = tasks.iter().rev().cloned().collect();
@@ -247,6 +251,8 @@ impl AgentRunner {
                         message_ids: vec![message_id(e, i)],
                         subjects: vec![e.subject.clone()],
                         last_mail_date: incoming.mail_date,
+                        amount: incoming.amount,
+                        closed: false,
                     });
                     out.titles.push(incoming.title.clone());
                     out.assignments.push(Some(id as usize));
@@ -262,6 +268,87 @@ impl AgentRunner {
             seconds,
             thread: Some(out),
         }
+    }
+}
+
+/// The sender address a fixture's notes name ("From X <addr>: ...").
+fn sender_in_notes(notes: &str) -> Option<String> {
+    let start = notes.find('<')?;
+    let end = notes[start..].find('>')? + start;
+    Some(notes[start + 1..end].to_lowercase())
+}
+
+/// The latest amount a fixture's notes record.
+fn amount_in_notes(notes: &str) -> Option<f64> {
+    notes
+        .lines()
+        .filter_map(|l| {
+            l.strip_prefix("Amount: $")
+                .or_else(|| l.strip_prefix("Amount now: $"))
+        })
+        .filter_map(|v| v.trim().parse::<f64>().ok())
+        .next_back()
+}
+
+impl AgentRunner {
+    /// Reads one confirmation email and asks the proof matcher which of
+    /// the fixture tasks it settles, as the service would.
+    async fn run_auto_close(&mut self, case: &Case, now: DateTime<Local>) -> Outcome {
+        let mut outcome = self.run_extraction(case, now).await;
+        let Some(x) = outcome.extraction.clone() else {
+            return outcome;
+        };
+        outcome.tasks = Outcome::unchanged(&case.tasks).tasks;
+        if !x.confirms_done {
+            return outcome;
+        }
+        let Input::Email {
+            from,
+            subject,
+            date,
+            ..
+        } = &case.input
+        else {
+            return outcome;
+        };
+        let (_, from_addr) = split_from(from);
+        let candidates: Vec<Candidate> = case
+            .tasks
+            .iter()
+            .map(|f| Candidate {
+                task_id: f.id,
+                kind: f.kind.clone(),
+                title: f.title.clone(),
+                due_date: day(&f.due_at),
+                reference: f.reference.clone(),
+                senders: sender_in_notes(&f.notes).into_iter().collect(),
+                message_ids: Vec::new(),
+                subjects: Vec::new(),
+                last_mail_date: None,
+                amount: amount_in_notes(&f.notes),
+                closed: f.status != "open",
+            })
+            .collect();
+        let incoming = Incoming {
+            kind: x.kind.as_str().to_string(),
+            title: x.title.clone(),
+            due_date: None,
+            reference: x.reference.clone(),
+            sender: from_addr.to_lowercase(),
+            subject: subject.clone(),
+            replies_to: Vec::new(),
+            mail_date: day(date),
+            amount: x.amount,
+        };
+        if let Some((id, reason)) = matter::find_completed(&incoming, &candidates) {
+            if let Some(t) = outcome.tasks.iter_mut().find(|t| t.fixture_id == Some(id)) {
+                t.status = "done".into();
+            }
+            outcome.reply = format!("closed {id} ({reason:?})");
+        } else {
+            outcome.reply = "closed nothing".into();
+        }
+        outcome
     }
 }
 
@@ -281,6 +368,9 @@ impl Runner for AgentRunner {
         }
         if let Input::Thread { emails } = &case.input {
             return self.run_thread(case, emails).await;
+        }
+        if case.expect.auto_close.is_some() {
+            return self.run_auto_close(case, now).await;
         }
         let history: Vec<ChatMessage> = match &case.input {
             Input::Chat { turns } => turns

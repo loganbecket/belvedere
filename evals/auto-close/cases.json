@@ -1,0 +1,1870 @@
+{
+  "name": "auto-close",
+  "cases": [
+    {
+      "id": "receipt-electric-by-account",
+      "kind": "closes",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Thank you for your payment",
+          "body": "Account 4471-02\n\nWe received your payment of $84.12 on October 28, 2026. No further action is needed.",
+          "date": "2026-10-28T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {
+          "closes": 1
+        }
+      }
+    },
+    {
+      "id": "receipt-gas-by-account",
+      "kind": "closes",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Payment received",
+          "body": "Account 9920-17\n\nYour payment of $37.60 was processed on October 28, 2026.",
+          "date": "2026-10-28T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {
+          "closes": 2
+        }
+      }
+    },
+    {
+      "id": "receipt-electric-by-amount-only",
+      "kind": "closes",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "City Power <noreply@citypower.invalid>",
+          "subject": "Payment confirmation",
+          "body": "Your payment of $84.12 has been applied to your account. Thank you.",
+          "date": "2026-10-28T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {
+          "closes": 1
+        }
+      }
+    },
+    {
+      "id": "receipt-water",
+      "kind": "closes",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Metro Water <bills@metrowater.invalid>",
+          "subject": "Payment received: $41.50",
+          "body": "Account 88-1092\nThank you. Your payment of $41.50 was received on 11/20/2026.",
+          "date": "2026-11-20T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {
+          "closes": 3
+        }
+      }
+    },
+    {
+      "id": "receipt-insurance",
+      "kind": "closes",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Shield Auto <billing@shieldauto.invalid>",
+          "subject": "Premium payment confirmed",
+          "body": "Policy SA-20931\nWe have received your premium payment of $612.40. Your coverage continues without interruption.",
+          "date": "2026-12-10T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {
+          "closes": 4
+        }
+      }
+    },
+    {
+      "id": "permit-renewed",
+      "kind": "closes",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Lakeside Township <permits@lakesidetwp.invalid>",
+          "subject": "Your parking permit has been renewed",
+          "body": "Permit P-55012\nYour resident parking permit renewal is complete and valid through November 30, 2027.",
+          "date": "2026-11-20T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {
+          "closes": 5
+        }
+      }
+    },
+    {
+      "id": "card-payment-posted",
+      "kind": "closes",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Harbor Bank <alerts@harborbank.invalid>",
+          "subject": "Payment posted to card ending 7731",
+          "body": "A payment of $612.40 posted to your card ending 7731 on December 2, 2026. Thank you.",
+          "date": "2026-12-02T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {
+          "closes": 6
+        }
+      }
+    },
+    {
+      "id": "tuition-paid",
+      "kind": "closes",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Riverbend Academy <bursar@riverbend.invalid>",
+          "subject": "Payment received",
+          "body": "Student ID 20451\nWe received your payment of $2,350.00 for fall tuition and fees. Your account balance is $0.00.",
+          "date": "2026-09-22T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {
+          "closes": 7
+        }
+      }
+    },
+    {
+      "id": "subscription-renewed",
+      "kind": "closes",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Notebook Pro <billing@notebookpro.invalid>",
+          "subject": "Your subscription has renewed",
+          "body": "Your annual Notebook Pro plan renewed on December 1, 2026. We charged $59.99 to your card on file.",
+          "date": "2026-12-01T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {
+          "closes": 9
+        }
+      }
+    },
+    {
+      "id": "receipt-only-task-from-sender",
+      "kind": "closes",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Metro Water <noreply@metrowater.invalid>",
+          "subject": "We got your payment",
+          "body": "Thanks for paying your water bill. Your account is current.",
+          "date": "2026-11-20T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {
+          "closes": 3
+        }
+      }
+    },
+    {
+      "id": "receipt-autopay-processed",
+      "kind": "closes",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Shield Auto <autopay@shieldauto.invalid>",
+          "subject": "Automatic payment processed",
+          "body": "Policy SA-20931: your scheduled payment of $612.40 was processed today.",
+          "date": "2026-12-12T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {
+          "closes": 4
+        }
+      }
+    },
+    {
+      "id": "statement-not-a-receipt",
+      "kind": "nothing",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Your November statement is ready",
+          "body": "Account 4471-02\n\nAmount due: $91.40\nDue date: November 30, 2026",
+          "date": "2026-11-15T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {}
+      }
+    },
+    {
+      "id": "reminder-not-a-receipt",
+      "kind": "nothing",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Reminder: payment due October 31",
+          "body": "Account 4471-02\nYour payment of $84.12 is due October 31, 2026.",
+          "date": "2026-10-28T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {}
+      }
+    },
+    {
+      "id": "receipt-unknown-sender",
+      "kind": "nothing",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Pinecrest Dental <billing@pinecrestdental.invalid>",
+          "subject": "Payment received",
+          "body": "Thank you for your payment of $120.00 on October 27, 2026.",
+          "date": "2026-10-28T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {}
+      }
+    },
+    {
+      "id": "receipt-wrong-amount",
+      "kind": "nothing",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Payment received",
+          "body": "We received your payment of $12.00 on October 28, 2026.",
+          "date": "2026-10-28T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {}
+      }
+    },
+    {
+      "id": "receipt-ambiguous-same-sender-no-details",
+      "kind": "nothing",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "City Power <billing@citypower.invalid>",
+          "subject": "Thank you for your payment",
+          "body": "We received your payment. Thank you for being a customer.",
+          "date": "2026-10-28T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {}
+      }
+    },
+    {
+      "id": "receipt-for-already-paid-task",
+      "kind": "nothing",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Ironworks Gym <billing@ironworksgym.invalid>",
+          "subject": "Payment received",
+          "body": "Member 3310\nYour November dues of $45.00 were received. Thank you.",
+          "date": "2026-10-30T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {}
+      }
+    },
+    {
+      "id": "shipping-notice",
+      "kind": "nothing",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Shoply <orders@shoply.invalid>",
+          "subject": "Your order has shipped",
+          "body": "Order 88213 is on its way. Track your package online.",
+          "date": "2026-10-28T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {}
+      }
+    },
+    {
+      "id": "store-receipt-same-amount",
+      "kind": "nothing",
+      "now": "2026-10-28T09:00:00-05:00",
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Pay the City Power bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your October statement is ready\nAmount: $84.12",
+          "kind": "bill",
+          "reference": "4471-02"
+        },
+        {
+          "id": 2,
+          "title": "Pay the City Power gas bill",
+          "due_at": "2026-10-31T14:00:00.000Z",
+          "notes": "From City Power <billing@citypower.invalid>: Your gas statement is ready\nAmount: $37.60",
+          "kind": "bill",
+          "reference": "9920-17"
+        },
+        {
+          "id": 3,
+          "title": "Pay the Metro Water bill",
+          "due_at": "2026-11-28T14:00:00.000Z",
+          "notes": "From Metro Water <bills@metrowater.invalid>: Water bill due 11/28\nAmount: $41.50",
+          "kind": "bill",
+          "reference": "88-1092"
+        },
+        {
+          "id": 4,
+          "title": "Pay the Shield Auto premium",
+          "due_at": "2026-12-15T14:00:00.000Z",
+          "notes": "From Shield Auto <billing@shieldauto.invalid>: Premium due December 15\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "SA-20931"
+        },
+        {
+          "id": 5,
+          "title": "Renew the parking permit",
+          "due_at": "2026-11-30T14:00:00.000Z",
+          "notes": "From Lakeside Township <permits@lakesidetwp.invalid>: Parking permit expires November 30",
+          "kind": "renewal",
+          "reference": "P-55012"
+        },
+        {
+          "id": 6,
+          "title": "Pay the Harbor Bank statement",
+          "due_at": "2026-12-05T14:00:00.000Z",
+          "notes": "From Harbor Bank <statements@harborbank.invalid>: Your November statement is available\nAmount: $612.40",
+          "kind": "bill",
+          "reference": "7731"
+        },
+        {
+          "id": 7,
+          "title": "Pay the Riverbend Academy tuition",
+          "due_at": "2026-09-25T14:00:00.000Z",
+          "notes": "From Riverbend Academy <bursar@riverbend.invalid>: Fall tuition invoice\nAmount: $2350.00",
+          "kind": "bill",
+          "reference": "20451"
+        },
+        {
+          "id": 8,
+          "title": "Reply to Pat about the Saturday tournament",
+          "due_at": "2026-10-22T14:00:00.000Z",
+          "notes": "From Pat Rivera <pat@riverbendhockey.invalid>: Can Grayson make the Saturday tournament?",
+          "kind": "reply_needed"
+        },
+        {
+          "id": 9,
+          "title": "Renew the Notebook Pro subscription",
+          "due_at": "2026-12-01T14:00:00.000Z",
+          "notes": "From Notebook Pro <billing@notebookpro.invalid>: Your subscription renews December 1\nAmount: $59.99",
+          "kind": "renewal"
+        },
+        {
+          "id": 10,
+          "title": "Pay the Ironworks Gym dues",
+          "due_at": "2026-11-01T14:00:00.000Z",
+          "notes": "From Ironworks Gym <billing@ironworksgym.invalid>: November dues\nAmount: $45.00",
+          "kind": "bill",
+          "reference": "3310",
+          "status": "done"
+        }
+      ],
+      "input": {
+        "email": {
+          "from": "Corner Market <receipts@cornermarket.invalid>",
+          "subject": "Your receipt",
+          "body": "Thank you for shopping with us. Total: $41.50. Paid by card.",
+          "date": "2026-10-28T08:00:00-05:00"
+        }
+      },
+      "expect": {
+        "auto_close": {}
+      }
+    }
+  ]
+}

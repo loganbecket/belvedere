@@ -91,6 +91,7 @@ fn to_tool_task(t: belvedere_core::db::Task) -> ToolTask {
             TaskStatus::Dismissed => "dismissed",
         }
         .into(),
+        dismiss_reason: t.dismiss_reason.unwrap_or_default(),
     }
 }
 
@@ -149,13 +150,6 @@ impl TaskStore for DbStore {
                 .unwrap_or_default();
             let _ = db.replace_task_reminders(task.id, &plan);
         }
-        Ok(to_tool_task(task))
-    }
-
-    fn complete(&mut self, id: i64) -> Result<ToolTask, String> {
-        let db = lock(&self.0);
-        let task = db.complete_task(id).map_err(|e| e.to_string())?;
-        let _ = db.cancel_task_reminders(id);
         Ok(to_tool_task(task))
     }
 
@@ -409,8 +403,10 @@ mod tests {
             "cleared date clears reminders"
         );
 
-        let t = store.complete(t.id).unwrap();
-        assert_eq!(t.status, "done");
+        // Closing is done through the buttons, not the chat store.
+        lock(&db).dismiss_task(t.id, "not needed").unwrap();
+        assert_eq!(store.list().unwrap()[0].status, "dismissed");
+        assert_eq!(store.list().unwrap()[0].dismiss_reason, "not needed");
         let t = store.reopen(t.id).unwrap();
         assert_eq!(t.status, "open");
         let t = store.delete(t.id).unwrap();

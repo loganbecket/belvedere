@@ -15,6 +15,8 @@ pub struct TaskAfter {
     pub due_at: String,
     pub status: String,
     pub deleted: bool,
+    #[serde(default)]
+    pub dismiss_reason: String,
 }
 
 /// What a runner reports after one case.
@@ -60,6 +62,7 @@ impl Outcome {
                     due_at: t.due_at.clone(),
                     status: t.status.clone(),
                     deleted: false,
+                    dismiss_reason: String::new(),
                 })
                 .collect(),
             reply: String::new(),
@@ -116,6 +119,8 @@ pub fn judge(case: &Case, outcome: &Outcome) -> Verdict {
         check_extract(want, outcome.extraction.as_ref(), &mut failures);
     } else if let Some(want) = &case.expect.thread {
         check_thread(want, outcome.thread.as_ref(), &mut failures);
+    } else if let Some(want) = &case.expect.auto_close {
+        check_auto_close(case, want, outcome, &mut failures);
     } else {
         check(case, outcome, &mut failures);
     }
@@ -128,6 +133,32 @@ pub fn judge(case: &Case, outcome: &Outcome) -> Verdict {
         extraction: outcome.extraction.clone(),
         seconds: outcome.seconds,
         thread: outcome.thread.clone(),
+    }
+}
+
+fn check_auto_close(
+    case: &Case,
+    want: &crate::cases::AutoCloseExpect,
+    outcome: &Outcome,
+    failures: &mut Vec<String>,
+) {
+    let closed: Vec<i64> = outcome
+        .tasks
+        .iter()
+        .filter(|t| t.status == "done")
+        .filter_map(|t| t.fixture_id)
+        .filter(|id| case.tasks.iter().any(|f| f.id == *id && f.status == "open"))
+        .collect();
+    match (want.closes, closed.as_slice()) {
+        (Some(id), [got]) if *got == id => {}
+        (Some(id), []) => failures.push(format!("task {id} should have been closed, nothing was")),
+        (Some(id), got) => failures.push(format!(
+            "task {id} should have been closed, got {got:?} (wrong task)"
+        )),
+        (None, []) => {}
+        (None, got) => failures.push(format!(
+            "nothing should have been closed, got {got:?} (wrong task)"
+        )),
     }
 }
 
@@ -462,6 +493,8 @@ mod tests {
             notes: String::new(),
             due_at: String::new(),
             status: "open".into(),
+            kind: String::new(),
+            reference: String::new(),
         }
     }
 
@@ -473,6 +506,7 @@ mod tests {
             due_at: due_at.into(),
             status: "open".into(),
             deleted: false,
+            dismiss_reason: String::new(),
         }
     }
 

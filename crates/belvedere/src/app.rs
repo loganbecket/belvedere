@@ -123,6 +123,8 @@ pub enum Message {
     NewTitle(String),
     CreateTask,
     SetDone(i64, bool),
+    /// Close a task as not needed.
+    Dismiss(i64),
     ToggleSection(Section),
     Open(i64),
     EditTitle(String),
@@ -331,6 +333,12 @@ impl Application for Belvedere {
                     } else {
                         p.reopen_task(id).await.map(|_| ())
                     }
+                });
+            }
+            Message::Dismiss(id) => {
+                self.editor = None;
+                return self.call(move |p| async move {
+                    p.dismiss_task(id, "not needed").await.map(|_| ())
                 });
             }
             Message::ToggleSection(section) => {
@@ -768,12 +776,16 @@ impl Belvedere {
             actions =
                 actions.push(button::standard("Restore").on_press(Message::Restore(editor.id)));
         } else {
-            actions = actions
-                .push(
-                    button::standard(if is_done { "Reopen" } else { "Mark done" })
-                        .on_press(Message::SetDone(editor.id, !is_done)),
-                )
-                .push(button::destructive("Delete").on_press(Message::AskDelete(editor.id)));
+            actions = actions.push(
+                button::standard(if is_done { "Reopen" } else { "Mark done" })
+                    .on_press(Message::SetDone(editor.id, !is_done)),
+            );
+            if !is_done {
+                actions = actions
+                    .push(button::standard("Not needed").on_press(Message::Dismiss(editor.id)));
+            }
+            actions =
+                actions.push(button::destructive("Delete").on_press(Message::AskDelete(editor.id)));
         }
         form = form.push(actions);
 

@@ -82,6 +82,12 @@ pub struct TaskFixture {
     /// `open`, `done`, `dismissed`. Default open.
     #[serde(default = "open")]
     pub status: String,
+    /// For mail-born tasks: `bill`, `renewal`, ... Empty for typed-in tasks.
+    #[serde(default)]
+    pub kind: String,
+    /// Account or invoice number, if the task has one.
+    #[serde(default)]
+    pub reference: String,
 }
 
 fn open() -> String {
@@ -128,6 +134,18 @@ pub struct Expect {
     /// For thread cases: where each email must land.
     #[serde(default)]
     pub thread: Option<ThreadExpect>,
+    /// For confirmation cases: which task (from `tasks`) the email must
+    /// close, or none. Present means the case runs extraction and the
+    /// proof matcher.
+    #[serde(default)]
+    pub auto_close: Option<AutoCloseExpect>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AutoCloseExpect {
+    /// The task id to close, or absent for "closes nothing".
+    #[serde(default)]
+    pub closes: Option<i64>,
 }
 
 /// Expectations on a thread: one entry per email. `Some(n)` means the

@@ -106,11 +106,13 @@ impl Db {
             .ok_or(DbError::NotFound(id))
     }
 
-    /// Open, not deleted, with a non-empty kind (that is, made from mail),
-    /// newest first: the tasks a follow-up email might belong to.
-    pub fn open_mail_tasks(&self, limit: usize) -> Result<Vec<Task>> {
+    /// Not deleted, with a non-empty kind (that is, made from mail), open
+    /// or closed, newest first: the tasks a follow-up email might belong
+    /// to. Closed ones are included so a reminder for a bill already
+    /// paid lands on it quietly instead of becoming a new task.
+    pub fn mail_tasks(&self, limit: usize) -> Result<Vec<Task>> {
         let mut stmt = self.conn.prepare(&format!(
-            "SELECT {COLUMNS} FROM tasks WHERE deleted_at IS NULL AND status = 'open' AND kind != ''
+            "SELECT {COLUMNS} FROM tasks WHERE deleted_at IS NULL AND kind != ''
              ORDER BY id DESC LIMIT ?1"
         ))?;
         let rows = stmt.query_map([limit as i64], Task::from_row)?;
@@ -177,7 +179,8 @@ impl Db {
 
     fn set_status(&self, id: i64, status: TaskStatus, reason: Option<&str>) -> Result<Task> {
         let ts = now();
-        let completed_at = matches!(status, TaskStatus::Done).then(|| ts.clone());
+        // Done and dismissed both record when the task was closed.
+        let completed_at = (!matches!(status, TaskStatus::Open)).then(|| ts.clone());
         let changed = self.conn.execute(
             "UPDATE tasks SET status = ?2, dismiss_reason = ?3, completed_at = ?4, updated_at = ?5
              WHERE id = ?1",
@@ -317,7 +320,10 @@ mod tests {
         let dismissed = db.dismiss_task(t.id, "already paid").unwrap();
         assert_eq!(dismissed.status, TaskStatus::Dismissed);
         assert_eq!(dismissed.dismiss_reason.as_deref(), Some("already paid"));
-        assert_eq!(dismissed.completed_at, None);
+        assert!(
+            dismissed.completed_at.is_some(),
+            "a dismissal records when the task was closed"
+        );
 
         let open = db.reopen_task(t.id).unwrap();
         assert_eq!(open.status, TaskStatus::Open);

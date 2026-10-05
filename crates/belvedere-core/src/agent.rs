@@ -139,7 +139,13 @@ pub async fn run_turn(
         transcript.push(ChatMessage {
             role: "user".into(),
             content: {
-                let any_error = result.trace.calls.iter().rev().take(outcomes.len()).any(|(_, o)| o.is_err());
+                let any_error = result
+                    .trace
+                    .calls
+                    .iter()
+                    .rev()
+                    .take(outcomes.len())
+                    .any(|(_, o)| o.is_err());
                 if any_error {
                     format!(
                         "[tool results]\n{}\n\nAt least one call failed. Fix it and call again now; do not tell the user it was done.",

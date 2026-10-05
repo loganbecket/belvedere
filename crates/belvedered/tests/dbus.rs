@@ -250,3 +250,60 @@ async fn chat_without_a_working_model_fails_cleanly_and_keeps_the_question() {
 
     stop(service).await;
 }
+
+/// "Not needed" over the bus: the task is closed with the reason and a
+/// closing date, its reminders are canceled, it stays on the list, and
+/// Reopen brings it back.
+#[tokio::test]
+async fn dismiss_closes_with_a_reason_and_cancels_reminders() {
+    let bus = Bus::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("belvedere.db");
+    let service = bus.spawn_service(&db_path);
+    let conn = bus.connect().await;
+    let proxy = wait_ready(&conn).await;
+    let mut changes = proxy.receive_tasks_changed().await.unwrap();
+
+    let task = proxy
+        .create_task("Pay the water bill", "", "2099-11-28T14:00:00.000Z")
+        .await
+        .unwrap();
+    let _ = timeout(Duration::from_secs(2), changes.next()).await;
+    {
+        let db = belvedere_core::db::Db::open(&db_path).unwrap();
+        assert!(!db.task_reminders(task.id).unwrap().is_empty());
+    }
+
+    let dismissed = proxy.dismiss_task(task.id, "already paid").await.unwrap();
+    assert_eq!(dismissed.status, "dismissed");
+    assert_eq!(dismissed.dismiss_reason, "already paid");
+    assert!(!dismissed.completed_at.is_empty(), "closing date recorded");
+    assert!(
+        timeout(Duration::from_secs(2), changes.next())
+            .await
+            .is_ok(),
+        "TasksChanged after a dismissal"
+    );
+    {
+        let db = belvedere_core::db::Db::open(&db_path).unwrap();
+        assert!(db
+            .task_reminders(task.id)
+            .unwrap()
+            .iter()
+            .all(|r| r.fired_at.is_some()));
+    }
+    assert_eq!(
+        proxy.list_tasks().await.unwrap().len(),
+        1,
+        "dismissed, not deleted"
+    );
+
+    // An empty reason still records one.
+    let again = proxy.dismiss_task(task.id, "  ").await.unwrap();
+    assert_eq!(again.dismiss_reason, "not needed");
+
+    let reopened = proxy.reopen_task(task.id).await.unwrap();
+    assert_eq!(reopened.status, "open");
+    assert!(reopened.dismiss_reason.is_empty());
+    stop(service).await;
+}
