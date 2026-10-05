@@ -3,6 +3,7 @@
 //! Right now it opens its database, stays alive, logs to the journal, and
 //! shuts down cleanly when asked. Everything else arrives in later chunks.
 
+mod calendar;
 mod chat;
 mod dbus;
 mod mail;
@@ -31,6 +32,9 @@ fn main() {
     }
     if std::env::args().any(|arg| arg == "--list-mail") {
         list_mail_and_exit();
+    }
+    if std::env::args().any(|arg| arg == "--list-calendar") {
+        list_calendar_and_exit();
     }
 
     init_logging();
@@ -87,6 +91,56 @@ fn list_mail_and_exit() -> ! {
         }
         Err(err) => {
             eprintln!("could not read accounts: {err}");
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Debug aid: prints the calendars and the next two weeks of events as
+/// Belvedere reads them (titles shortened), then exits.
+fn list_calendar_and_exit() -> ! {
+    use belvedere_core::calendar;
+    let Some(profile) = mail::profile() else {
+        eprintln!("no Thunderbird profile found");
+        std::process::exit(1);
+    };
+    let now = chrono::Utc::now();
+    match calendar::read(&profile.dir, now, now + chrono::Duration::days(14)) {
+        Ok(reading) => {
+            for c in &reading.calendars {
+                println!(
+                    "calendar {} [{}]{}{}",
+                    c.name,
+                    c.kind,
+                    if c.enabled { "" } else { " (disabled)" },
+                    if c.kind == "storage" || reading.on_disk.contains(&c.id) {
+                        ""
+                    } else {
+                        " (not on disk: Thunderbird holds it in memory only)"
+                    }
+                );
+            }
+            println!("{} event(s) in the next 14 days:", reading.events.len());
+            for e in &reading.events {
+                let local = e.start.with_timezone(&chrono::Local);
+                let title: String = e.title.chars().take(24).collect();
+                println!(
+                    "  {} {} {}{}",
+                    local.format("%a %b %-d %H:%M"),
+                    if e.all_day { "(all day)" } else { "         " },
+                    title,
+                    if e.recurrence_id.is_some() {
+                        " (recurring)"
+                    } else {
+                        ""
+                    }
+                );
+            }
+            println!("{} task(s)", reading.tasks.len());
+            std::process::exit(0);
+        }
+        Err(err) => {
+            eprintln!("could not read the calendars: {err}");
             std::process::exit(1);
         }
     }
@@ -157,8 +211,9 @@ async fn run(db: Db) {
     let engine = belvedere_core::engine::Engine::new();
     let engine_for_pipeline = engine.clone();
     tokio::spawn(idle_unload(engine.clone(), db.clone()));
+    let calendar_state: calendar::SharedCalendar = Default::default();
     // Kept alive for the whole run; dropping it would leave the bus.
-    let bus = match dbus::serve(db.clone(), engine).await {
+    let bus = match dbus::serve(db.clone(), engine, calendar_state.clone()).await {
         Ok(conn) => conn,
         Err(err) => {
             error!("could not start D-Bus service: {err}");
@@ -179,6 +234,8 @@ async fn run(db: Db) {
     if let Some(n) = &notifier {
         tokio::spawn(scheduler::run(db.clone(), bus.clone(), n.clone()));
     }
+    // Calendar: read at startup, on change, and checked every minute.
+    tokio::spawn(calendar::run(calendar_state, bus.clone()));
     // Mail: scan Thunderbird's folders at startup and whenever they change.
     let (mail_tx, mail_rx) = tokio::sync::mpsc::unbounded_channel::<usize>();
     tokio::spawn(mail::run(db.clone(), mail_tx));
