@@ -46,6 +46,8 @@ pub struct Belvedere {
     undo: Option<Undo>,
     /// A conversation delete waiting for a yes.
     confirm_delete_chat: Option<i64>,
+    /// Whether the conversation list beside the chat is folded away.
+    conversations_collapsed: bool,
     /// "Delete all conversations?" waiting for a yes.
     confirm_clear_chats: bool,
     /// Something went wrong talking to the service; shown briefly.
@@ -244,6 +246,7 @@ pub enum Message {
     CancelDelete,
     ConfirmDelete,
     UndoDelete,
+    ToggleConversations,
     AskDeleteConversation(i64),
     ConfirmDeleteConversation,
     CancelDeleteConversation,
@@ -292,6 +295,7 @@ impl Application for Belvedere {
             confirm_delete: None,
             undo: None,
             confirm_delete_chat: None,
+            conversations_collapsed: false,
             confirm_clear_chats: false,
             error: None,
             new_rule: String::new(),
@@ -717,6 +721,9 @@ impl Application for Belvedere {
                 self.undo = Some(Undo::new(task, Instant::now()));
                 return self.call(move |p| async move { p.delete_task(id).await.map(|_| ()) });
             }
+            Message::ToggleConversations => {
+                self.conversations_collapsed = !self.conversations_collapsed;
+            }
             Message::AskDeleteConversation(id) => {
                 self.confirm_clear_chats = false;
                 self.confirm_delete_chat = Some(id);
@@ -1060,19 +1067,34 @@ impl Belvedere {
             controls = controls.push(button::destructive("Stop").on_press(Message::Stop));
         }
 
+        let fold = button::icon(widget::icon::from_name(if self.conversations_collapsed {
+            "sidebar-show-symbolic"
+        } else {
+            "sidebar-hide-symbolic"
+        }))
+        .tooltip(if self.conversations_collapsed {
+            "Show conversations"
+        } else {
+            "Hide conversations"
+        })
+        .on_press(Message::ToggleConversations);
+        let heading = widget::row::with_capacity(2)
+            .align_y(Alignment::Center)
+            .spacing(spacing.space_xs)
+            .push(fold)
+            .push(text::title4("Chat"));
         let transcript = widget::column::with_capacity(3)
             .spacing(spacing.space_s)
-            .push(text::title4("Chat"))
+            .push(heading)
             .push(widget::scrollable(lines).height(Length::Fill))
             .push(controls)
             .width(Length::Fill);
 
-        widget::row::with_capacity(2)
-            .spacing(spacing.space_s)
-            .push(widget::scrollable(list).width(Length::Fixed(240.0)))
-            .push(transcript)
-            .width(Length::FillPortion(3))
-            .into()
+        let mut row = widget::row::with_capacity(2).spacing(spacing.space_s);
+        if !self.conversations_collapsed {
+            row = row.push(widget::scrollable(list).width(Length::Fixed(240.0)));
+        }
+        row.push(transcript).width(Length::FillPortion(3)).into()
     }
 
     fn task_pane(&self) -> Element<'_, Message> {
