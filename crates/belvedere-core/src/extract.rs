@@ -229,7 +229,7 @@ pub struct EmailInput {
 }
 
 /// Longest body shown to the model. Bills state their business early.
-const MAX_BODY_FOR_MODEL: usize = 6_000;
+pub const MAX_BODY_FOR_MODEL: usize = 6_000;
 
 /// GBNF grammar for exactly the JSON object above, in a fixed key order.
 pub const GRAMMAR: &str = r#"

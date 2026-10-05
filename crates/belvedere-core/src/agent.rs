@@ -112,6 +112,13 @@ pub async fn run_turn(
         let mut outcomes = Vec::new();
         for call in calls {
             let (call, outcome) = match call {
+                Ok(call) if call.name == "task_from_file" => {
+                    let outcome = task_from_file(engine, store, &call, now).await;
+                    if outcome.is_ok() {
+                        result.changed_tasks = true;
+                    }
+                    (call, outcome)
+                }
                 Ok(call) => {
                     let outcome = tools::execute(&call, store, now, delete_ok);
                     if outcome.is_ok() && call.name != "list_tasks" {
@@ -162,6 +169,61 @@ pub async fn run_turn(
         });
     }
     result
+}
+
+/// Reads a file and runs the same extraction as mail on its text; a
+/// confident result becomes a task linked to the file.
+async fn task_from_file(
+    engine: &Engine,
+    store: &mut (dyn TaskStore + Send),
+    call: &tools::ToolCall,
+    now: DateTime<Local>,
+) -> Result<String, String> {
+    let path = call
+        .arguments
+        .get("path")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "\"path\" is required".to_string())?;
+    let doc = store.read_file(path)?;
+    let name = std::path::Path::new(&doc.path)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| doc.path.clone());
+    let body: String = doc
+        .text
+        .chars()
+        .take(crate::extract::MAX_BODY_FOR_MODEL)
+        .collect();
+    let email = crate::extract::EmailInput {
+        from_name: String::new(),
+        from_addr: String::new(),
+        subject: name.clone(),
+        date: String::new(),
+        body,
+        attachments: Vec::new(),
+    };
+    let rules: Vec<String> = store.list_rules()?.into_iter().map(|r| r.text).collect();
+    let done = crate::extract::extract(engine, &email, now, false, &rules).await;
+    if let Some(err) = done.error {
+        return Err(format!("could not read {name} for a task: {err}"));
+    }
+    let e = done.result;
+    if !e.action_needed || e.title.trim().is_empty() {
+        return Ok(format!("nothing in {name} needs doing; no task made"));
+    }
+    let due = tools::due_from_parts(e.due_date.as_deref(), e.due_time.as_deref(), now)?;
+    let mut notes = format!("From file: {}", doc.path);
+    if let Some(a) = e.amount {
+        notes.push_str(&format!("\nAmount: ${a:.2}"));
+    }
+    let task = store.create(&e.title, &notes, due.as_deref())?;
+    store.set_file_source(task.id, &doc.path)?;
+    Ok(format!(
+        "created {}",
+        serde_json::to_string(&task).unwrap_or_default()
+    ))
 }
 
 /// One model call. Streams visible text to `progress` only until a tool

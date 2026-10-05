@@ -112,6 +112,48 @@ fn to_tool_task(t: belvedere_core::db::Task) -> ToolTask {
 }
 
 impl TaskStore for DbStore {
+    fn read_file(&mut self, path: &str) -> Result<belvedere_core::tools::ToolDocument, String> {
+        let home = std::env::var_os("HOME")
+            .map(std::path::PathBuf::from)
+            .ok_or("no home folder")?;
+        let extra: Vec<String> = lock(&self.0)
+            .get_setting("file_search_excludes")
+            .ok()
+            .flatten()
+            .map(|v| {
+                v.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let doc = belvedere_core::readfile::read(&home, path, &extra)?;
+        tracing::info!(
+            path = doc.path,
+            kind = doc.kind,
+            chars = doc.text.chars().count(),
+            "file read for chat"
+        );
+        Ok(belvedere_core::tools::ToolDocument {
+            path: doc.path,
+            kind: doc.kind,
+            text: doc.text,
+            pages: doc.pages,
+        })
+    }
+
+    fn set_file_source(&mut self, task_id: i64, path: &str) -> Result<(), String> {
+        let db = lock(&self.0);
+        let label = std::path::Path::new(path)
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        db.add_task_source(task_id, belvedere_core::db::SourceKind::File, path, &label)
+            .map_err(|e| e.to_string())?;
+        let _ = db.set_task_kind(task_id, "file", "");
+        Ok(())
+    }
+
     fn find_files(
         &mut self,
         query: &belvedere_core::files::Query,
