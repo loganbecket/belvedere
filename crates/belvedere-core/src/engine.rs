@@ -78,6 +78,18 @@ pub struct Engine {
     inner: Arc<tokio::sync::Mutex<Inner>>,
     /// A copy of (state, last_used) readable without awaiting.
     status: Arc<Mutex<(State, Instant)>>,
+    /// Foreground callers (chat) waiting for their turn; background work
+    /// (reading mail) lets them go first.
+    foreground_waiting: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+/// Who is asking for a generation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Priority {
+    /// The user is waiting (chat).
+    Foreground,
+    /// Background work (reading mail); yields to the user.
+    Background,
 }
 
 impl Default for Engine {
@@ -95,6 +107,7 @@ impl Engine {
                 helper: None,
             })),
             status: Arc::new(Mutex::new((State::Unloaded, Instant::now()))),
+            foreground_waiting: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         }
     }
 
@@ -220,9 +233,55 @@ impl Engine {
         .await
     }
 
+    /// `chat_steady` for background work: waits while anything else is
+    /// generating and lets waiting chat go first.
+    pub async fn chat_background(
+        &self,
+        messages: Vec<ChatMessage>,
+        max_tokens: u32,
+        grammar: Option<Grammar>,
+        temperature: Option<f32>,
+    ) -> mpsc::UnboundedReceiver<Chunk> {
+        self.run_with(
+            Command::Chat {
+                messages,
+                max_tokens,
+                grammar,
+                no_think: true,
+                temperature,
+            },
+            Priority::Background,
+        )
+        .await
+    }
+
     async fn run(&self, cmd: Command) -> mpsc::UnboundedReceiver<Chunk> {
+        self.run_with(cmd, Priority::Foreground).await
+    }
+
+    /// Sends one command once the model is free. The helper answers one
+    /// command at a time through a single listener, so two callers must
+    /// never overlap: the second waits for the first to finish.
+    async fn run_with(&self, cmd: Command, priority: Priority) -> mpsc::UnboundedReceiver<Chunk> {
+        use std::sync::atomic::Ordering;
+        if priority == Priority::Foreground {
+            self.foreground_waiting.fetch_add(1, Ordering::SeqCst);
+        }
+        let mut inner = loop {
+            let inner = self.inner.lock().await;
+            let busy = matches!(inner.state, State::Generating { .. });
+            let yield_to_chat = priority == Priority::Background
+                && self.foreground_waiting.load(Ordering::SeqCst) > 0;
+            if !busy && !yield_to_chat {
+                break inner;
+            }
+            drop(inner);
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        };
+        if priority == Priority::Foreground {
+            self.foreground_waiting.fetch_sub(1, Ordering::SeqCst);
+        }
         let (out, rx) = mpsc::unbounded_channel();
-        let mut inner = self.inner.lock().await;
         let Some(helper) = inner.helper.as_mut() else {
             let _ = out.send(Chunk::Failed("no model is loaded".into()));
             return rx;
@@ -524,5 +583,87 @@ mod tests {
         };
         assert_eq!(s.label(), "ready");
         assert_eq!(s.model_name(), "Qwen");
+    }
+}
+
+#[cfg(test)]
+mod turn_tests {
+    use super::*;
+
+    /// A stand-in model helper: answers each chat with the first word of
+    /// its last message, slowly, so overlapping callers would collide.
+    fn fake_helper(dir: &std::path::Path) -> PathBuf {
+        let path = dir.join("fake-helper.sh");
+        std::fs::write(
+            &path,
+            "#!/bin/sh\necho '{\"ev\":\"loaded\",\"gpu_layers\":0,\"context\":512,\"load_ms\":1}'\n\
+             while IFS= read -r line; do\n\
+               word=$(printf '%s' \"$line\" | sed -n 's/.*\"content\":\"\\([A-Za-z]*\\).*/\\1/p')\n\
+               for i in 1 2 3 4 5; do echo \"{\\\"ev\\\":\\\"text\\\",\\\"text\\\":\\\"$word \\\"}\"; sleep 0.05; done\n\
+               echo '{\"ev\":\"done\",\"tokens\":5,\"seconds\":0.25}'\n\
+             done\n",
+        )
+        .unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        path
+    }
+
+    async fn collect(mut rx: mpsc::UnboundedReceiver<Chunk>) -> String {
+        let mut out = String::new();
+        while let Some(c) = rx.recv().await {
+            match c {
+                Chunk::Text(t) => out.push_str(&t),
+                Chunk::Done { .. } => break,
+                Chunk::Failed(e) => panic!("{e}"),
+            }
+        }
+        out
+    }
+
+    fn ask(word: &str) -> Vec<ChatMessage> {
+        vec![ChatMessage {
+            role: "user".into(),
+            content: word.into(),
+        }]
+    }
+
+    #[tokio::test]
+    async fn two_callers_never_receive_each_others_answers() {
+        let dir = tempfile::tempdir().unwrap();
+        let helper = fake_helper(dir.path());
+        // SAFETY: tests in this module are the only users of this variable.
+        unsafe { std::env::set_var("BELVEDERE_MODEL_HELPER", &helper) };
+        let engine = Engine::new();
+        let model = dir.path().join("m.gguf");
+        std::fs::write(&model, b"x").unwrap();
+        engine.load(model, "fake".into(), false).await.unwrap();
+
+        // Background starts first; chat arrives while it is mid-answer.
+        let bg = engine.chat_background(ask("mail"), 16, None, None).await;
+        tokio::time::sleep(std::time::Duration::from_millis(60)).await;
+        let fg_engine = engine.clone();
+        let fg = tokio::spawn(async move { collect(fg_engine.chat(ask("chat"), 16).await).await });
+        let mail = collect(bg).await;
+        let chat = fg.await.unwrap();
+        assert_eq!(mail.trim(), "mail mail mail mail mail");
+        assert_eq!(chat.trim(), "chat chat chat chat chat");
+
+        // Chat waiting goes ahead of background work queued after it.
+        let busy = engine.chat_background(ask("first"), 16, None, None).await;
+        let e1 = engine.clone();
+        let chat_turn = tokio::spawn(async move { collect(e1.chat(ask("user"), 16).await).await });
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        let e2 = engine.clone();
+        let later_bg = tokio::spawn(async move {
+            collect(e2.chat_background(ask("later"), 16, None, None).await).await
+        });
+        assert_eq!(collect(busy).await.trim(), "first first first first first");
+        assert_eq!(chat_turn.await.unwrap().trim(), "user user user user user");
+        assert_eq!(
+            later_bg.await.unwrap().trim(),
+            "later later later later later"
+        );
+        engine.unload().await;
     }
 }

@@ -96,7 +96,14 @@ pub struct Extraction {
     #[serde(default)]
     pub also: Vec<AlsoTask>,
     /// 0.0 to 1.0: how sure the model is about `action_needed` and `kind`.
+    /// Missing from an answer means unsure, so a found task becomes a
+    /// suggestion rather than being dropped.
+    #[serde(default = "unsure")]
     pub confidence: f32,
+}
+
+fn unsure() -> f32 {
+    0.5
 }
 
 impl Extraction {
@@ -122,6 +129,9 @@ impl Extraction {
     /// Checks the fields make sense; returns a plain description of what
     /// is wrong, for the model to fix.
     pub fn validate(&self) -> Result<(), String> {
+        if self.heads_up && self.rule_applied.is_none() {
+            return Err("heads_up is only for when a standing rule applies; set heads_up false, or name the rule in rule_applied".into());
+        }
         if self.heads_up && self.action_needed {
             return Err(
                 "heads_up is true but action_needed is also true; a heads-up is instead of a task"
@@ -454,7 +464,14 @@ pub async fn extract(
                 }
             }
         };
-        match parse_reply(&raw) {
+        match parse_reply(&raw).and_then(|r| match r.rule_applied {
+            Some(n) if n == 0 || n as usize > rules.len() => Err(format!(
+                "rule_applied is {n}, but there {} {} standing rule(s); use null when none applies",
+                if rules.len() == 1 { "is" } else { "are" },
+                rules.len()
+            )),
+            _ => Ok(r),
+        }) {
             Ok(result) => {
                 return Extracted {
                     result,
@@ -491,7 +508,9 @@ async fn generate(
     messages: Vec<ChatMessage>,
     grammar: Option<Grammar>,
 ) -> Result<String, String> {
-    let mut chunks = engine.chat_steady(messages, 400, grammar, Some(0.2)).await;
+    let mut chunks = engine
+        .chat_background(messages, 500, grammar, Some(0.2))
+        .await;
     let mut filter = ThinkFilter::new();
     let mut raw = String::new();
     while let Some(chunk) = chunks.recv().await {
@@ -663,6 +682,11 @@ mod tests {
         assert!(e.validate().unwrap_err().contains("empty title"));
         let mut quiet = Extraction::nothing();
         quiet.heads_up = true;
+        assert!(
+            quiet.validate().unwrap_err().contains("standing rule"),
+            "a heads-up needs a rule behind it"
+        );
+        quiet.rule_applied = Some(1);
         assert!(quiet.validate().is_ok());
         quiet.action_needed = true;
         quiet.kind = Kind::Bill;
