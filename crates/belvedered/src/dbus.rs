@@ -8,8 +8,8 @@ use belvedere_core::engine::{self, Chunk, Engine};
 
 use belvedere_core::db::{Db, DbError, NewTask, Role, SourceKind};
 use belvedere_core::ipc::{
-    ConversationDto, MailAccountDto, MailFolderDto, MailMessageDto, MessageDto, ModelDto, RuleDto,
-    SuggestionDto, TaskDto, BUS_NAME, OBJECT_PATH,
+    CalendarDto, CalendarTaskDto, ConversationDto, EventDto, MailAccountDto, MailFolderDto,
+    MailMessageDto, MessageDto, ModelDto, RuleDto, SuggestionDto, TaskDto, BUS_NAME, OBJECT_PATH,
 };
 use belvedere_core::schedule;
 use chrono::Local;
@@ -24,15 +24,17 @@ pub type SharedDb = Arc<Mutex<Db>>;
 pub struct Service {
     db: SharedDb,
     engine: Engine,
+    calendar: crate::calendar::SharedCalendar,
     next_request: AtomicU64,
     replies: Arc<Replies>,
 }
 
 impl Service {
-    pub fn new(db: SharedDb, engine: Engine) -> Self {
+    pub fn new(db: SharedDb, engine: Engine, calendar: crate::calendar::SharedCalendar) -> Self {
         Self {
             db,
             engine,
+            calendar,
             next_request: AtomicU64::new(1),
             replies: Arc::new(Replies::default()),
         }
@@ -495,6 +497,69 @@ impl Service {
     #[zbus(signal)]
     pub async fn rules_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 
+    fn list_calendars(&self) -> fdo::Result<Vec<CalendarDto>> {
+        let st = self.calendar.lock().unwrap_or_else(|e| e.into_inner());
+        Ok(st
+            .reading
+            .calendars
+            .iter()
+            .map(|c| CalendarDto {
+                id: c.id.clone(),
+                name: c.name.clone(),
+                kind: c.kind.clone(),
+                enabled: c.enabled,
+                readable: c.kind == "storage" || st.reading.on_disk.contains(&c.id),
+            })
+            .collect())
+    }
+
+    fn list_events(&self, from: &str, to: &str) -> fdo::Result<Vec<EventDto>> {
+        let now = chrono::Utc::now();
+        let from = if from.is_empty() {
+            now
+        } else {
+            belvedere_core::calendar::parse_time(from)
+                .ok_or_else(|| fdo::Error::InvalidArgs("from must be RFC 3339".into()))?
+        };
+        let to = if to.is_empty() {
+            now + chrono::Duration::days(belvedere_core::calendar::WINDOW_DAYS)
+        } else {
+            belvedere_core::calendar::parse_time(to)
+                .ok_or_else(|| fdo::Error::InvalidArgs("to must be RFC 3339".into()))?
+        };
+        let st = self.calendar.lock().unwrap_or_else(|e| e.into_inner());
+        Ok(st
+            .reading
+            .events
+            .iter()
+            .filter(|e| e.start < to && e.end > from)
+            .cloned()
+            .map(EventDto::from)
+            .collect())
+    }
+
+    fn list_calendar_tasks(&self) -> fdo::Result<Vec<CalendarTaskDto>> {
+        let st = self.calendar.lock().unwrap_or_else(|e| e.into_inner());
+        Ok(st
+            .reading
+            .tasks
+            .iter()
+            .cloned()
+            .map(CalendarTaskDto::from)
+            .collect())
+    }
+
+    fn calendar_read_at(&self) -> fdo::Result<String> {
+        let st = self.calendar.lock().unwrap_or_else(|e| e.into_inner());
+        Ok(st
+            .read_at
+            .map(|d| d.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+            .unwrap_or_default())
+    }
+
+    #[zbus(signal)]
+    pub async fn calendar_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+
     fn list_conversations(&self) -> fdo::Result<Vec<ConversationDto>> {
         let list = self.db().list_conversations().map_err(to_fdo)?;
         Ok(list.into_iter().map(ConversationDto::from).collect())
@@ -623,12 +688,16 @@ impl Service {
 /// The name is requested so that no other process can take it over: a
 /// second instance fails to start instead of knocking this one off the
 /// bus.
-pub async fn serve(db: SharedDb, engine: Engine) -> zbus::Result<zbus::Connection> {
+pub async fn serve(
+    db: SharedDb,
+    engine: Engine,
+    calendar: crate::calendar::SharedCalendar,
+) -> zbus::Result<zbus::Connection> {
     let conn = zbus::connection::Builder::session()?
         .allow_name_replacements(false)
         .replace_existing_names(false)
         .name(BUS_NAME)?
-        .serve_at(OBJECT_PATH, Service::new(db, engine))?
+        .serve_at(OBJECT_PATH, Service::new(db, engine, calendar))?
         .build()
         .await?;
     info!(name = BUS_NAME, path = OBJECT_PATH, "D-Bus service ready");

@@ -1,6 +1,7 @@
 //! Shared code for every Belvedere binary.
 
 pub mod agent;
+pub mod calendar;
 pub mod db;
 pub mod engine;
 pub mod extract;

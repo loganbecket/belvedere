@@ -150,6 +150,74 @@ impl From<crate::db::Rule> for RuleDto {
     }
 }
 
+/// A calendar Thunderbird knows about, as it crosses the bus.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CalendarDto {
+    pub id: String,
+    pub name: String,
+    pub kind: String,
+    pub enabled: bool,
+    /// Whether its events are on disk for Belvedere to read.
+    pub readable: bool,
+}
+
+/// One event occurrence as it crosses the bus. Times are RFC 3339 UTC.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct EventDto {
+    pub calendar_id: String,
+    pub uid: String,
+    pub title: String,
+    pub start: String,
+    pub end: String,
+    pub all_day: bool,
+    pub location: String,
+    /// Empty for a one-off event.
+    pub recurrence_id: String,
+}
+
+impl From<crate::calendar::Event> for EventDto {
+    fn from(e: crate::calendar::Event) -> Self {
+        let f =
+            |d: chrono::DateTime<chrono::Utc>| d.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+        EventDto {
+            calendar_id: e.calendar_id,
+            uid: e.uid,
+            title: e.title,
+            start: f(e.start),
+            end: f(e.end),
+            all_day: e.all_day,
+            location: e.location,
+            recurrence_id: e.recurrence_id.unwrap_or_default(),
+        }
+    }
+}
+
+/// A Thunderbird task as it crosses the bus.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct CalendarTaskDto {
+    pub calendar_id: String,
+    pub uid: String,
+    pub title: String,
+    /// RFC 3339 or empty.
+    pub due: String,
+    pub completed: bool,
+}
+
+impl From<crate::calendar::TbTask> for CalendarTaskDto {
+    fn from(t: crate::calendar::TbTask) -> Self {
+        CalendarTaskDto {
+            calendar_id: t.calendar_id,
+            uid: t.uid,
+            title: t.title,
+            due: t
+                .due
+                .map(|d| d.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+                .unwrap_or_default(),
+            completed: t.completed,
+        }
+    }
+}
+
 /// A chat conversation as it crosses the bus.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct ConversationDto {
@@ -340,6 +408,22 @@ pub trait Service {
 
     #[zbus(signal)]
     fn rules_changed(&self) -> zbus::Result<()>;
+
+    /// Thunderbird's calendars.
+    fn list_calendars(&self) -> zbus::Result<Vec<CalendarDto>>;
+
+    /// Event occurrences between two RFC 3339 times (empty strings mean
+    /// now and 60 days ahead), from the last calendar reading.
+    fn list_events(&self, from: &str, to: &str) -> zbus::Result<Vec<EventDto>>;
+
+    /// Thunderbird's own tasks, from the last calendar reading.
+    fn list_calendar_tasks(&self) -> zbus::Result<Vec<CalendarTaskDto>>;
+
+    /// When the last calendar reading happened (RFC 3339), or empty.
+    fn calendar_read_at(&self) -> zbus::Result<String>;
+
+    #[zbus(signal)]
+    fn calendar_changed(&self) -> zbus::Result<()>;
 
     /// Conversations, most recently active first.
     fn list_conversations(&self) -> zbus::Result<Vec<ConversationDto>>;
