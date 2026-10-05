@@ -3,6 +3,7 @@
 //! Right now it opens its database, stays alive, logs to the journal, and
 //! shuts down cleanly when asked. Everything else arrives in later chunks.
 
+mod caldav;
 mod calendar;
 mod chat;
 mod dbus;
@@ -239,6 +240,8 @@ async fn run(db: Db) {
             calendar_state.clone(),
         ));
     }
+    // Thunderbird's view of our tasks: a loopback-only CalDAV calendar.
+    tokio::spawn(caldav::run(db.clone()));
     // Calendar: read at startup, on change, and checked every minute.
     tokio::spawn(calendar::run(calendar_state, bus.clone(), db.clone()));
     // Mail: scan Thunderbird's folders at startup and whenever they change.

@@ -571,6 +571,12 @@ impl Service {
     #[zbus(signal)]
     pub async fn show_conversation(emitter: &SignalEmitter<'_>, id: i64) -> zbus::Result<()>;
 
+    /// Address, user name, and password for subscribing Thunderbird to
+    /// the Belvedere calendar.
+    fn caldav_info(&self) -> fdo::Result<(String, String, String)> {
+        Ok(crate::caldav::connection_info(&self.db()))
+    }
+
     fn list_conversations(&self) -> fdo::Result<Vec<ConversationDto>> {
         let list = self.db().list_conversations().map_err(to_fdo)?;
         Ok(list.into_iter().map(ConversationDto::from).collect())
