@@ -29,7 +29,35 @@ pub struct Case {
     /// Standing rules in force, numbered from 1 in the order given.
     #[serde(default)]
     pub rules: Vec<String>,
+    /// Calendar events that exist.
+    #[serde(default)]
+    pub events: Vec<EventFixture>,
+    /// Emails that exist (for search and task sources).
+    #[serde(default)]
+    pub mail: Vec<MailFixture>,
     pub expect: Expect,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EventFixture {
+    pub title: String,
+    /// RFC 3339 with offset.
+    pub start: String,
+    pub end: String,
+    #[serde(default)]
+    pub all_day: bool,
+    #[serde(default)]
+    pub location: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MailFixture {
+    pub message_id: String,
+    pub from: String,
+    pub subject: String,
+    pub date: String,
+    #[serde(default)]
+    pub snippet: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +119,9 @@ pub struct TaskFixture {
     /// Account or invoice number, if the task has one.
     #[serde(default)]
     pub reference: String,
+    /// The message id of the email this task came from, if any.
+    #[serde(default)]
+    pub source_message_id: String,
 }
 
 fn open() -> String {
@@ -299,6 +330,8 @@ mod tests {
             input: Input::Chat { turns: vec![] },
             tasks: vec![],
             rules: vec![],
+            events: vec![],
+            mail: vec![],
             expect: Expect::default(),
         }
     }

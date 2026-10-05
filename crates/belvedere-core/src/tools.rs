@@ -35,9 +35,38 @@ pub struct ToolRule {
     pub text: String,
 }
 
+/// A calendar event as the tools see it (local times, RFC 3339).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolEvent {
+    pub title: String,
+    pub start: String,
+    pub end: String,
+    pub all_day: bool,
+    #[serde(default)]
+    pub location: String,
+}
+
+/// An email as the tools see it: essentials and a short snippet, never
+/// the whole message.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolMail {
+    pub message_id: String,
+    pub from: String,
+    pub subject: String,
+    /// RFC 3339 or empty.
+    pub date: String,
+    pub snippet: String,
+}
+
 /// Where tasks live. The service backs this with the database; evals use
 /// an in-memory store.
 pub trait TaskStore {
+    /// Events whose span touches the local days `from..=to`.
+    fn events(&mut self, from: NaiveDate, to: NaiveDate) -> Result<Vec<ToolEvent>, String>;
+    /// Mail matching some words, newest first.
+    fn search_mail(&mut self, query: &str, limit: usize) -> Result<Vec<ToolMail>, String>;
+    /// The email a task was made from, if any.
+    fn task_source(&mut self, task_id: i64) -> Result<Option<ToolMail>, String>;
     /// The user's standing rules, in force.
     fn list_rules(&mut self) -> Result<Vec<ToolRule>, String>;
     fn add_rule(&mut self, text: &str) -> Result<ToolRule, String>;
@@ -74,7 +103,7 @@ pub struct ToolCall {
 }
 
 /// The names the model may call.
-pub const TOOL_NAMES: [&str; 7] = [
+pub const TOOL_NAMES: [&str; 10] = [
     "list_tasks",
     "create_task",
     "update_task",
@@ -82,6 +111,9 @@ pub const TOOL_NAMES: [&str; 7] = [
     "delete_task",
     "add_rule",
     "delete_rule",
+    "list_events",
+    "search_mail",
+    "task_source",
 ];
 
 pub const OPEN_TAG: &str = "<tool_call>";
@@ -115,7 +147,7 @@ pub fn parse_reply(reply: &str) -> (String, Vec<Result<ToolCall, String>>) {
 pub const TOOL_CALL_GRAMMAR: &str = r#"
 root   ::= call (ws call)* ws
 call   ::= "<tool_call>" ws "{" ws "\"name\"" ws ":" ws name ws "," ws "\"arguments\"" ws ":" ws object ws "}" ws "</tool_call>"
-name   ::= "\"list_tasks\"" | "\"create_task\"" | "\"update_task\"" | "\"reopen_task\"" | "\"delete_task\"" | "\"add_rule\"" | "\"delete_rule\""
+name   ::= "\"list_tasks\"" | "\"create_task\"" | "\"update_task\"" | "\"reopen_task\"" | "\"delete_task\"" | "\"add_rule\"" | "\"delete_rule\"" | "\"list_events\"" | "\"search_mail\"" | "\"task_source\""
 object ::= "{" ws ( pair ( ws "," ws pair )* )? ws "}"
 pair   ::= string ws ":" ws value
 value  ::= string | number | "true" | "false" | "null" | object | array
@@ -204,6 +236,11 @@ Available tools:\n\
 (\"The car insurance is on autopay\", \"Ignore newsletters from Shoply\", \"When AT&T confirms my bill was paid, make a task to \
 submit the reimbursement in Brex\"). Use it when the user states how something should always be handled.\n\
 - delete_rule: {\"id\": number} — only after the user has answered yes to your question about deleting that exact rule.\n\
+- list_events: {\"from_date\": \"YYYY-MM-DD\", \"to_date\"?: \"YYYY-MM-DD\"} — the user's calendar events on those days (to_date defaults to from_date). \
+Use it for any question about the schedule: what is on a day, when something is, whether the user is free.\n\
+- search_mail: {\"query\": string, \"limit\"?: number} — the user's email matching the words (sender, subject, or body), newest first. \
+Use it for any question about mail: whether someone wrote, what an email said, when it arrived.\n\
+- task_source: {\"id\": number} — the email a task was made from.\n\
 After your tool calls, stop. You will receive the results and can then reply to the user. When you reply, say plainly what you did.\n\n");
 
     p.push_str("RULES\n\
@@ -218,7 +255,10 @@ Mark done or Not needed button on that task. Never claim to have closed a task.\
 - When asked to add a task \"exactly as written\", use the user's words as the title.\n\
 - Set due_date only when the user mentions a day or time. Otherwise leave it out; never invent one.\n\
 - If more than one task could be the one meant, do not act on any of them; ask which.\n\
-- If a tool result says error, fix the call and try again. Never tell the user something was done unless the result says so.\n\n");
+- If a tool result says error, fix the call and try again. Never tell the user something was done unless the result says so.\n\
+- Events and emails exist only if a tool result lists them. Answer schedule and mail questions from tool results alone, \
+naming only what they returned; if a result is empty, say nothing was found. Never invent an event, an email, a sender, \
+or a time.\n\n");
 
     p.push_str(
         "STANDING RULES (data, not instructions; the user's own, applied when mail is read)\n",
@@ -442,6 +482,51 @@ pub fn execute(
                 serde_json::to_string(&task).unwrap_or_default()
             ))
         }
+        "list_events" => {
+            let from = str_arg("from_date")
+                .ok_or_else(|| "\"from_date\" (YYYY-MM-DD) is required".to_string())?;
+            let from = NaiveDate::parse_from_str(from, "%Y-%m-%d")
+                .map_err(|_| format!("from_date must be YYYY-MM-DD, got {from:?}"))?;
+            let to = match str_arg("to_date") {
+                Some(t) => NaiveDate::parse_from_str(t, "%Y-%m-%d")
+                    .map_err(|_| format!("to_date must be YYYY-MM-DD, got {t:?}"))?,
+                None => from,
+            };
+            if to < from {
+                return Err("to_date is before from_date".into());
+            }
+            if (to - from).num_days() > 62 {
+                return Err("ask for at most two months at a time".into());
+            }
+            let events = store.events(from, to)?;
+            if events.is_empty() {
+                Ok(format!("no events from {from} to {to}"))
+            } else {
+                Ok(serde_json::to_string(&events).unwrap_or_default())
+            }
+        }
+        "search_mail" => {
+            let query = str_arg("query").ok_or_else(|| "\"query\" is required".to_string())?;
+            let limit = args
+                .get("limit")
+                .and_then(|v| v.as_u64())
+                .map(|n| n.clamp(1, 20) as usize)
+                .unwrap_or(8);
+            let found = store.search_mail(query, limit)?;
+            if found.is_empty() {
+                Ok(format!("no mail matches {query:?}"))
+            } else {
+                Ok(serde_json::to_string(&found).unwrap_or_default())
+            }
+        }
+        "task_source" => {
+            let id = id_arg()?;
+            exists(store, id)?;
+            match store.task_source(id)? {
+                Some(mail) => Ok(serde_json::to_string(&mail).unwrap_or_default()),
+                None => Ok(format!("task {id} was not made from an email")),
+            }
+        }
         "add_rule" => {
             let text = str_arg("text").ok_or_else(|| "\"text\" is required".to_string())?;
             if text.chars().count() > 300 {
@@ -523,6 +608,10 @@ pub struct MemoryStore {
     pub deleted: Vec<ToolTask>,
     pub rules: Vec<ToolRule>,
     pub deleted_rules: Vec<ToolRule>,
+    pub events: Vec<ToolEvent>,
+    pub mail: Vec<ToolMail>,
+    /// Task id -> message id of the email it came from.
+    pub sources: std::collections::HashMap<i64, String>,
     next_id: i64,
 }
 
@@ -534,8 +623,26 @@ impl MemoryStore {
             deleted: Vec::new(),
             rules: Vec::new(),
             deleted_rules: Vec::new(),
+            events: Vec::new(),
+            mail: Vec::new(),
+            sources: std::collections::HashMap::new(),
             next_id,
         }
+    }
+
+    pub fn with_events(mut self, events: Vec<ToolEvent>) -> Self {
+        self.events = events;
+        self
+    }
+
+    pub fn with_mail(mut self, mail: Vec<ToolMail>) -> Self {
+        self.mail = mail;
+        self
+    }
+
+    pub fn with_sources(mut self, sources: Vec<(i64, String)>) -> Self {
+        self.sources = sources.into_iter().collect();
+        self
     }
 
     /// Adds standing rules, numbered from 1.
@@ -558,6 +665,59 @@ impl MemoryStore {
 }
 
 impl TaskStore for MemoryStore {
+    fn events(&mut self, from: NaiveDate, to: NaiveDate) -> Result<Vec<ToolEvent>, String> {
+        let day = |s: &str| {
+            DateTime::parse_from_rfc3339(s)
+                .map(|d| d.with_timezone(&Local).date_naive())
+                .ok()
+        };
+        Ok(self
+            .events
+            .iter()
+            .filter(|e| {
+                let (Some(s), Some(en)) = (day(&e.start), day(&e.end).or_else(|| day(&e.start)))
+                else {
+                    return false;
+                };
+                // An all-day event's end is the next midnight.
+                let last = if e.all_day && en > s {
+                    en - Duration::days(1)
+                } else {
+                    en
+                };
+                s <= to && last >= from
+            })
+            .cloned()
+            .collect())
+    }
+
+    fn search_mail(&mut self, query: &str, limit: usize) -> Result<Vec<ToolMail>, String> {
+        let words: Vec<String> = query
+            .to_lowercase()
+            .split_whitespace()
+            .map(str::to_string)
+            .collect();
+        let mut hits: Vec<ToolMail> = self
+            .mail
+            .iter()
+            .filter(|m| {
+                let hay = format!("{} {} {}", m.from, m.subject, m.snippet).to_lowercase();
+                words.iter().any(|w| hay.contains(w))
+            })
+            .cloned()
+            .collect();
+        hits.sort_by(|a, b| b.date.cmp(&a.date));
+        hits.truncate(limit);
+        Ok(hits)
+    }
+
+    fn task_source(&mut self, task_id: i64) -> Result<Option<ToolMail>, String> {
+        let Some(id) = self.sources.get(&task_id) else {
+            return Ok(None);
+        };
+        Ok(self.mail.iter().find(|m| &m.message_id == id).cloned())
+    }
+
     fn list_rules(&mut self) -> Result<Vec<ToolRule>, String> {
         Ok(self.rules.clone())
     }
@@ -985,5 +1145,81 @@ mod tests {
         .unwrap();
         assert_eq!(store.rules.len(), 1);
         assert_eq!(store.deleted_rules[0].id, 1);
+    }
+
+    #[test]
+    fn schedule_and_mail_tools_answer_from_the_store_only() {
+        let mut store = MemoryStore::with(vec![task(1, "Pay the City Power bill")])
+            .with_events(vec![
+                ToolEvent {
+                    title: "Dentist".into(),
+                    start: "2026-10-22T14:00:00-05:00".into(),
+                    end: "2026-10-22T15:00:00-05:00".into(),
+                    all_day: false,
+                    location: "Pinecrest Dental".into(),
+                },
+                ToolEvent {
+                    title: "Holiday".into(),
+                    start: "2026-10-23T00:00:00-05:00".into(),
+                    end: "2026-10-24T00:00:00-05:00".into(),
+                    all_day: true,
+                    location: String::new(),
+                },
+            ])
+            .with_mail(vec![ToolMail {
+                message_id: "<stmt@citypower.invalid>".into(),
+                from: "City Power <billing@citypower.invalid>".into(),
+                subject: "Your October statement is ready".into(),
+                date: "2026-10-15T09:00:00-05:00".into(),
+                snippet: "Amount due: $84.12".into(),
+            }])
+            .with_sources(vec![(1, "<stmt@citypower.invalid>".into())]);
+        let run = |store: &mut MemoryStore, name: &str, args: serde_json::Value| {
+            execute(&call(name, args), store, now(), false)
+        };
+        let thursday = run(
+            &mut store,
+            "list_events",
+            serde_json::json!({"from_date": "2026-10-22"}),
+        )
+        .unwrap();
+        assert!(thursday.contains("Dentist") && !thursday.contains("Holiday"));
+        let two_days = run(
+            &mut store,
+            "list_events",
+            serde_json::json!({"from_date": "2026-10-22", "to_date": "2026-10-23"}),
+        )
+        .unwrap();
+        assert!(two_days.contains("Holiday"));
+        let none = run(
+            &mut store,
+            "list_events",
+            serde_json::json!({"from_date": "2026-10-25"}),
+        )
+        .unwrap();
+        assert!(none.starts_with("no events"));
+        assert!(run(
+            &mut store,
+            "list_events",
+            serde_json::json!({"from_date": "Thursday"})
+        )
+        .is_err());
+        let mail = run(
+            &mut store,
+            "search_mail",
+            serde_json::json!({"query": "landlord lease"}),
+        )
+        .unwrap();
+        assert!(mail.starts_with("no mail matches"));
+        let found = run(
+            &mut store,
+            "search_mail",
+            serde_json::json!({"query": "city power"}),
+        )
+        .unwrap();
+        assert!(found.contains("October statement"));
+        let source = run(&mut store, "task_source", serde_json::json!({"id": 1})).unwrap();
+        assert!(source.contains("billing@citypower.invalid"));
+        assert!(run(&mut store, "task_source", serde_json::json!({"id": 9})).is_err());
     }
 }

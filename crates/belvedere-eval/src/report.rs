@@ -295,6 +295,8 @@ mod tests {
             },
             tasks: vec![],
             rules: vec![],
+            events: vec![],
+            mail: vec![],
             expect: Expect {
                 created: vec![CreatedExpect {
                     title_contains: vec!["dentist".into()],
@@ -381,6 +383,8 @@ mod tests {
             },
             tasks: vec![],
             rules: vec![],
+            events: vec![],
+            mail: vec![],
             expect: Expect {
                 thread: Some(ThreadExpect { attach }),
                 ..Default::default()

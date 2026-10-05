@@ -183,6 +183,39 @@ impl Db {
         Ok(())
     }
 
+    /// Messages whose sender, subject, or text contains any of the words,
+    /// newest first.
+    pub fn search_mail(&self, query: &str, limit: usize) -> Result<Vec<MailMessage>> {
+        let words: Vec<String> = query
+            .split_whitespace()
+            .filter(|w| w.len() > 1)
+            .map(|w| format!("%{}%", w.replace(['%', '_'], "")))
+            .collect();
+        if words.is_empty() {
+            return Ok(Vec::new());
+        }
+        let clause = words
+            .iter()
+            .enumerate()
+            .map(|(i, _)| {
+                format!(
+                    "(subject LIKE ?{n} OR from_addr LIKE ?{n} OR from_name LIKE ?{n} OR body_text LIKE ?{n})",
+                    n = i + 1
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" OR ");
+        let sql = format!(
+            "SELECT {COLUMNS} FROM mail_messages WHERE {clause} ORDER BY date DESC, id DESC LIMIT {limit}"
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map(
+            rusqlite::params_from_iter(words.iter()),
+            MailMessage::from_row,
+        )?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
     pub fn mail_count(&self) -> Result<i64> {
         Ok(self
             .conn
