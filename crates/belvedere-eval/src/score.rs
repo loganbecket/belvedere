@@ -520,6 +520,7 @@ mod tests {
             rules: vec![],
             events: vec![],
             mail: vec![],
+            files: vec![],
             expect,
         }
     }

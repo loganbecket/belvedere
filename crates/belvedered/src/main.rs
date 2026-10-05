@@ -37,6 +37,10 @@ fn main() {
     if std::env::args().any(|arg| arg == "--list-calendar") {
         list_calendar_and_exit();
     }
+    if let Some(pos) = std::env::args().position(|arg| arg == "--find") {
+        let words = std::env::args().nth(pos + 1).unwrap_or_default();
+        find_and_exit(&words);
+    }
 
     init_logging();
 
@@ -95,6 +99,31 @@ fn list_mail_and_exit() -> ! {
             std::process::exit(1);
         }
     }
+}
+
+/// Debug aid: searches the home folder by name and prints the matches
+/// with how long it took and how many files were looked at.
+fn find_and_exit(words: &str) -> ! {
+    let home = std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_default();
+    let query = belvedere_core::files::Query {
+        name: words.to_string(),
+        ..Default::default()
+    };
+    let (found, stats) = belvedere_core::files::search(&home, &query, &[], 20);
+    for f in &found {
+        println!("{}  {} bytes  {}", f.path, f.size, f.modified);
+    }
+    println!(
+        "{} match(es); {} files in {} folders looked at, {} folders skipped, {} ms",
+        found.len(),
+        stats.files_seen,
+        stats.folders_entered,
+        stats.folders_skipped,
+        stats.elapsed_ms
+    );
+    std::process::exit(0);
 }
 
 /// Debug aid: prints the calendars and the next two weeks of events as

@@ -7,6 +7,7 @@ pub mod calendar;
 pub mod db;
 pub mod engine;
 pub mod extract;
+pub mod files;
 pub mod ipc;
 pub mod mail;
 pub mod matter;

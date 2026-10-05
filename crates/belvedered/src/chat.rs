@@ -112,6 +112,44 @@ fn to_tool_task(t: belvedere_core::db::Task) -> ToolTask {
 }
 
 impl TaskStore for DbStore {
+    fn find_files(
+        &mut self,
+        query: &belvedere_core::files::Query,
+        limit: usize,
+    ) -> Result<Vec<belvedere_core::tools::ToolFile>, String> {
+        let home = std::env::var_os("HOME")
+            .map(std::path::PathBuf::from)
+            .ok_or("no home folder")?;
+        let extra: Vec<String> = lock(&self.0)
+            .get_setting("file_search_excludes")
+            .ok()
+            .flatten()
+            .map(|v| {
+                v.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let (found, stats) = belvedere_core::files::search(&home, query, &extra, limit);
+        tracing::info!(
+            files = stats.files_seen,
+            folders = stats.folders_entered,
+            skipped = stats.folders_skipped,
+            millis = stats.elapsed_ms as u64,
+            found = found.len(),
+            "file search"
+        );
+        Ok(found
+            .into_iter()
+            .map(|f| belvedere_core::tools::ToolFile {
+                path: f.path,
+                size: f.size,
+                modified: f.modified,
+            })
+            .collect())
+    }
+
     fn events(
         &mut self,
         from: chrono::NaiveDate,

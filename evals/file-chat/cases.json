@@ -1,0 +1,2268 @@
+{
+  "name": "file-chat",
+  "cases": [
+    {
+      "id": "find-lease",
+      "kind": "name",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Find my lease."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "Oakridge lease 2026.pdf"
+        ],
+        "reply_lacks": [
+          "statement",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "find-lease-plural",
+      "kind": "name",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Where are my lease documents?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "Oakridge lease",
+          "addendum"
+        ],
+        "reply_lacks": [
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "pdf-yesterday",
+      "kind": "date",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What's the PDF I downloaded yesterday?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "statement-october.pdf"
+        ],
+        "reply_lacks": [
+          "invoice-8831",
+          "Oakridge",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "photo-yesterday",
+      "kind": "date",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Find the photo I took yesterday."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "photo-2026-10-19.jpg"
+        ],
+        "reply_lacks": [
+          "team-photo",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "tax-return",
+      "kind": "name",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Where's my 2025 tax return?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "2025 return.pdf"
+        ],
+        "reply_lacks": [
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "spreadsheets",
+      "kind": "kind",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "List my spreadsheets."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "roster.xlsx",
+          "JV schedule.xlsx"
+        ],
+        "reply_lacks": [
+          "resume",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "hockey-schedule",
+      "kind": "name",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Find the hockey schedule file."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "JV schedule.xlsx"
+        ],
+        "reply_lacks": [
+          "roster",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "resume",
+      "kind": "name",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Where is my resume?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "resume.docx"
+        ],
+        "reply_lacks": [
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "recipe",
+      "kind": "name",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Do I have a chili recipe somewhere?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "chili.md"
+        ],
+        "reply_lacks": [
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "big-video",
+      "kind": "kind",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Find video files bigger than 100 MB."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "game-highlights.mp4"
+        ],
+        "reply_lacks": [
+          "practice-mix",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "invoice",
+      "kind": "name",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Find the invoice PDF from last week."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "invoice-8831.pdf"
+        ],
+        "reply_lacks": [
+          "statement-october",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "warranty",
+      "kind": "name",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Do I have the dishwasher warranty?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "warranty-dishwasher.pdf"
+        ],
+        "reply_lacks": [
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "music",
+      "kind": "kind",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What music files do I have?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "practice-mix.mp3"
+        ],
+        "reply_lacks": [
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "today-files",
+      "kind": "date",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What files did I change today?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "todo.txt"
+        ],
+        "reply_lacks": [
+          "statement",
+          "photo-2026",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "images",
+      "kind": "kind",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Find my pictures."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "team-photo.jpg",
+          "photo-2026-10-19.jpg"
+        ],
+        "reply_lacks": [
+          "roster",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "docx",
+      "kind": "kind",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Find Word documents."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "lease addendum.docx",
+          "resume.docx"
+        ],
+        "reply_lacks": [
+          "return.pdf",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "nothing-mortgage",
+      "kind": "none",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Find my mortgage papers."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "no"
+        ],
+        "reply_lacks": [
+          "lease",
+          "return",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "nothing-passport",
+      "kind": "none",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Where's my passport scan?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "no"
+        ],
+        "reply_lacks": [
+          "photo",
+          "team",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "empty-home",
+      "kind": "none",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Find my lease."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "no"
+        ],
+        "reply_lacks": [
+          "Oakridge",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "downloads-last-week",
+      "kind": "date",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "What did I download between October 17 and 19?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "statement-october",
+          "invoice-8831",
+          "photo-2026-10-19"
+        ],
+        "reply_lacks": [
+          "Oakridge",
+          "return",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "small-text",
+      "kind": "kind",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Find text notes."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "chili.md",
+          "todo.txt"
+        ],
+        "reply_lacks": [
+          "resume",
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    },
+    {
+      "id": "hockey-anything",
+      "kind": "name",
+      "now": "2026-10-20T09:00:00-05:00",
+      "files": [
+        {
+          "path": "/home/someone/Documents/Leases/Oakridge lease 2026.pdf",
+          "size": 48000,
+          "modified": "2026-10-01T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Leases/lease addendum.docx",
+          "size": 22000,
+          "modified": "2026-10-02T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Taxes/2025 return.pdf",
+          "size": 310000,
+          "modified": "2026-10-03T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/statement-october.pdf",
+          "size": 20000,
+          "modified": "2026-10-19T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/invoice-8831.pdf",
+          "size": 15000,
+          "modified": "2026-10-18T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Downloads/photo-2026-10-19.jpg",
+          "size": 2400000,
+          "modified": "2026-10-19T17:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/team-photo.jpg",
+          "size": 5100000,
+          "modified": "2026-10-12T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Pictures/Hockey/roster.xlsx",
+          "size": 9000,
+          "modified": "2026-10-11T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Hockey/JV schedule.xlsx",
+          "size": 14000,
+          "modified": "2026-10-17T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/Recipes/chili.md",
+          "size": 3000,
+          "modified": "2026-10-05T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/resume.docx",
+          "size": 40000,
+          "modified": "2026-10-08T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Music/practice-mix.mp3",
+          "size": 7200000,
+          "modified": "2026-10-09T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Videos/game-highlights.mp4",
+          "size": 220000000,
+          "modified": "2026-10-14T10:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Development/notes/todo.txt",
+          "size": 800,
+          "modified": "2026-10-20T08:00:00-05:00"
+        },
+        {
+          "path": "/home/someone/Documents/warranty-dishwasher.pdf",
+          "size": 90000,
+          "modified": "2026-10-06T10:00:00-05:00"
+        }
+      ],
+      "input": {
+        "chat": {
+          "turns": [
+            {
+              "role": "user",
+              "content": "Anything with hockey in the name?"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "reply_contains": [
+          "team-photo",
+          "roster",
+          "JV schedule"
+        ],
+        "reply_lacks": [
+          "mortgage",
+          "passport",
+          "budget.xlsx",
+          "vacation.jpg",
+          "contract.pdf"
+        ],
+        "tasks_unchanged": true
+      }
+    }
+  ]
+}
