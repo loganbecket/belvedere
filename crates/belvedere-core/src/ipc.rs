@@ -130,6 +130,26 @@ pub struct SuggestionDto {
     pub created_at: String,
 }
 
+/// A standing rule as it crosses the bus.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct RuleDto {
+    pub id: i64,
+    pub text: String,
+    pub enabled: bool,
+    pub created_at: String,
+}
+
+impl From<crate::db::Rule> for RuleDto {
+    fn from(r: crate::db::Rule) -> Self {
+        RuleDto {
+            id: r.id,
+            text: r.text,
+            enabled: r.enabled,
+            created_at: r.created_at,
+        }
+    }
+}
+
 /// A chat conversation as it crosses the bus.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct ConversationDto {
@@ -306,6 +326,20 @@ pub trait Service {
     /// Fired when suggestions are added or resolved.
     #[zbus(signal)]
     fn suggestions_changed(&self) -> zbus::Result<()>;
+
+    /// The standing rules, disabled ones included.
+    fn list_rules(&self) -> zbus::Result<Vec<RuleDto>>;
+
+    fn create_rule(&self, text: &str) -> zbus::Result<RuleDto>;
+
+    /// Changes a rule's wording or switches it on or off.
+    fn update_rule(&self, id: i64, text: &str, enabled: bool) -> zbus::Result<RuleDto>;
+
+    /// Soft-deletes a rule.
+    fn delete_rule(&self, id: i64) -> zbus::Result<RuleDto>;
+
+    #[zbus(signal)]
+    fn rules_changed(&self) -> zbus::Result<()>;
 
     /// Conversations, most recently active first.
     fn list_conversations(&self) -> zbus::Result<Vec<ConversationDto>>;

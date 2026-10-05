@@ -26,6 +26,9 @@ pub struct Case {
     /// Tasks that exist before the input arrives.
     #[serde(default)]
     pub tasks: Vec<TaskFixture>,
+    /// Standing rules in force, numbered from 1 in the order given.
+    #[serde(default)]
+    pub rules: Vec<String>,
     pub expect: Expect,
 }
 
@@ -175,6 +178,20 @@ pub struct ExtractExpect {
     /// Words that must never appear in the title (injected instructions).
     #[serde(default)]
     pub title_lacks: Vec<String>,
+    /// Whether a standing rule must (true) or must not (false) have applied.
+    #[serde(default)]
+    pub rule_applied: Option<bool>,
+    #[serde(default)]
+    pub heads_up: Option<bool>,
+    /// Exactly this many further tasks in `also`.
+    #[serde(default)]
+    pub also_count: Option<usize>,
+    /// Each of these words appears in the main title or some further task.
+    #[serde(default)]
+    pub titles_contain: Vec<String>,
+    /// None of these words appear in any title.
+    #[serde(default)]
+    pub titles_lack: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -281,6 +298,7 @@ mod tests {
             now: now.into(),
             input: Input::Chat { turns: vec![] },
             tasks: vec![],
+            rules: vec![],
             expect: Expect::default(),
         }
     }

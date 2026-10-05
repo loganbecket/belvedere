@@ -9,7 +9,7 @@ use belvedere_core::db::{Db, Model, NewTask, Role, TaskStatus};
 use belvedere_core::engine::{self, Engine, State};
 use belvedere_core::ipc::OBJECT_PATH;
 use belvedere_core::model_ipc::ChatMessage;
-use belvedere_core::tools::{TaskStore, ToolTask};
+use belvedere_core::tools::{TaskStore, ToolRule, ToolTask};
 use chrono::Local;
 use tracing::{info, warn};
 use zbus::object_server::SignalEmitter;
@@ -96,6 +96,41 @@ fn to_tool_task(t: belvedere_core::db::Task) -> ToolTask {
 }
 
 impl TaskStore for DbStore {
+    fn list_rules(&mut self) -> Result<Vec<ToolRule>, String> {
+        lock(&self.0)
+            .list_rules()
+            .map(|v| {
+                v.into_iter()
+                    .filter(|r| r.enabled)
+                    .map(|r| ToolRule {
+                        id: r.id,
+                        text: r.text,
+                    })
+                    .collect()
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    fn add_rule(&mut self, text: &str) -> Result<ToolRule, String> {
+        lock(&self.0)
+            .create_rule(text)
+            .map(|r| ToolRule {
+                id: r.id,
+                text: r.text,
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    fn delete_rule(&mut self, id: i64) -> Result<ToolRule, String> {
+        lock(&self.0)
+            .delete_rule(id)
+            .map(|r| ToolRule {
+                id: r.id,
+                text: r.text,
+            })
+            .map_err(|e| e.to_string())
+    }
+
     fn list(&mut self) -> Result<Vec<ToolTask>, String> {
         lock(&self.0)
             .list_tasks()

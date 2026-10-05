@@ -112,7 +112,7 @@ impl AgentRunner {
             attachments: Vec::new(),
         };
         let use_grammar = std::env::var_os("BELVEDERE_EXTRACT_GRAMMAR").is_some();
-        let done = extract::extract(&self.engine, &email, now, use_grammar).await;
+        let done = extract::extract(&self.engine, &email, now, use_grammar, &case.rules).await;
         if std::env::var_os("BELVEDERE_EVAL_DEBUG").is_some() {
             eprintln!(
                 "--- {} ({} round(s), {:.1}s)\n    {:?}",
@@ -179,7 +179,7 @@ impl AgentRunner {
                 attachments: Vec::new(),
             };
             let use_grammar = std::env::var_os("BELVEDERE_EXTRACT_GRAMMAR").is_some();
-            let done = extract::extract(&self.engine, &email, now, use_grammar).await;
+            let done = extract::extract(&self.engine, &email, now, use_grammar, &case.rules).await;
             seconds += done.seconds;
             if let Some(err) = &done.error {
                 error = Some(format!("email {}: {err}", i + 1));
@@ -393,7 +393,7 @@ impl Runner for AgentRunner {
             }],
             Input::Thread { .. } => unreachable!("handled above"),
         };
-        let mut store = MemoryStore::with(fixtures_to_tasks(&case.tasks));
+        let mut store = MemoryStore::with(fixtures_to_tasks(&case.tasks)).with_rules(&case.rules);
         let turn = tokio::time::timeout(
             std::time::Duration::from_secs(600),
             agent::run_turn(

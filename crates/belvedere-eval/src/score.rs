@@ -244,6 +244,41 @@ fn check_extract(
             failures.push(format!("title {:?} must not contain {w:?}", got.title));
         }
     }
+    if let Some(want_rule) = want.rule_applied {
+        if got.rule_applied.is_some() != want_rule {
+            failures.push(format!(
+                "rule_applied should be {}, got {:?}",
+                if want_rule { "set" } else { "null" },
+                got.rule_applied
+            ));
+        }
+    }
+    if let Some(h) = want.heads_up {
+        if got.heads_up != h {
+            failures.push(format!("heads_up should be {h}, got {}", got.heads_up));
+        }
+    }
+    if let Some(n) = want.also_count {
+        if got.also.len() != n {
+            failures.push(format!(
+                "also should list {n} task(s), got {}",
+                got.also.len()
+            ));
+        }
+    }
+    let all_titles: Vec<&str> = std::iter::once(got.title.as_str())
+        .chain(got.also.iter().map(|a| a.title.as_str()))
+        .collect();
+    for w in &want.titles_contain {
+        if !all_titles.iter().any(|t| contains_ci(t, w)) {
+            failures.push(format!("no task title mentions {w:?}: {all_titles:?}"));
+        }
+    }
+    for w in &want.titles_lack {
+        if all_titles.iter().any(|t| contains_ci(t, w)) {
+            failures.push(format!("a task title mentions {w:?}: {all_titles:?}"));
+        }
+    }
 }
 
 fn check(case: &Case, outcome: &Outcome, failures: &mut Vec<String>) {
@@ -482,6 +517,7 @@ mod tests {
             now: "2026-10-20T09:00:00-05:00".into(),
             input: Input::Chat { turns: vec![] },
             tasks,
+            rules: vec![],
             expect,
         }
     }

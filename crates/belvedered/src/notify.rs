@@ -168,6 +168,35 @@ impl Notifier {
         Ok(id)
     }
 
+    /// A quiet mention with no task behind it (a bill a rule says is on
+    /// autopay). Low urgency, goes away on its own, no buttons.
+    pub async fn heads_up(
+        &mut self,
+        subject: Subject,
+        title: &str,
+        body: &str,
+    ) -> zbus::Result<u32> {
+        let mut hints: HashMap<&str, Value<'_>> = HashMap::new();
+        hints.insert("desktop-entry", Value::from("org.belvedere.Belvedere"));
+        hints.insert("urgency", Value::from(0u8));
+        let id = self
+            .proxy
+            .notify(
+                "Belvedere",
+                0,
+                "org.belvedere.Belvedere",
+                title,
+                body,
+                vec![],
+                hints,
+                15_000,
+            )
+            .await?;
+        self.open.insert(id, subject);
+        info!(notification = id, "heads-up shown");
+        Ok(id)
+    }
+
     /// Streams clicks on our notifications until the bus goes away.
     pub async fn clicks(&mut self) -> zbus::Result<ClickStream> {
         Ok(ClickStream {

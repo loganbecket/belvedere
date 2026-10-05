@@ -69,6 +69,16 @@ pub fn skipped_role(role: FolderRole) -> bool {
     )
 }
 
+/// The user's enabled rules, in the order the prompt numbers them.
+pub fn rules_in_force(db: &Db) -> Vec<String> {
+    db.list_rules()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|r| r.enabled)
+        .map(|r| r.text)
+        .collect()
+}
+
 /// The notes a mail-born task carries: who it is from and what it was about.
 pub fn task_notes(m: &MailMessage, e: &Extraction) -> String {
     let mut notes = String::new();
@@ -86,6 +96,9 @@ pub fn task_notes(m: &MailMessage, e: &Extraction) -> String {
     notes.push_str(&format!(": {}", m.subject));
     if let Some(a) = e.amount {
         notes.push_str(&format!("\nAmount: ${a:.2}"));
+    }
+    if let Some(n) = e.rule_applied {
+        notes.push_str(&format!("\nBy your rule #{n}"));
     }
     notes
 }
@@ -481,13 +494,42 @@ async fn process_pending(
             body: m.body_text.clone(),
             attachments: serde_json::from_str(&m.attachments).unwrap_or_default(),
         };
-        let done = extract::extract(engine, &email, Local::now(), false).await;
+        let rules = rules_in_force(&lock(db));
+        let done = extract::extract(engine, &email, Local::now(), false, &rules).await;
+        if let Some(n) = done.result.rule_applied {
+            info!(mail = m.id, rule = n, "a standing rule applied");
+        }
         if let Some(err) = &done.error {
             warn!(
                 mail = m.id,
                 "extraction failed: {err}; treating as nothing to do"
             );
         }
+        // A rule turned this into a quiet mention: say so, make nothing.
+        if done.result.heads_up {
+            if let Some(n) = notifier {
+                let body = match done.result.amount {
+                    Some(a) => format!("Heads-up from your mail: {} (${a:.2}).", m.subject.trim()),
+                    None => format!("Heads-up from your mail: {}.", m.subject.trim()),
+                };
+                let who = if m.from_name.is_empty() {
+                    m.from_addr.clone()
+                } else {
+                    m.from_name.clone()
+                };
+                let subject = Subject {
+                    task_id: 0,
+                    reminder_id: 0,
+                };
+                let shown = n.lock().await.heads_up(subject, &who, &body).await;
+                if let Err(err) = shown {
+                    warn!("could not show the heads-up: {err}");
+                }
+            }
+            let _ = lock(db).mark_mail_processed(m.id);
+            continue;
+        }
+
         // Proof that something got done closes the task it settles.
         if done.result.confirms_done {
             let settled = {
@@ -588,6 +630,21 @@ async fn process_pending(
             Decision::Nothing => {}
             Decision::Task(e) => {
                 let created = create_task_from_mail(&lock(db), &m, &e);
+                // A rule asking for several items: the rest, each its own task.
+                for extra in &e.also {
+                    let one = Extraction {
+                        title: extra.title.clone(),
+                        due_date: extra.due_date.clone(),
+                        due_time: extra.due_time.clone(),
+                        amount: None,
+                        also: Vec::new(),
+                        ..e.clone()
+                    };
+                    match create_task_from_mail(&lock(db), &m, &one) {
+                        Ok(t) => info!(task = t.id, mail = m.id, "further task from a rule"),
+                        Err(err) => warn!(mail = m.id, "could not create a further task: {err}"),
+                    }
+                }
                 match created {
                     Ok(task) => {
                         info!(
@@ -713,6 +770,9 @@ mod tests {
             from_whom: "City Power".into(),
             reference: Some("4471-02".into()),
             confirms_done: false,
+            rule_applied: None,
+            heads_up: false,
+            also: Vec::new(),
             confidence: conf,
         }
     }
@@ -899,6 +959,25 @@ mod tests {
             matter::find_completed(&incoming(&receipt, &proof), &candidates(&db)),
             None
         );
+    }
+
+    #[test]
+    fn only_enabled_undeleted_rules_are_in_force_and_deleting_one_removes_it() {
+        let db = Db::open_in_memory().unwrap();
+        let a = db.create_rule("The car insurance is on autopay.").unwrap();
+        let b = db.create_rule("Ignore newsletters from Shoply.").unwrap();
+        let c = db.create_rule("Old rule").unwrap();
+        db.update_rule(c.id, "Old rule", false).unwrap();
+        assert_eq!(
+            rules_in_force(&db),
+            [
+                "The car insurance is on autopay.",
+                "Ignore newsletters from Shoply."
+            ]
+        );
+        db.delete_rule(a.id).unwrap();
+        assert_eq!(rules_in_force(&db), ["Ignore newsletters from Shoply."]);
+        let _ = b;
     }
 
     #[test]
