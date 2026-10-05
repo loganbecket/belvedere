@@ -30,9 +30,6 @@ use crate::notify::{SharedNotifier, Subject};
 /// below it, a suggestion. Setting `extract_confidence_threshold`.
 pub const DEFAULT_THRESHOLD: f64 = 0.75;
 
-/// Days before the due date for the extra reminder on mail-born tasks.
-pub const LEAD_DAYS: i64 = 3;
-
 /// What to do with one message.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Decision {
@@ -56,17 +53,20 @@ pub fn decide(extraction: &Extraction, threshold: f64) -> Decision {
     }
 }
 
-/// Folders whose mail never becomes a task.
-pub fn skipped_role(role: FolderRole) -> bool {
-    matches!(
-        role,
-        FolderRole::Junk
-            | FolderRole::Trash
-            | FolderRole::Drafts
-            | FolderRole::Sent
-            | FolderRole::Outbox
-            | FolderRole::Templates
-    )
+/// Whether a role is in a comma-separated list of skipped roles (the
+/// `skipped_folder_roles` setting).
+pub fn skipped_role_in(role: FolderRole, list: &str) -> bool {
+    list.split(',')
+        .map(str::trim)
+        .any(|r| r.eq_ignore_ascii_case(role.as_str()))
+}
+
+/// The skipped roles as configured.
+pub fn skipped_roles(db: &Db) -> String {
+    db.get_setting("skipped_folder_roles")
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| "junk,trash,drafts,sent,outbox,templates".to_string())
 }
 
 /// The user's enabled rules, in the order the prompt numbers them.
@@ -111,7 +111,12 @@ fn lock(db: &SharedDb) -> std::sync::MutexGuard<'_, Db> {
 /// suggestion): task, link to the email, reminders including the lead.
 pub fn create_task_from_mail(db: &Db, m: &MailMessage, e: &Extraction) -> Result<Task, String> {
     let now = Local::now();
-    let due = due_from_parts(e.due_date.as_deref(), e.due_time.as_deref(), now)?;
+    let due = belvedere_core::tools::due_from_parts_with(
+        e.due_date.as_deref(),
+        e.due_time.as_deref(),
+        now,
+        schedule::default_due_time(db),
+    )?;
     let task = db
         .create_task(&NewTask {
             title: e.title.clone(),
@@ -129,7 +134,7 @@ pub fn create_task_from_mail(db: &Db, m: &MailMessage, e: &Extraction) -> Result
         )
         .map_err(|e| e.to_string())?;
     if let Some(due) = &due {
-        let plan = schedule::plan_reminders_with_lead(due, now, LEAD_DAYS);
+        let plan = schedule::plan_reminders_with_lead(due, now, schedule::lead_days(db));
         db.replace_task_reminders(task.id, &plan)
             .map_err(|e| e.to_string())?;
     }
@@ -336,7 +341,7 @@ Amount now: ${a:.2}"
         .map_err(|err| err.to_string())?;
     if followed.due_changed {
         if let Some(due) = &due {
-            let plan = schedule::plan_reminders_with_lead(due, now, LEAD_DAYS);
+            let plan = schedule::plan_reminders_with_lead(due, now, schedule::lead_days(db));
             db.replace_task_reminders(task.id, &plan)
                 .map_err(|err| err.to_string())?;
         }
@@ -452,10 +457,12 @@ async fn process_pending(
             .get(&(m.account.clone(), m.folder.clone()))
             .copied()
             .unwrap_or(FolderRole::Other);
-        if skipped_role(role) {
-            if role == FolderRole::Sent && !close_replied(&lock(db), &m).is_empty() {
-                announce_tasks(bus).await;
-            }
+        // Sent mail answers questions whether or not it is also read.
+        if role == FolderRole::Sent && !close_replied(&lock(db), &m).is_empty() {
+            announce_tasks(bus).await;
+        }
+        let skipped = skipped_role_in(role, &skipped_roles(&lock(db)));
+        if skipped {
             let _ = lock(db).mark_mail_processed(m.id);
             continue;
         }
@@ -772,6 +779,11 @@ pub fn open_thunderbird_with(args: &[&str]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The default skip list, as a predicate.
+    fn skipped_role(role: FolderRole) -> bool {
+        skipped_role_in(role, "junk,trash,drafts,sent,outbox,templates")
+    }
     use belvedere_core::db::NewMailMessage;
     use belvedere_core::extract::Kind;
 
@@ -995,6 +1007,19 @@ mod tests {
         db.delete_rule(a.id).unwrap();
         assert_eq!(rules_in_force(&db), ["Ignore newsletters from Shoply."]);
         let _ = b;
+    }
+
+    #[test]
+    fn skipped_folder_roles_follow_the_setting() {
+        assert!(skipped_role_in(FolderRole::Junk, "junk,trash"));
+        assert!(!skipped_role_in(FolderRole::Sent, "junk,trash"));
+        assert!(skipped_role_in(FolderRole::Archive, "Archive, junk"));
+        let db = Db::open_in_memory().unwrap();
+        assert!(skipped_roles(&db).contains("sent"), "default");
+        db.set_setting("skipped_folder_roles", "junk").unwrap();
+        assert_eq!(skipped_roles(&db), "junk");
+        db.set_setting("reminder_lead_days", "7").unwrap();
+        assert_eq!(schedule::lead_days(&db), 7);
     }
 
     #[test]

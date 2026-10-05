@@ -162,6 +162,19 @@ pub struct DownloadDto {
     pub error: String,
 }
 
+/// A setting as it crosses the bus.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct SettingDto {
+    pub key: String,
+    pub label: String,
+    pub help: String,
+    /// `bool`, `int`, `time`, `fraction`, `list`, `text`.
+    pub kind: String,
+    /// The current value (the default when unset).
+    pub value: String,
+    pub default: String,
+}
+
 /// A standing rule as it crosses the bus.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct RuleDto {
@@ -431,6 +444,19 @@ pub trait Service {
     /// Imports a GGUF file or a folder of them; `copy` puts copies in
     /// Belvedere's models folder, otherwise the files are used in place.
     fn import_model(&self, path: &str, copy: bool) -> zbus::Result<Vec<ModelDto>>;
+
+    /// Every user-facing setting with its current value.
+    fn list_settings(&self) -> zbus::Result<Vec<SettingDto>>;
+
+    /// Changes a setting (checked); an empty value restores the default.
+    fn set_setting(&self, key: &str, value: &str) -> zbus::Result<SettingDto>;
+
+    /// A new password for the Thunderbird calendar; the old one stops
+    /// working at once.
+    fn regenerate_caldav_password(&self) -> zbus::Result<String>;
+
+    #[zbus(signal)]
+    fn settings_changed(&self) -> zbus::Result<()>;
 
     /// (state, model name). State is `unloaded`, `loading`, `ready`, or
     /// `generating`.

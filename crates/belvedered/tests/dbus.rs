@@ -515,3 +515,83 @@ async fn imported_models_survive_a_restart_and_junk_is_refused() {
     assert_eq!(proxy.model_roles().await.unwrap().0, imported[0].id);
     stop(service).await;
 }
+
+/// Settings over the bus: listed with defaults, checked when set, back to
+/// default when cleared, and kept across a restart.
+#[tokio::test]
+async fn settings_are_checked_take_effect_and_survive_a_restart() {
+    let bus = Bus::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("belvedere.db");
+    let spawn = || bus.spawn_service(&db_path);
+    let service = spawn();
+    let conn = bus.connect().await;
+    let proxy = wait_ready(&conn).await;
+    let mut changes = proxy.receive_settings_changed().await.unwrap();
+
+    let all = proxy.list_settings().await.unwrap();
+    let sweep = all.iter().find(|s| s.key == "sweep_minutes").unwrap();
+    assert_eq!(
+        (
+            sweep.value.as_str(),
+            sweep.default.as_str(),
+            sweep.kind.as_str()
+        ),
+        ("5", "5", "int")
+    );
+    assert!(all
+        .iter()
+        .any(|s| s.key == "briefing_enabled" && s.value == "true"));
+
+    let set = proxy.set_setting("sweep_minutes", " 2 ").await.unwrap();
+    assert_eq!(set.value, "2");
+    assert!(timeout(Duration::from_secs(2), changes.next())
+        .await
+        .is_ok());
+    assert!(
+        proxy.set_setting("sweep_minutes", "0").await.is_err(),
+        "out of range"
+    );
+    assert!(proxy.set_setting("briefing_time", "25:61").await.is_err());
+    assert!(proxy.set_setting("not_a_setting", "1").await.is_err());
+    proxy.set_setting("briefing_enabled", "off").await.unwrap();
+    proxy
+        .set_setting("skipped_folder_roles", "Junk, Trash")
+        .await
+        .unwrap();
+    let password_before = proxy.caldav_info().await.unwrap().2;
+    let new_password = proxy.regenerate_caldav_password().await.unwrap();
+    assert_ne!(new_password, password_before);
+    assert_eq!(proxy.caldav_info().await.unwrap().2, new_password);
+
+    // Takes effect without a restart: the stored values are what the
+    // service reads on its next use.
+    {
+        let db = belvedere_core::db::Db::open(&db_path).unwrap();
+        assert_eq!(
+            db.get_setting("sweep_minutes").unwrap().as_deref(),
+            Some("2")
+        );
+        assert_eq!(
+            db.get_setting("skipped_folder_roles").unwrap().as_deref(),
+            Some("junk,trash")
+        );
+        assert_eq!(
+            db.get_setting("briefing_enabled").unwrap().as_deref(),
+            Some("false")
+        );
+    }
+
+    stop(service).await;
+    let service = spawn();
+    let proxy = wait_ready(&conn).await;
+    let after = proxy.list_settings().await.unwrap();
+    let get = |k: &str| after.iter().find(|s| s.key == k).unwrap().value.clone();
+    assert_eq!(get("sweep_minutes"), "2");
+    assert_eq!(get("briefing_enabled"), "false");
+    assert_eq!(get("skipped_folder_roles"), "junk,trash");
+    assert_eq!(proxy.caldav_info().await.unwrap().2, new_password);
+    let reset = proxy.set_setting("sweep_minutes", "").await.unwrap();
+    assert_eq!(reset.value, "5", "cleared means default");
+    stop(service).await;
+}

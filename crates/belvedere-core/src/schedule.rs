@@ -268,6 +268,26 @@ pub fn event_reminder_at(
     Some(at)
 }
 
+/// The lead reminder days a task made from mail gets: setting
+/// `reminder_lead_days`, default 3.
+pub fn lead_days(db: &crate::db::Db) -> i64 {
+    db.get_setting("reminder_lead_days")
+        .ok()
+        .flatten()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(3)
+}
+
+/// The time a dated task without a time is due: setting
+/// `default_due_time`, default 9:00.
+pub fn default_due_time(db: &crate::db::Db) -> NaiveTime {
+    db.get_setting("default_due_time")
+        .ok()
+        .flatten()
+        .and_then(|v| NaiveTime::parse_from_str(&v, "%H:%M").ok())
+        .unwrap_or(DEFAULT_DUE_TIME)
+}
+
 pub fn plan_reminders(due_rfc3339: &str, now: DateTime<Local>) -> Vec<String> {
     let Some(due) = parse_rfc3339(due_rfc3339) else {
         return Vec::new();

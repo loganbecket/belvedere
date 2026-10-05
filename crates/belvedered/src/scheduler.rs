@@ -11,7 +11,6 @@ use tracing::{error, info, warn};
 
 use crate::dbus::{Service, SharedDb};
 use crate::notify::{Action, Clicked, SharedNotifier, Signal, Subject};
-use crate::pipeline::LEAD_DAYS;
 
 /// How often to look for due reminders. The plan allows 10 seconds.
 pub fn tick_interval() -> Duration {
@@ -41,6 +40,14 @@ pub const DEFAULT_BRIEFING_TIME: &str = "08:00";
 fn briefing_due(db: &Db, now: chrono::DateTime<Local>) -> bool {
     // Tests that are not about the briefing turn it off.
     if std::env::var_os("BELVEDERE_NO_BRIEFING").is_some() {
+        return false;
+    }
+    if db
+        .get_setting("briefing_enabled")
+        .ok()
+        .flatten()
+        .is_some_and(|v| v == "false")
+    {
         return false;
     }
     let time = db
@@ -274,7 +281,7 @@ fn words_for(task_title: &str, reminder: &Reminder, late: bool) -> (String, Stri
 pub fn undo_close(db: &Db, task_id: i64) -> belvedere_core::db::Result<belvedere_core::db::Task> {
     let task = db.reopen_task(task_id)?;
     if let Some(due) = &task.due_at {
-        let plan = schedule::plan_reminders_with_lead(due, Local::now(), LEAD_DAYS);
+        let plan = schedule::plan_reminders_with_lead(due, Local::now(), schedule::lead_days(db));
         db.replace_task_reminders(task_id, &plan)?;
     }
     info!(task = task_id, "close undone; task reopened");
