@@ -20,8 +20,12 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
 zbus = { version = "5.19.0", default-features = false, features = ["tokio"] }
 notify = "8"
 libc = "0.2.190"
+ureq = "3.4.2"
+sha2 = "0.11.0"
 
 [dev-dependencies]
+sha2 = "0.11.0"
+belvedere-core = { workspace = true, features = ["fixtures"] }
 chrono = "0.4.45"
 futures-util = "0.3.34"
 rusqlite = { version = "0.40.2", features = ["bundled"] }

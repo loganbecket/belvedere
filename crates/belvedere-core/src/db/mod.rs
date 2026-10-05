@@ -6,6 +6,7 @@
 //! here except as a reference (a message ID, an event UID, a path).
 
 mod conversations;
+mod downloads;
 mod event_reminders;
 mod mail;
 mod migrations;
@@ -22,6 +23,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::Connection;
 
 pub use conversations::{Conversation, Message, Role};
+pub use downloads::Download;
 pub use event_reminders::{EventReminder, EventReminderPlan, Replanned};
 pub use mail::{MailMessage, MboxState, NewMailMessage};
 pub use models::{Model, ModelSource, NewModel};
