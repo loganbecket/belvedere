@@ -95,6 +95,7 @@ impl AgentRunner {
             subject,
             body,
             date,
+            attachments,
         } = &case.input
         else {
             return Outcome {
@@ -109,7 +110,12 @@ impl AgentRunner {
             subject: subject.clone(),
             date: date.clone(),
             body: body.clone(),
-            attachments: Vec::new(),
+            attachments: attachments.iter().map(|a| a.name.clone()).collect(),
+            attachment_text: attachments
+                .iter()
+                .map(|a| format!("--- attachment: {} ---\n{}", a.name, a.text))
+                .collect::<Vec<_>>()
+                .join("\n"),
         };
         let use_grammar = std::env::var_os("BELVEDERE_EXTRACT_GRAMMAR").is_some();
         let done = extract::extract(&self.engine, &email, now, use_grammar, &case.rules).await;
@@ -177,6 +183,7 @@ impl AgentRunner {
                 date: e.date.clone(),
                 body: e.body.clone(),
                 attachments: Vec::new(),
+                attachment_text: String::new(),
             };
             let use_grammar = std::env::var_os("BELVEDERE_EXTRACT_GRAMMAR").is_some();
             let done = extract::extract(&self.engine, &email, now, use_grammar, &case.rules).await;
@@ -385,6 +392,7 @@ impl Runner for AgentRunner {
                 subject,
                 body,
                 date,
+                ..
             } => vec![ChatMessage {
                 role: "user".into(),
                 content: format!(

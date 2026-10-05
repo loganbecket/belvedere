@@ -87,9 +87,19 @@ pub enum Input {
         body: String,
         #[serde(default)]
         date: String,
+        /// PDF attachments, as the text Belvedere would read from them.
+        #[serde(default)]
+        attachments: Vec<AttachmentFixture>,
     },
     /// Several emails arriving in order, about one or more matters.
     Thread { emails: Vec<EmailFixture> },
+}
+
+/// A PDF attachment on an email case: its name and its text.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttachmentFixture {
+    pub name: String,
+    pub text: String,
 }
 
 /// One email in a thread case.

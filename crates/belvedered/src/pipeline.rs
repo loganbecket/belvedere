@@ -493,6 +493,7 @@ async fn process_pending(
             date: m.date.clone(),
             body: m.body_text.clone(),
             attachments: serde_json::from_str(&m.attachments).unwrap_or_default(),
+            attachment_text: m.attachment_text.clone(),
         };
         let rules = rules_in_force(&lock(db));
         let done = extract::extract(engine, &email, Local::now(), false, &rules).await;
@@ -810,6 +811,7 @@ mod tests {
             seen_at: "2026-10-15T14:00:00.000Z".into(),
             processed_at: None,
             replies_to: String::new(),
+            attachment_text: String::new(),
         }
     }
 
