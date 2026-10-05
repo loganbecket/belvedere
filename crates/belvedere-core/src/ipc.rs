@@ -437,6 +437,9 @@ pub trait Service {
     /// the Belvedere calendar.
     fn caldav_info(&self) -> zbus::Result<(String, String, String)>;
 
+    /// Opens Thunderbird on its calendar and tasks view.
+    fn open_thunderbird_calendar(&self) -> zbus::Result<()>;
+
     /// Conversations, most recently active first.
     fn list_conversations(&self) -> zbus::Result<Vec<ConversationDto>>;
 
@@ -511,6 +514,7 @@ mod tests {
             deleted_at: None,
             kind: String::new(),
             reference: String::new(),
+            caldav_name: String::new(),
         };
         let dto = TaskDto::from(task);
         assert_eq!(dto.source_kind, "");

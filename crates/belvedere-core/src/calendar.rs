@@ -33,6 +33,16 @@ pub struct Calendar {
     pub cached: bool,
     /// Thunderbird is set not to show this calendar's alarms.
     pub alarms_suppressed: bool,
+    /// Where a network calendar lives, or empty.
+    pub uri: String,
+}
+
+impl Calendar {
+    /// Whether this is Thunderbird's subscription to Belvedere's own
+    /// calendar (its tasks are Belvedere's, not Thunderbird's).
+    pub fn is_belvedere(&self) -> bool {
+        self.uri.contains("127.0.0.1") && self.uri.contains("/calendars/belvedere/")
+    }
 }
 
 /// One occurrence of an event.
@@ -195,6 +205,7 @@ pub fn calendars(profile: &Path) -> std::io::Result<Vec<Calendar>> {
             cached: b(&format!("calendar.registry.{id}.cache.enabled")).unwrap_or(false),
             alarms_suppressed: b(&format!("calendar.registry.{id}.suppressAlarms"))
                 .unwrap_or(false),
+            uri: s(&format!("calendar.registry.{id}.uri")).unwrap_or_default(),
             id,
         })
         .collect())

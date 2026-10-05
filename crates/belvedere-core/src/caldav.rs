@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 
 use crate::db::{Task, TaskStatus};
 
@@ -28,11 +28,21 @@ pub struct Item {
 
 impl Item {
     pub fn uid(&self) -> String {
-        format!("belvedere-task-{}@belvedere", self.task.id)
+        if self.task.caldav_name.is_empty() {
+            format!("belvedere-task-{}@belvedere", self.task.id)
+        } else {
+            self.task.caldav_name.clone()
+        }
+    }
+
+    /// The resource name (without `.ics`): the uid for tasks made here,
+    /// or the name Thunderbird chose.
+    pub fn name(&self) -> String {
+        self.uid()
     }
 
     pub fn href(&self) -> String {
-        format!("{CALENDAR}{}.ics", self.uid())
+        format!("{CALENDAR}{}.ics", self.name())
     }
 
     /// Changes whenever the task does.
@@ -230,14 +240,23 @@ impl Response {
         Self::new(status, String::new(), "text/plain")
     }
 
+    /// A plain-text response.
+    pub fn new_text(status: u16, text: &str) -> Self {
+        Self::new(status, format!("{text}\n"), "text/plain")
+    }
+
     pub fn reason(&self) -> &'static str {
         match self.status {
             200 => "OK",
             207 => "Multi-Status",
             401 => "Unauthorized",
             403 => "Forbidden",
+            201 => "Created",
+            204 => "No Content",
             404 => "Not Found",
             405 => "Method Not Allowed",
+            415 => "Unsupported Media Type",
+            500 => "Internal Server Error",
             _ => "OK",
         }
     }
@@ -368,7 +387,7 @@ fn home_props() -> String {
 
 fn calendar_props(items: &[Item]) -> String {
     format!(
-        "<D:resourcetype><D:collection/><C:calendar/></D:resourcetype><D:displayname>{CALENDAR_NAME}</D:displayname><C:calendar-description>Belvedere's tasks</C:calendar-description><C:supported-calendar-component-set><C:comp name=\"VTODO\"/></C:supported-calendar-component-set><CS:getctag>{ctag}</CS:getctag><D:sync-token>belvedere-sync-{token}</D:sync-token><D:current-user-principal><D:href>{PRINCIPAL}</D:href></D:current-user-principal><D:owner><D:href>{PRINCIPAL}</D:href></D:owner><D:current-user-privilege-set><D:privilege><D:read/></D:privilege></D:current-user-privilege-set><D:getcontenttype>text/calendar</D:getcontenttype>",
+        "<D:resourcetype><D:collection/><C:calendar/></D:resourcetype><D:displayname>{CALENDAR_NAME}</D:displayname><C:calendar-description>Belvedere's tasks</C:calendar-description><C:supported-calendar-component-set><C:comp name=\"VTODO\"/></C:supported-calendar-component-set><CS:getctag>{ctag}</CS:getctag><D:sync-token>belvedere-sync-{token}</D:sync-token><D:current-user-principal><D:href>{PRINCIPAL}</D:href></D:current-user-principal><D:owner><D:href>{PRINCIPAL}</D:href></D:owner><D:current-user-privilege-set><D:privilege><D:read/></D:privilege><D:privilege><D:write/></D:privilege><D:privilege><D:write-content/></D:privilege><D:privilege><D:bind/></D:privilege><D:privilege><D:unbind/></D:privilege></D:current-user-privilege-set><D:getcontenttype>text/calendar</D:getcontenttype>",
         ctag = xml_escape(&ctag(items)),
         token = ctag(items).trim_matches('"')
     )
@@ -391,9 +410,250 @@ fn item_props(item: &Item, with_data: bool) -> String {
 
 /// The item a path names, if any.
 fn item_at<'a>(path: &str, items: &'a [Item]) -> Option<&'a Item> {
+    let name = resource_name(path)?;
+    items.iter().find(|i| i.name() == name)
+}
+
+/// The resource name a calendar item path carries.
+pub fn resource_name(path: &str) -> Option<String> {
     let name = path.strip_prefix(CALENDAR)?;
-    let uid = name.strip_suffix(".ics")?;
-    items.iter().find(|i| i.uid() == uid)
+    let name = name.strip_suffix(".ics")?;
+    (!name.is_empty() && !name.contains('/')).then(|| percent_decode(name))
+}
+
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(v) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
+                out.push(v);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// What a client's VTODO says.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct IncomingTodo {
+    pub uid: String,
+    pub title: String,
+    pub notes: String,
+    /// RFC 3339 UTC, or `None`.
+    pub due_at: Option<String>,
+    /// `open`, `done`, or `dismissed`.
+    pub status: String,
+    /// RFC 3339 UTC, when the client says when it last changed it.
+    pub last_modified: Option<String>,
+}
+
+fn unfold(text: &str) -> String {
+    text.replace("\r\n ", "")
+        .replace("\n ", "")
+        .replace("\r\n\t", "")
+        .replace("\n\t", "")
+}
+
+fn unescape(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            match chars.next() {
+                Some('n') | Some('N') => out.push('\n'),
+                Some(other) => out.push(other),
+                None => {}
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// Reads an iCalendar time: `20261031T140000Z`, `20261031T140000` with a
+/// TZID parameter, or a bare date.
+fn parse_ical_time(params: &str, value: &str) -> Option<String> {
+    let v = value.trim();
+    if let Some(naive) = v
+        .strip_suffix('Z')
+        .and_then(|s| chrono::NaiveDateTime::parse_from_str(s, "%Y%m%dT%H%M%S").ok())
+    {
+        return Some(
+            Utc.from_utc_datetime(&naive)
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        );
+    }
+    if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(v, "%Y%m%dT%H%M%S") {
+        let tz_name = params
+            .split(';')
+            .find_map(|p| p.strip_prefix("TZID="))
+            .unwrap_or("");
+        let in_utc = match tz_name.parse::<chrono_tz::Tz>() {
+            Ok(tz) => tz
+                .from_local_datetime(&naive)
+                .earliest()
+                .map(|d| d.with_timezone(&Utc)),
+            Err(_) => chrono::Local
+                .from_local_datetime(&naive)
+                .earliest()
+                .map(|d| d.with_timezone(&Utc)),
+        }?;
+        return Some(in_utc.to_rfc3339_opts(chrono::SecondsFormat::Millis, true));
+    }
+    if let Ok(day) = chrono::NaiveDate::parse_from_str(v, "%Y%m%d") {
+        // A date-only due: the default due time, locally.
+        let at = day.and_time(crate::schedule::DEFAULT_DUE_TIME);
+        return chrono::Local.from_local_datetime(&at).earliest().map(|d| {
+            d.with_timezone(&Utc)
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+        });
+    }
+    None
+}
+
+/// Reads the first VTODO in an iCalendar text.
+pub fn parse_vtodo(text: &str) -> Option<IncomingTodo> {
+    let text = unfold(text);
+    let mut inside = false;
+    let mut todo = IncomingTodo {
+        status: "open".into(),
+        ..Default::default()
+    };
+    let mut seen = false;
+    for line in text.lines() {
+        let line = line.trim_end_matches('\r');
+        if line == "BEGIN:VTODO" {
+            inside = true;
+            seen = true;
+            continue;
+        }
+        if line == "END:VTODO" {
+            break;
+        }
+        if !inside {
+            continue;
+        }
+        let Some((head, value)) = line.split_once(':') else {
+            continue;
+        };
+        let (name, params) = match head.split_once(';') {
+            Some((n, p)) => (n.to_ascii_uppercase(), p.to_string()),
+            None => (head.to_ascii_uppercase(), String::new()),
+        };
+        match name.as_str() {
+            "UID" => todo.uid = value.trim().to_string(),
+            "SUMMARY" => todo.title = unescape(value.trim()),
+            "DESCRIPTION" => todo.notes = unescape(value.trim()),
+            "DUE" => todo.due_at = parse_ical_time(&params, value),
+            "LAST-MODIFIED" => todo.last_modified = parse_ical_time(&params, value),
+            "STATUS" => {
+                todo.status = match value.trim().to_ascii_uppercase().as_str() {
+                    "COMPLETED" => "done",
+                    "CANCELLED" => "dismissed",
+                    _ => "open",
+                }
+                .into()
+            }
+            "PERCENT-COMPLETE" => {
+                if value.trim() == "100" && todo.status == "open" {
+                    todo.status = "done".into();
+                }
+            }
+            _ => {}
+        }
+    }
+    if !seen {
+        return None;
+    }
+    if todo.title.trim().is_empty() {
+        todo.title = "Untitled task".into();
+    }
+    Some(todo)
+}
+
+/// A change a client asked for, for the service to carry out.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Write {
+    /// PUT: create or replace the item at this resource name.
+    Put {
+        name: String,
+        todo: IncomingTodo,
+        /// The ETag the client thinks is current, if it said.
+        if_match: Option<String>,
+    },
+    /// DELETE this resource name.
+    Delete {
+        name: String,
+        if_match: Option<String>,
+    },
+}
+
+/// Recognizes a write the client wants, after the password check.
+/// Everything else goes through `handle`.
+pub fn write_request(req: &Request, password: &str) -> Option<Result<Write, Response>> {
+    let method = req.method.to_ascii_uppercase();
+    if method != "PUT" && method != "DELETE" {
+        return None;
+    }
+    if !authorized(req, password) {
+        let mut r = Response::new(401, "Belvedere: password required.\n".into(), "text/plain");
+        r.headers.push((
+            "WWW-Authenticate".into(),
+            "Basic realm=\"Belvedere\"".into(),
+        ));
+        return Some(Err(r));
+    }
+    let Some(name) = resource_name(&req.path) else {
+        return Some(Err(Response::empty(403)));
+    };
+    let if_match = req
+        .header("if-match")
+        .map(|v| v.trim().to_string())
+        .filter(|v| v != "*");
+    if method == "DELETE" {
+        return Some(Ok(Write::Delete { name, if_match }));
+    }
+    match parse_vtodo(&req.body) {
+        Some(todo) => Some(Ok(Write::Put {
+            name,
+            todo,
+            if_match,
+        })),
+        None => Some(Err(Response::new(
+            415,
+            "Belvedere's calendar holds tasks (VTODO) only.\n".into(),
+            "text/plain",
+        ))),
+    }
+}
+
+/// The response to a write that went through, with the item's new tag.
+pub fn written(status: u16, etag: Option<&str>) -> Response {
+    let mut r = Response::empty(status);
+    if let Some(e) = etag {
+        r.headers.push(("ETag".into(), e.to_string()));
+    }
+    r
+}
+
+/// Who wins when both sides changed the same task: the more recent change.
+/// `theirs` is the client's LAST-MODIFIED; `ours` the task's updated_at.
+pub fn client_wins(theirs: Option<&str>, ours: &str) -> bool {
+    match theirs.and_then(|t| DateTime::parse_from_rfc3339(t).ok()) {
+        Some(t) => match DateTime::parse_from_rfc3339(ours) {
+            Ok(o) => t >= o,
+            Err(_) => true,
+        },
+        // No timestamp from the client: the request itself is the newest thing.
+        None => true,
+    }
 }
 
 /// Hrefs named in a REPORT body.
@@ -421,7 +681,7 @@ pub fn handle(req: &Request, password: &str, items: &[Item]) -> Response {
         let mut r = Response::empty(200);
         r.headers.push((
             "Allow".into(),
-            "OPTIONS, GET, HEAD, PROPFIND, REPORT".into(),
+            "OPTIONS, GET, HEAD, PROPFIND, REPORT, PUT, DELETE".into(),
         ));
         return r;
     }
@@ -533,14 +793,16 @@ pub fn handle(req: &Request, password: &str, items: &[Item]) -> Response {
             }
             None => Response::empty(404),
         },
-        "PUT" | "DELETE" | "MKCALENDAR" | "MKCOL" | "PROPPATCH" | "MOVE" | "COPY" => {
-            // Read-only until two-way sync lands.
+        "MKCALENDAR" | "MKCOL" | "PROPPATCH" | "MOVE" | "COPY" => {
+            // One calendar, fixed properties.
             Response::new(
                 403,
-                "Belvedere's calendar is read-only for now.\n".into(),
+                "Belvedere has one calendar with fixed properties.\n".into(),
                 "text/plain",
             )
         }
+        // PUT and DELETE are handled by the service through `write_request`.
+        "PUT" | "DELETE" => Response::empty(403),
         _ => Response::empty(405),
     }
 }
@@ -574,6 +836,7 @@ mod tests {
             deleted_at: None,
             kind: "bill".into(),
             reference: String::new(),
+            caldav_name: String::new(),
         }
     }
 
@@ -815,5 +1078,43 @@ mod tests {
         );
         assert_eq!(base64_encode("ab"), "YWI=");
         assert_eq!(generate_password().unwrap().len(), 24);
+    }
+
+    #[test]
+    fn a_clients_vtodo_is_read_with_times_status_and_escapes() {
+        let text = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:abc-123\r\nSUMMARY:Call the dentist\\, soon\r\nDESCRIPTION:Line one\\nLine two\r\n  continued\r\nDUE;TZID=America/Chicago:20261031T090000\r\nLAST-MODIFIED:20261020T120000Z\r\nSTATUS:NEEDS-ACTION\r\nEND:VTODO\r\nEND:VCALENDAR\r\n";
+        let t = parse_vtodo(text).unwrap();
+        assert_eq!(t.uid, "abc-123");
+        assert_eq!(t.title, "Call the dentist, soon");
+        assert_eq!(t.notes, "Line one\nLine two continued");
+        assert_eq!(t.due_at.as_deref(), Some("2026-10-31T14:00:00.000Z"));
+        assert_eq!(t.last_modified.as_deref(), Some("2026-10-20T12:00:00.000Z"));
+        assert_eq!(t.status, "open");
+        let done =
+            parse_vtodo("BEGIN:VTODO\nUID:d\nSUMMARY:x\nSTATUS:COMPLETED\nDUE:20261101\nEND:VTODO")
+                .unwrap();
+        assert_eq!(done.status, "done");
+        assert!(
+            done.due_at.is_some(),
+            "a bare date gets the default due time"
+        );
+        let pct =
+            parse_vtodo("BEGIN:VTODO\nUID:p\nSUMMARY:x\nPERCENT-COMPLETE:100\nEND:VTODO").unwrap();
+        assert_eq!(pct.status, "done");
+        assert!(parse_vtodo("BEGIN:VEVENT\nSUMMARY:no\nEND:VEVENT").is_none());
+        assert!(client_wins(
+            Some("2026-10-20T12:00:00Z"),
+            "2026-10-20T11:59:59.000Z"
+        ));
+        assert!(!client_wins(
+            Some("2026-10-20T12:00:00Z"),
+            "2026-10-20T12:00:01.000Z"
+        ));
+        assert!(client_wins(None, "2026-10-20T12:00:01.000Z"));
+        assert_eq!(
+            resource_name(&format!("{CALENDAR}a%20b.ics")).as_deref(),
+            Some("a b")
+        );
+        assert_eq!(resource_name(CALENDAR), None);
     }
 }

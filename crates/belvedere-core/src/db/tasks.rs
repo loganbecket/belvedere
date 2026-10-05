@@ -52,6 +52,9 @@ pub struct Task {
     pub kind: String,
     /// The account, invoice, or policy number it concerns, or empty.
     pub reference: String,
+    /// The resource name Thunderbird used when it created the task on the
+    /// Belvedere calendar (without `.ics`), or empty for tasks made here.
+    pub caldav_name: String,
 }
 
 /// What a caller supplies to create a task; everything else is derived.
@@ -77,11 +80,12 @@ impl Task {
             deleted_at: row.get("deleted_at")?,
             kind: row.get("kind")?,
             reference: row.get("reference")?,
+            caldav_name: row.get("caldav_name")?,
         })
     }
 }
 
-const COLUMNS: &str = "id, title, notes, due_at, status, dismiss_reason, created_at, updated_at, completed_at, deleted_at, kind, reference";
+const COLUMNS: &str = "id, title, notes, due_at, status, dismiss_reason, created_at, updated_at, completed_at, deleted_at, kind, reference, caldav_name";
 
 impl Db {
     pub fn create_task(&self, new: &NewTask) -> Result<Task> {
@@ -162,6 +166,30 @@ impl Db {
             return Err(DbError::NotFound(id));
         }
         self.get_task(id)
+    }
+
+    /// Records the name Thunderbird gave a task it created.
+    pub fn set_task_caldav_name(&self, id: i64, name: &str) -> Result<Task> {
+        let changed = self.conn.execute(
+            "UPDATE tasks SET caldav_name = ?2 WHERE id = ?1",
+            params![id, name],
+        )?;
+        if changed == 0 {
+            return Err(DbError::NotFound(id));
+        }
+        self.get_task(id)
+    }
+
+    /// The task Thunderbird knows by this resource name, deleted or not.
+    pub fn task_by_caldav_name(&self, name: &str) -> Result<Option<Task>> {
+        Ok(self
+            .conn
+            .query_row(
+                &format!("SELECT {COLUMNS} FROM tasks WHERE caldav_name = ?1"),
+                [name],
+                Task::from_row,
+            )
+            .optional()?)
     }
 
     pub fn complete_task(&self, id: i64) -> Result<Task> {

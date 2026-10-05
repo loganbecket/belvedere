@@ -241,7 +241,7 @@ async fn run(db: Db) {
         ));
     }
     // Thunderbird's view of our tasks: a loopback-only CalDAV calendar.
-    tokio::spawn(caldav::run(db.clone()));
+    tokio::spawn(caldav::run(db.clone(), bus.clone()));
     // Calendar: read at startup, on change, and checked every minute.
     tokio::spawn(calendar::run(calendar_state, bus.clone(), db.clone()));
     // Mail: scan Thunderbird's folders at startup and whenever they change.
