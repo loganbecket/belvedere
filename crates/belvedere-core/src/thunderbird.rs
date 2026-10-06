@@ -303,6 +303,46 @@ pub struct Account {
     pub folders: Vec<Folder>,
 }
 
+/// One of the user's own sending identities.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Identity {
+    pub name: String,
+    /// Lowercase.
+    pub email: String,
+}
+
+/// The names and addresses the user sends mail as, from `prefs.js`.
+pub fn identities(profile: &Path) -> Vec<Identity> {
+    let Ok(text) = std::fs::read_to_string(profile.join("prefs.js")) else {
+        return Vec::new();
+    };
+    let prefs = parse_prefs(&text);
+    let mut out: Vec<Identity> = Vec::new();
+    for (key, value) in &prefs {
+        let Some(id) = key
+            .strip_prefix("mail.identity.")
+            .and_then(|r| r.strip_suffix(".useremail"))
+        else {
+            continue;
+        };
+        let Some(email) = value.as_str().map(|e| e.trim().to_lowercase()) else {
+            continue;
+        };
+        if email.is_empty() || out.iter().any(|i| i.email == email) {
+            continue;
+        }
+        let name = prefs
+            .get(&format!("mail.identity.{id}.fullName"))
+            .and_then(Pref::as_str)
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        out.push(Identity { name, email });
+    }
+    out.sort_by(|a, b| a.email.cmp(&b.email));
+    out
+}
+
 /// Lists every account in `profile` with every folder, roles included.
 pub fn accounts(profile: &Path) -> std::io::Result<Vec<Account>> {
     let prefs = parse_prefs(&std::fs::read_to_string(profile.join("prefs.js"))?);
@@ -486,6 +526,27 @@ impl Snapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn identities_come_from_prefs_once_each() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("prefs.js"),
+            r#"user_pref("mail.identity.id1.useremail", "Someone@Example.invalid");
+user_pref("mail.identity.id1.fullName", "Some One");
+user_pref("mail.identity.id2.useremail", "someone@example.invalid");
+user_pref("mail.identity.id3.useremail", "work@example.invalid");
+user_pref("mail.identity.id3.fullName", "Some One");
+"#,
+        )
+        .unwrap();
+        let ids = identities(dir.path());
+        assert_eq!(ids.len(), 2);
+        assert_eq!(ids[0].email, "someone@example.invalid");
+        assert_eq!(ids[1].email, "work@example.invalid");
+        assert_eq!(ids[1].name, "Some One");
+        assert!(identities(&dir.path().join("missing")).is_empty());
+    }
 
     #[test]
     fn prefs_parse_strings_ints_bools_and_escapes() {

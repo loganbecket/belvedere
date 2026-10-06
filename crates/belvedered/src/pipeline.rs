@@ -69,6 +69,40 @@ pub fn skipped_roles(db: &Db) -> String {
         .unwrap_or_else(|| "junk,trash,drafts,sent,outbox,templates".to_string())
 }
 
+/// Whether an address is one of the user's own.
+pub fn is_own(own: &[thunderbird::Identity], addr: &str) -> bool {
+    let a = addr.trim().to_lowercase();
+    !a.is_empty() && own.iter().any(|i| i.email == a)
+}
+
+/// Whether every recipient is one of the user's own addresses.
+pub fn note_to_self(own: &[thunderbird::Identity], to_addrs: &str) -> bool {
+    let to: Vec<&str> = to_addrs
+        .split(',')
+        .map(str::trim)
+        .filter(|a| !a.is_empty())
+        .collect();
+    !to.is_empty() && to.iter().all(|a| is_own(own, a))
+}
+
+/// Whether a date (`YYYY-MM-DD`) is before today.
+pub fn is_past(due_date: Option<&str>, now: chrono::DateTime<Local>) -> bool {
+    due_date
+        .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
+        .is_some_and(|d| d < now.date_naive())
+}
+
+/// Whether a task from this email would be stale on arrival: its date has
+/// passed and the email is not new (more than two days old), as happens
+/// when a first read goes back through two weeks of mail. A fresh notice
+/// that something is already overdue still becomes a task.
+pub fn stale(m: &MailMessage, due_date: Option<&str>, now: chrono::DateTime<Local>) -> bool {
+    let old_mail = chrono::DateTime::parse_from_rfc3339(&m.date)
+        .map(|d| now.signed_duration_since(d) > chrono::Duration::days(2))
+        .unwrap_or(false);
+    old_mail && is_past(due_date, now)
+}
+
 /// The user's enabled rules, in the order the prompt numbers them.
 pub fn rules_in_force(db: &Db) -> Vec<String> {
     db.list_rules()
@@ -466,6 +500,14 @@ async fn process_pending(
         .and_then(|v| v.parse::<f64>().ok())
         .unwrap_or(DEFAULT_THRESHOLD);
 
+    let own = crate::mail::profile()
+        .map(|p| thunderbird::identities(&p.dir))
+        .unwrap_or_default();
+    let user = own
+        .iter()
+        .find(|i| !i.name.is_empty())
+        .map(|i| i.name.clone())
+        .unwrap_or_default();
     for m in pending {
         // Mail in junk, trash, drafts, sent, or outbox is never a task.
         let role = roles
@@ -478,6 +520,17 @@ async fn process_pending(
         }
         let skipped = skipped_role_in(role, &skipped_roles(&lock(db)));
         if skipped {
+            let _ = lock(db).mark_mail_processed(m.id);
+            continue;
+        }
+        // Mail the user sent to other people (a copy in the inbox) is not a
+        // task; it still closes questions it answers. A note to self (sent
+        // only to the user's own addresses) is read like any other mail:
+        // that is usually why the user sent it.
+        if is_own(&own, &m.from_addr) && !note_to_self(&own, &m.to_addrs) {
+            if role != FolderRole::Sent && !close_replied(&lock(db), &m).is_empty() {
+                announce_tasks(bus).await;
+            }
             let _ = lock(db).mark_mail_processed(m.id);
             continue;
         }
@@ -518,7 +571,7 @@ async fn process_pending(
             attachment_text: m.attachment_text.clone(),
         };
         let rules = rules_in_force(&lock(db));
-        let done = extract::extract(engine, &email, Local::now(), false, &rules).await;
+        let done = extract::extract_for(engine, &email, Local::now(), false, &rules, &user).await;
         if let Some(n) = done.result.rule_applied {
             info!(mail = m.id, rule = n, "a standing rule applied");
         }
@@ -654,10 +707,21 @@ async fn process_pending(
 
         match decide(&done.result, threshold) {
             Decision::Nothing => {}
+            Decision::Task(e) if stale(&m, e.due_date.as_deref(), Local::now()) => {
+                info!(mail = m.id, "already past when read; no task");
+            }
             Decision::Task(e) => {
                 let created = create_task_from_mail(&lock(db), &m, &e);
-                // A rule asking for several items: the rest, each its own task.
+                // A rule asking for several items: the rest, each its own
+                // task, without repeats and without ones already past.
+                let mut seen: Vec<(String, Option<String>)> =
+                    vec![(e.title.to_lowercase(), e.due_date.clone())];
                 for extra in &e.also {
+                    let key = (extra.title.to_lowercase(), extra.due_date.clone());
+                    if seen.contains(&key) || is_past(extra.due_date.as_deref(), Local::now()) {
+                        continue;
+                    }
+                    seen.push(key);
                     let one = Extraction {
                         title: extra.title.clone(),
                         due_date: extra.due_date.clone(),
@@ -701,6 +765,9 @@ async fn process_pending(
                     }
                     Err(err) => warn!(mail = m.id, "could not create task: {err}"),
                 }
+            }
+            Decision::Suggest(e) if stale(&m, e.due_date.as_deref(), Local::now()) => {
+                info!(mail = m.id, "already past when read; no suggestion");
             }
             Decision::Suggest(e) => {
                 let due =
@@ -794,6 +861,7 @@ pub fn open_thunderbird_with(args: &[&str]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone;
 
     /// The default skip list, as a predicate.
     fn skipped_role(role: FolderRole) -> bool {
@@ -1022,6 +1090,53 @@ mod tests {
         db.delete_rule(a.id).unwrap();
         assert_eq!(rules_in_force(&db), ["Ignore newsletters from Shoply."]);
         let _ = b;
+    }
+
+    #[test]
+    fn notes_to_self_are_read_but_mail_to_others_is_not() {
+        let own = vec![
+            thunderbird::Identity {
+                name: "Me".into(),
+                email: "me@example.invalid".into(),
+            },
+            thunderbird::Identity {
+                name: "Me".into(),
+                email: "me@work.invalid".into(),
+            },
+        ];
+        assert!(is_own(&own, "Me@Example.invalid"));
+        assert!(!is_own(&own, "pat@example.invalid"));
+        assert!(note_to_self(&own, "me@example.invalid"));
+        assert!(note_to_self(&own, "me@example.invalid, me@work.invalid"));
+        assert!(!note_to_self(
+            &own,
+            "me@example.invalid, pat@example.invalid"
+        ));
+        assert!(!note_to_self(&own, ""));
+    }
+
+    #[test]
+    fn past_items_from_old_mail_are_stale_but_fresh_overdue_notices_are_not() {
+        let now = Local.with_ymd_and_hms(2026, 10, 5, 12, 0, 0).unwrap();
+        let old = MailMessage {
+            date: "2026-09-20T09:00:00-05:00".into(),
+            ..mail()
+        };
+        let fresh = MailMessage {
+            date: "2026-10-05T08:00:00-05:00".into(),
+            ..mail()
+        };
+        assert!(
+            stale(&old, Some("2026-09-22"), now),
+            "a September bill read in October"
+        );
+        assert!(!stale(&old, Some("2026-10-20"), now), "still ahead");
+        assert!(!stale(&old, None, now), "no date");
+        assert!(
+            !stale(&fresh, Some("2026-10-01"), now),
+            "a new past-due notice is still a task"
+        );
+        assert!(is_past(Some("2026-10-04"), now) && !is_past(Some("2026-10-05"), now));
     }
 
     #[test]
